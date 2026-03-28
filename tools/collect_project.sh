@@ -12,7 +12,7 @@ echo "=========================================="
 
 if command -v tree &> /dev/null; then
     # Выводим только папки, исключая скрытые (например .git)
-    tree -d -I '.git|vendor|node_modules'
+    tree -d -I '.git|vendor|node_modules|tools'
 else
     # Если tree не установлен, используем find
     echo "[INFO] 'tree' command not found, using find instead."
