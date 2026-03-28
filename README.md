@@ -116,7 +116,7 @@ The CLI is designed for quick checks and pipeline scripting.
 
 ## Configuration
 
-Proxy Checker uses a TOML settings file located at `~?.config/proxy-checker.conf`.
+Proxy Checker uses a TOML settings file located at `~/.config/proxy-checker.conf`.
 
 If the file does not exist, it is automatically created with default values on the first run.
 
