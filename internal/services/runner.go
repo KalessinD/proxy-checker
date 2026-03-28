@@ -14,12 +14,7 @@ type PipelineCallbacks struct {
 
 // RunPipeline запускает полный цикл: Fetch -> Check
 // Возвращает слайс валидных прокси или ошибку.
-func RunPipeline(
-	ctx context.Context,
-	cfg *config.Config,
-	cb PipelineCallbacks,
-) ([]ProxyItemFull, error) {
-
+func RunPipeline(ctx context.Context, cfg *config.Config, cb PipelineCallbacks) ([]ProxyItemFull, error) {
 	f := NewFetcher(cfg.Source)
 	settings := fetcher.Settings{
 		Type:    cfg.Type,
@@ -44,6 +39,7 @@ func RunPipeline(
 		cfg.Type,
 		cfg.Timeout,
 		cfg.Workers,
+		cfg.CheckHTTP2,
 		cb.OnProgress,
 	)
 

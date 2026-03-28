@@ -2,6 +2,7 @@ package proxies
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -11,11 +12,10 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/net/http2"
 	"golang.org/x/net/proxy"
 )
 
-// contextDialerWrapper адаптирует старый интерфейс proxy.Dialer к новому DialContext,
-// позволяя корректно отменять подключение через context.Context
 type contextDialerWrapper struct {
 	Dialer proxy.Dialer
 }
@@ -34,16 +34,15 @@ func (w *contextDialerWrapper) DialContext(ctx context.Context, network, addr st
 
 	select {
 	case <-ctx.Done():
-		// Контекст отменен. Мы не можем убить системный вызов Dial внутри горутины,
-		// но мы немедленно возвращаем ошибку, не блокируя пул воркеров.
 		return nil, ctx.Err()
 	case res := <-ch:
 		return res.conn, res.err
 	}
 }
 
-func NewClient(proxyAddr, mode string) (*http.Client, error) {
+func NewClient(proxyAddr, mode string, forceHTTP2 bool) (*http.Client, error) {
 	var transport *http.Transport
+
 	switch mode {
 	case "socks4":
 		transport = &http.Transport{
@@ -69,11 +68,28 @@ func NewClient(proxyAddr, mode string) (*http.Client, error) {
 			Proxy: http.ProxyURL(proxyURL),
 		}
 
-	default: // "http"
+	default: // http
 		proxyURL, _ := url.Parse("http://" + proxyAddr)
 		transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
 		}
+	}
+
+	// Включаем HTTP/2
+	if err := http2.ConfigureTransport(transport); err != nil {
+		return nil, err
+	}
+
+	// Принудительный HTTP/2 режим (без fallback)
+	if forceHTTP2 {
+		transport.ForceAttemptHTTP2 = true
+
+		transport.TLSClientConfig = &tls.Config{
+			NextProtos: []string{"h2"},
+			MinVersion: tls.VersionTLS12,
+		}
+
+		transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
 	}
 
 	return &http.Client{
@@ -146,6 +162,6 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 		return nil, fmt.Errorf("SOCKS4 прокси вернул ошибку: код %d", resp[1])
 	}
 
-	conn.SetDeadline(time.Time{})
+	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
 }

@@ -2,6 +2,7 @@ package gui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -32,7 +33,7 @@ type AppGUI struct {
 	progress binding.Float
 	listData binding.UntypedList
 
-	progressBar *widget.ProgressBar
+	progressBar *widget.ProgressBar // ИСПРАВЛЕНО: был *widget.Table
 	table       *widget.Table
 
 	logLabel  *widget.Label
@@ -46,11 +47,11 @@ type AppGUI struct {
 
 	cancelFunc context.CancelFunc
 
-	// ИСПРАВЛЕНИЕ: Кнопки создаются ОДИН РАЗ здесь
 	btnCancel      *widget.Button
 	btnCheckSingle *widget.Button
 	btnCheckList   *widget.Button
 	btnSettings    *widget.Button
+	switchProxy    *widget.Check // ИСПРАВЛЕНО: в Fyne v2 свитч называется *widget.Check
 }
 
 func NewAppGUI(cfg *config.Config) *AppGUI {
@@ -72,6 +73,33 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		gui.showSettingsScreen()
 	})
 
+	// ИСПРАВЛЕНО: widget.NewCheck вместо widget.NewSwitch
+	gui.switchProxy = widget.NewCheck("", func(checked bool) {
+		if !gui.systemProxySupported {
+			gui.appendLog("Системный прокси не поддерживается на данной ОС.\n")
+			gui.switchProxy.SetChecked(false)
+			return
+		}
+
+		var mode string
+		if checked {
+			mode = "manual"
+		} else {
+			mode = "none"
+		}
+
+		if err := setSystemProxyMode(mode); err != nil {
+			gui.appendLog(fmt.Sprintf("Ошибка смены режима прокси: %v\n", err))
+			gui.switchProxy.SetChecked(!checked)
+		} else {
+			gui.appendLog(fmt.Sprintf("Системный прокси переведен в режим: %s\n", mode))
+		}
+	})
+
+	if !gui.systemProxySupported {
+		gui.switchProxy.Disable()
+	}
+
 	gui.btnCheckSingle = widget.NewButton("Проверить один прокси", func() {
 		gui.showSingleCheckScreen()
 	})
@@ -88,6 +116,16 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	})
 	gui.btnCancel.Importance = widget.DangerImportance
 	gui.btnCancel.Disable()
+
+	if gui.systemProxySupported {
+		currentMode, err := getSystemProxyMode()
+		if err != nil {
+			gui.appendLog(fmt.Sprintf("Не удалось получить статус системного прокси: %v\n", err))
+		} else if currentMode == "manual" {
+			// Если режим 'manual', считаем, что прокси включен (наш чекбокс нажат)
+			gui.switchProxy.SetChecked(true)
+		}
+	}
 
 	return gui
 }

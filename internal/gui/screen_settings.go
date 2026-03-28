@@ -15,11 +15,26 @@ import (
 
 func (g *AppGUI) showSettingsScreen() {
 	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
+
+	http2Check := widget.NewCheck("", func(checked bool) {
+		g.cfg.CheckHTTP2 = checked
+	})
+	http2Check.SetChecked(g.cfg.CheckHTTP2)
+	http2Box := container.NewGridWithColumns(2, widget.NewLabel("Проверка HTTP/2:"), http2Check)
+
 	radioType := widget.NewRadioGroup(proxyTypes, func(s string) {
 		if s == "все" {
 			g.cfg.Type = common.ProxyAll
 		} else {
 			g.cfg.Type = common.ProxyType(s)
+		}
+
+		if s == "https" || s == "socks5" || s == "все" {
+			http2Box.Show()
+		} else {
+			http2Box.Hide()
+			g.cfg.CheckHTTP2 = false
+			http2Check.SetChecked(false)
 		}
 	})
 
@@ -28,6 +43,10 @@ func (g *AppGUI) showSettingsScreen() {
 		radioType.SetSelected("все")
 	} else {
 		radioType.SetSelected(currentType)
+	}
+
+	if currentType != "https" && currentType != "socks5" && currentType != "все" {
+		http2Box.Hide()
 	}
 
 	sources := []string{"proxymania", "thespeedx"}
@@ -71,10 +90,10 @@ func (g *AppGUI) showSettingsScreen() {
 	selectTimeout.SetSelected(currentTimeoutStr)
 
 	targetSites := []string{
-		"https://google.com",
-		"https://youtube.com",
-		"https://chatgpt.com",
-		"https://web.telegram.org",
+		"google.com",
+		"youtube.com",
+		"chatgpt.com",
+		"web.telegram.org",
 		"Иной сайт",
 	}
 
@@ -101,10 +120,8 @@ func (g *AppGUI) showSettingsScreen() {
 	if g.isCustomTarget {
 		selectTarget.SetSelected("Иной сайт")
 		customBox.Show()
-	} else {
-		if g.cfg.DestAddr != "" {
-			selectTarget.SetSelected(g.cfg.DestAddr)
-		}
+	} else if g.cfg.DestAddr != "" {
+		selectTarget.SetSelected(g.cfg.DestAddr)
 	}
 
 	themeLabels := []string{"системная", "светлая", "тёмная"}
@@ -167,6 +184,7 @@ func (g *AppGUI) showSettingsScreen() {
 		widget.NewLabel("Настройки проверки"),
 		widget.NewSeparator(),
 		container.NewGridWithColumns(2, widget.NewLabel("Тип прокси:"), radioType),
+		http2Box,
 		container.NewGridWithColumns(2, widget.NewLabel("Источник:"), selectSource),
 		dynamicBox,
 		container.NewGridWithColumns(2, widget.NewLabel("Потоки:"), selectWorkers),

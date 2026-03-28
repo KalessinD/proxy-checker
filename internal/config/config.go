@@ -3,37 +3,39 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"time"
-
 	"proxy-checker/internal/common"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
 
 type Config struct {
-	Type      common.ProxyType `toml:"type"`
-	Timeout   time.Duration    `toml:"timeout"`
-	Workers   int              `toml:"workers"`
-	DestAddr  string           `toml:"dest_addr"`
-	Source    common.Source    `toml:"source"`
-	RTT       int              `toml:"rtt"`
-	Pages     int              `toml:"pages"`
-	Theme     string           `toml:"theme"`
-	MinHeight int              `toml:"min_height"`
-	MinWidth  int              `toml:"min_width"`
+	Type       common.ProxyType `toml:"type"`
+	Timeout    time.Duration    `toml:"timeout"`
+	Workers    int              `toml:"workers"`
+	DestAddr   string           `toml:"dest_addr"`
+	Source     common.Source    `toml:"source"`
+	RTT        int              `toml:"rtt"`
+	Pages      int              `toml:"pages"`
+	Theme      string           `toml:"theme"`
+	MinHeight  int              `toml:"min_height"`
+	MinWidth   int              `toml:"min_width"`
+	CheckHTTP2 bool             `toml:"check_http2"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		Theme:     "system",
-		MinHeight: 300,
-		MinWidth:  600,
-		Source:    common.SourceProxyMania,
-		Type:      common.ProxySOCKS5,
-		Timeout:   10 * time.Second,
-		Workers:   256,
-		Pages:     4,
-		RTT:       150,
+		Theme:      "system",
+		MinHeight:  300,
+		MinWidth:   600,
+		Source:     common.SourceProxyMania,
+		Type:       common.ProxySOCKS5,
+		Timeout:    10 * time.Second,
+		Workers:    256,
+		Pages:      4,
+		RTT:        150,
+		CheckHTTP2: false,
+		DestAddr:   "google.com",
 	}
 }
 
@@ -44,7 +46,7 @@ func getConfigPath() (string, error) {
 	}
 	configDir := filepath.Join(homeDir, ".config")
 	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		os.MkdirAll(configDir, 0755)
+		_ = os.MkdirAll(configDir, 0755)
 	}
 	return filepath.Join(configDir, "proxy-checker.conf"), nil
 }

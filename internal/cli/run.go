@@ -11,14 +11,13 @@ import (
 )
 
 func Run(cfg *config.Config, opts *Options) {
-	if opts.ProxiesStat {
+	switch {
+	case opts.ProxiesStat:
 		handleProxiesList(cfg, opts)
-	} else if opts.ProxyAddr != "" {
+	case opts.ProxyAddr != "":
 		handleSingleCheck(cfg, opts)
-	} else {
-		// Если не передали никакие рабочие флаги - показываем помощь
+	default:
 		println("Укажите действие: -proxy (для проверки) или -proxies-stat (для получения списка)")
-		// flag.Usage() // можно вызвать стандартную справку
 	}
 }
 
@@ -27,7 +26,7 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
 
-	res := services.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type))
+	res := services.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
 	if res.Error != nil {
 		fmt.Printf("[FAIL] %v\n", res.Error)
 		return
@@ -39,7 +38,6 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 func handleProxiesList(cfg *config.Config, opts *Options) {
 	fmt.Printf("Режим: %s (Source: %s, RTT < %dms, Pages: %d)\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
 
-	// Если нужно только получить список без проверки - делаем это локально
 	if !opts.Check {
 		f := services.NewFetcher(cfg.Source)
 		settings := fetcher.Settings{
@@ -60,7 +58,6 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		return
 	}
 
-	// ИСПОЛЬЗУЕМ ЕДИНЫЙ ПАЙПЛАЙН ДЛЯ ПОЛНОЙ ПРОВЕРКИ
 	fmt.Printf("Запуск проверки (Workers: %d)...\n", cfg.Workers)
 
 	validProxies, err := services.RunPipeline(
@@ -76,7 +73,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		},
 	)
 
-	fmt.Println() // Перевод строки после прогресс-бара
+	fmt.Println()
 
 	if err != nil {
 		fmt.Printf("Ошибка при выполнении пайплайна: %v\n", err)
