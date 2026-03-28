@@ -1,12 +1,14 @@
 package gui
 
 import (
+	"context"
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"proxy-checker/internal/config"
 )
@@ -31,11 +33,16 @@ type AppGUI struct {
 	progress binding.Float
 	listData binding.UntypedList
 
-	// Флаг поддержки системного прокси (Linux/GNOME)
 	systemProxySupported bool
 
 	customTargetURL string
 	isCustomTarget  bool
+
+	// Поля для управления состоянием проверки
+	cancelFunc     context.CancelFunc
+	btnCheckList   *widget.Button
+	btnCheckSingle *widget.Button
+	btnCancel      *widget.Button
 }
 
 // NewAppGUI создает новый экземпляр GUI
