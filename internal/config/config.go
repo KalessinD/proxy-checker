@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,15 +26,16 @@ type Config struct {
 	Check       bool `toml:"-"`
 	GUI         bool `toml:"-"`
 
-	// ИЗМЕНЕНО: URL заменен на Source
 	Source string `toml:"source"`
 	RTT    int    `toml:"rtt"`
 	Pages  int    `toml:"pages"`
 
+	// Новые поля
 	Theme     string `toml:"theme"`
 	MinHeight int    `toml:"min_height"`
 }
 
+// getConfigPath возвращает путь к файлу конфигурации
 func getConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -46,6 +48,7 @@ func getConfigPath() (string, error) {
 	return filepath.Join(configDir, "proxy-checker.conf"), nil
 }
 
+// LoadFromFile загружает конфигурацию из файла
 func (c *Config) LoadFromFile() error {
 	path, err := getConfigPath()
 	if err != nil {
@@ -57,15 +60,10 @@ func (c *Config) LoadFromFile() error {
 	}
 
 	_, err = toml.DecodeFile(path, c)
-
-	// Миграция: если Source пустой, ставим дефолт
-	if c.Source == "" {
-		c.Source = "proxymania"
-	}
-
 	return err
 }
 
+// SaveToFile сохраняет конфигурацию в файл
 func (c *Config) SaveToFile() error {
 	path, err := getConfigPath()
 	if err != nil {
@@ -81,16 +79,41 @@ func (c *Config) SaveToFile() error {
 	return toml.NewEncoder(f).Encode(c)
 }
 
+// GetFinalURL формирует итоговый URL для парсинга с параметрами
+func (c *Config) GetFinalURL() (string, error) {
+	u, err := url.Parse(c.Source)
+	if err != nil {
+		return "", err
+	}
+	q := u.Query()
+
+	// Обработка типа
+	if c.Type == "all" {
+		q.Del("type")
+	} else {
+		// Маппинг для URL (нужны заглавные буквы: SOCKS5, HTTP)
+		typeMap := map[string]string{
+			"socks5": "SOCKS5", "socks4": "SOCKS4",
+			"http": "HTTP", "https": "HTTPS",
+		}
+		if t, ok := typeMap[c.Type]; ok {
+			q.Set("type", t)
+		}
+	}
+
+	q.Set("speed", strconv.Itoa(c.RTT))
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
+// Parse считывает аргументы командной строки.
 func (c *Config) Parse() error {
 	// Дефолты
 	if c.Theme == "" {
 		c.Theme = "system"
 	}
 	if c.MinHeight == 0 {
-		c.MinHeight = 300
-	}
-	if c.Source == "" {
-		c.Source = "proxymania"
+		c.MinHeight = 300 // Значение по умолчанию изменено на 300
 	}
 
 	// Флаги
@@ -101,18 +124,18 @@ func (c *Config) Parse() error {
 	flag.StringVar(&c.DestAddr, "dest", c.DestAddr, "Адрес целевого узла")
 	flag.BoolVar(&c.ProxiesStat, "proxies-stat", c.ProxiesStat, "Режим получения списка прокси")
 	flag.BoolVar(&c.Check, "check", c.Check, "Проверить доступность найденных прокси")
-
-	// ИЗМЕНЕНО: флаг -source вместо -url
-	flag.StringVar(&c.Source, "source", c.Source, "Источник прокси (proxymania, thespeedx)")
-
+	flag.StringVar(&c.Source, "url", c.Source, "URL источника прокси")
 	flag.IntVar(&c.RTT, "rtt", c.RTT, "Максимальное время отклика (мс)")
 	flag.IntVar(&c.Pages, "pages", c.Pages, "Количество страниц для парсинга")
 	flag.BoolVar(&c.GUI, "gui", c.GUI, "Запустить графический интерфейс")
+
+	// Новые флаги
 	flag.StringVar(&c.Theme, "theme", c.Theme, "Цветовая тема GUI: light, dark, system")
 	flag.IntVar(&c.MinHeight, "min-height", c.MinHeight, "Минимальная высота таблицы в пикселях (мин. 100)")
 
 	flag.Parse()
 
+	// Валидация типа прокси
 	validTypes := map[string]bool{
 		"socks5": true, "socks4": true,
 		"http": true, "https": true, "all": true,
@@ -121,12 +144,14 @@ func (c *Config) Parse() error {
 		return errors.New("неверный тип прокси")
 	}
 
+	// Валидация темы
 	c.Theme = strings.ToLower(c.Theme)
 	validThemes := map[string]bool{"light": true, "dark": true, "system": true}
 	if !validThemes[c.Theme] {
 		return errors.New("неверное значение темы, используйте: light, dark или system")
 	}
 
+	// Валидация высоты
 	if c.MinHeight < 100 {
 		return errors.New("минимальная высота таблицы не может быть меньше 100px")
 	}
@@ -134,6 +159,8 @@ func (c *Config) Parse() error {
 	return nil
 }
 
+// Validate проверяет логику работы.
+// Для GUI режима проверка не требуется, так как параметры задаются в интерфейсе.
 func (c *Config) Validate() error {
 	if c.GUI {
 		return nil
@@ -161,10 +188,9 @@ func (c *Config) Validate() error {
 		if c.Workers < 1 {
 			return errors.New("workers должен быть не меньше 1")
 		}
-		// Проверка source не нужна, фабрика обработает невалидное значение
-		_, err := url.Parse("http://dummy.com")
+		_, err := url.Parse(c.Source)
 		if err != nil {
-			return fmt.Errorf("ошибка конфигурации: %w", err)
+			return fmt.Errorf("некорректный URL: %w", err)
 		}
 		return nil
 	}
