@@ -6,36 +6,38 @@ import (
 	"strings"
 	"time"
 
+	"proxy-checker/internal/common"
+
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
 func (g *AppGUI) showSettingsScreen() {
-	// 1. Тип прокси
 	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
 	radioType := widget.NewRadioGroup(proxyTypes, func(s string) {
 		if s == "все" {
-			g.cfg.Type = "all"
+			g.cfg.Type = common.ProxyAll
 		} else {
-			g.cfg.Type = s
+			g.cfg.Type = common.ProxyType(s) // ЯВНОЕ ПРИВЕДЕНИЕ К ТИПУ
 		}
 	})
-	currentType := g.cfg.Type
-	if currentType == "all" {
+
+	// ИСПРАВЛЕНО: string(currentType)
+	currentType := string(g.cfg.Type)
+	if g.cfg.Type == common.ProxyAll {
 		radioType.SetSelected("все")
 	} else {
 		radioType.SetSelected(currentType)
 	}
 
-	// 2. Источник
 	sources := []string{"proxymania", "thespeedx"}
 	selectSource := widget.NewSelect(sources, func(s string) {
-		g.cfg.Source = s
+		g.cfg.Source = common.Source(s) // ЯВНОЕ ПРИВЕДЕНИЕ К ТИПУ
 	})
-	selectSource.SetSelected(g.cfg.Source)
+	// ИСПРАВЛЕНО: string(g.cfg.Source)
+	selectSource.SetSelected(string(g.cfg.Source))
 
-	// 3. RTT (Скрывается для thespeedx)
 	rttOptions := []string{}
 	for i := 50; i <= 500; i += 50 {
 		rttOptions = append(rttOptions, strconv.Itoa(i))
@@ -47,7 +49,6 @@ func (g *AppGUI) showSettingsScreen() {
 	selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
 	rttLabel := widget.NewLabel("Макс. RTT (мс):")
 
-	// 4. Workers
 	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256"}
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, _ := strconv.Atoi(s)
@@ -55,7 +56,6 @@ func (g *AppGUI) showSettingsScreen() {
 	})
 	selectWorkers.SetSelected(strconv.Itoa(g.cfg.Workers))
 
-	// 5. Pages (Скрывается для thespeedx)
 	pageOptions := []string{"1", "2", "3", "4", "5"}
 	selectPages := widget.NewSelect(pageOptions, func(s string) {
 		val, _ := strconv.Atoi(s)
@@ -64,7 +64,6 @@ func (g *AppGUI) showSettingsScreen() {
 	selectPages.SetSelected(strconv.Itoa(g.cfg.Pages))
 	pagesLabel := widget.NewLabel("Число страниц:")
 
-	// 6. Timeout
 	timeoutOptions := []string{"1s", "3s", "5s", "10s", "20s", "30s"}
 	selectTimeout := widget.NewSelect(timeoutOptions, func(s string) {
 		d, _ := time.ParseDuration(s)
@@ -73,7 +72,6 @@ func (g *AppGUI) showSettingsScreen() {
 	currentTimeoutStr := fmt.Sprintf("%ds", int(g.cfg.Timeout.Seconds()))
 	selectTimeout.SetSelected(currentTimeoutStr)
 
-	// 7. Target Site
 	targetSites := []string{
 		"https://google.com",
 		"https://youtube.com",
@@ -100,20 +98,17 @@ func (g *AppGUI) showSettingsScreen() {
 			customBox.Hide()
 		}
 	})
-	// ИЗМЕНЕНО: Явно задаем плейсхолдер
 	selectTarget.PlaceHolder = "(Выберите из списка)"
 
 	if g.isCustomTarget {
 		selectTarget.SetSelected("Иной сайт")
 		customBox.Show()
 	} else {
-		// Если в конфиге что-то есть, выбираем это, иначе будет показан плейсхолдер
 		if g.cfg.DestAddr != "" {
 			selectTarget.SetSelected(g.cfg.DestAddr)
 		}
 	}
 
-	// 8. Theme
 	themeLabels := []string{"системная", "светлая", "тёмная"}
 	selectTheme := widget.NewSelect(themeLabels, func(s string) {
 		var val string
@@ -138,22 +133,23 @@ func (g *AppGUI) showSettingsScreen() {
 	}
 	selectTheme.SetSelected(currentThemeLabel)
 
-	// Контейнеры для динамических элементов (RTT и Pages)
 	rttBox := container.NewGridWithColumns(2, rttLabel, selectRTT)
 	pagesBox := container.NewGridWithColumns(2, pagesLabel, selectPages)
 	dynamicBox := container.NewVBox(rttBox, pagesBox)
 
-	// Логика скрытия RTT и Pages
 	toggleDynamicFields := func(source string) {
-		if source == "thespeedx" {
+		if source == string(common.SourceTheSpeedX) {
 			dynamicBox.Hide()
 		} else {
 			dynamicBox.Show()
 		}
 	}
-	toggleDynamicFields(g.cfg.Source)
+
+	// ИСПРАВЛЕНО: string(g.cfg.Source)
+	toggleDynamicFields(string(g.cfg.Source))
+
 	selectSource.OnChanged = func(s string) {
-		g.cfg.Source = s
+		g.cfg.Source = common.Source(s)
 		toggleDynamicFields(s)
 	}
 
@@ -170,26 +166,17 @@ func (g *AppGUI) showSettingsScreen() {
 		g.showMainScreen()
 	})
 
-	// ИЗМЕНЕНО: Верстка "Сайт проверки" как Grid строки
 	settingsContent := container.NewVBox(
 		widget.NewLabel("Настройки проверки"),
 		widget.NewSeparator(),
-		// Ряд 1: Тип прокси
 		container.NewGridWithColumns(2, widget.NewLabel("Тип прокси:"), radioType),
-		// Ряд 2: Источник
 		container.NewGridWithColumns(2, widget.NewLabel("Источник:"), selectSource),
-		// Динамические ряды (RTT и Pages)
 		dynamicBox,
-		// Ряд: Потоки
 		container.NewGridWithColumns(2, widget.NewLabel("Потоки:"), selectWorkers),
-		// Ряд: Таймаут
 		container.NewGridWithColumns(2, widget.NewLabel("Таймаут:"), selectTimeout),
-		// Ряд: Сайт проверки (Исправлено: Label слева, Select справа)
 		container.NewGridWithColumns(2, widget.NewLabel("Сайт проверки:"), selectTarget),
-		// Поле для ввода своего адреса (появляется под селектором)
 		customBox,
 		widget.NewSeparator(),
-		// Ряд: Тема
 		container.NewGridWithColumns(2, widget.NewLabel("Тема интерфейса:"), selectTheme),
 	)
 

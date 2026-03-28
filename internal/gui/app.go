@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
 )
 
@@ -17,7 +18,7 @@ import (
 type ProxyItemWrapper struct {
 	Host    string
 	Port    string
-	Type    string
+	Type    common.ProxyType
 	Country string
 	TCP     string
 	HTTP    string
@@ -47,7 +48,6 @@ type AppGUI struct {
 
 // NewAppGUI создает новый экземпляр GUI
 func NewAppGUI(cfg *config.Config) *AppGUI {
-	// os.Setenv("FYNE_APP_ID", "Proxy Checker")
 	a := app.NewWithID("Proxy Checker")
 
 	gui := &AppGUI{

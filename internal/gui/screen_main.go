@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"proxy-checker/internal/services"
-	"proxy-checker/internal/services/fetcher"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -39,7 +38,6 @@ func (g *AppGUI) showMainScreen() {
 		g.showSettingsScreen()
 	})
 
-	// Инициализируем кнопки
 	g.btnCheckSingle = widget.NewButton("Проверить один прокси", func() {
 		g.showSingleCheckScreen()
 	})
@@ -57,7 +55,6 @@ func (g *AppGUI) showMainScreen() {
 	g.btnCancel.Importance = widget.DangerImportance
 	g.btnCancel.Hide()
 
-	// Порядок кнопок - Прервать, затем Проверить
 	rightButtons := container.NewHBox(
 		g.btnCancel,
 		g.btnCheckSingle,
@@ -108,7 +105,6 @@ func (g *AppGUI) showMainScreen() {
 	g.window.SetContent(content)
 }
 
-// setUIState управляет доступностью кнопок и видимостью кнопки отмены
 func (g *AppGUI) setUIState(running bool) {
 	if running {
 		g.btnCheckList.Disable()
@@ -130,53 +126,32 @@ func (g *AppGUI) runBatchCheck() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelFunc = cancel
 
-	// ИСПРАВЛЕНО: Используем глобальный доступ к драйверу для переключения потока
-	//fyne.CurrentApp().Driver().RunOnMainThread(func() {
 	fyne.DoAndWait(func() {
 		g.setUIState(true)
 	})
-
-	// Используем defer для гарантии восстановления UI
 	defer fyne.DoAndWait(func() { g.setUIState(false) })
 
 	currentLog, _ := g.logText.Get()
 	g.logText.Set(currentLog + fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
 
-	f := services.NewFetcher(g.cfg.Source)
-	settings := fetcher.Settings{
-		Type:    g.cfg.Type,
-		MaxRTT:  g.cfg.RTT,
-		Pages:   g.cfg.Pages,
-		Timeout: int(g.cfg.Timeout),
-	}
+	// ИСПОЛЬЗУЕМ ЕДИНЫЙ ПАЙПЛАЙН
+	validProxies, err := services.RunPipeline(ctx, g.cfg, services.PipelineCallbacks{
+		OnFetched: func(total int) {
+			currentLog, _ := g.logText.Get()
+			g.logText.Set(currentLog + fmt.Sprintf("Найдено: %d. Проверка...\n", total))
+		},
+		OnProgress: func(current, total int32) {
+			if ctx.Err() == nil {
+				g.progress.Set(float64(current) / float64(total))
+			}
+		},
+	})
 
-	allProxies, err := f.Fetch(ctx, settings)
 	if err != nil {
 		currentLog, _ := g.logText.Get()
 		g.logText.Set(currentLog + fmt.Sprintf("Ошибка получения прокси: %v\n", err))
 		return
 	}
-
-	if ctx.Err() != nil {
-		return
-	}
-
-	currentLog, _ = g.logText.Get()
-	g.logText.Set(currentLog + fmt.Sprintf("Найдено: %d. Проверка...\n", len(allProxies)))
-
-	validProxies := services.CheckBatch(
-		ctx,
-		allProxies,
-		g.getTargetURL(),
-		g.cfg.Type,
-		g.cfg.Timeout,
-		g.cfg.Workers,
-		func(current, total int32) {
-			if ctx.Err() == nil {
-				g.progress.Set(float64(current) / float64(total))
-			}
-		},
-	)
 
 	items := make([]interface{}, len(validProxies))
 	for i, p := range validProxies {
@@ -232,7 +207,7 @@ func (g *AppGUI) createResultTable() *widget.List {
 			row := obj.(*fyne.Container)
 			row.Objects[0].(*widget.Entry).SetText(p.Host)
 			row.Objects[1].(*widget.Entry).SetText(p.Port)
-			row.Objects[2].(*widget.Entry).SetText(p.Type)
+			row.Objects[2].(*widget.Entry).SetText(string(p.Type))
 			row.Objects[3].(*widget.Entry).SetText(p.Country)
 			row.Objects[4].(*widget.Entry).SetText(p.TCP)
 			row.Objects[5].(*widget.Entry).SetText(p.HTTP)
@@ -243,7 +218,7 @@ func (g *AppGUI) createResultTable() *widget.List {
 				pt := p.Port
 				t := p.Type
 				btn.OnTapped = func() {
-					g.applySystemProxy(h, pt, t)
+					g.applySystemProxy(h, pt, string(t))
 				}
 			}
 		},

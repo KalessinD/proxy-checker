@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/services"
 
 	"fyne.io/fyne/v2/container"
@@ -12,22 +13,21 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// showSingleCheckScreen отрисовывает экран проверки одного прокси
 func (g *AppGUI) showSingleCheckScreen() {
 	proxyEntry := widget.NewEntry()
 	proxyEntry.SetPlaceHolder("host:port")
 
-	// 1. Тип прокси
 	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
 	radioType := widget.NewRadioGroup(proxyTypes, nil)
-	currentType := g.cfg.Type
-	if currentType == "all" {
+
+	// ИСПРАВЛЕНО: string(g.cfg.Type)
+	currentType := string(g.cfg.Type)
+	if g.cfg.Type == common.ProxyAll {
 		radioType.SetSelected("все")
 	} else {
 		radioType.SetSelected(currentType)
 	}
 
-	// 2. Target Site
 	targetSites := []string{
 		"https://google.com",
 		"https://youtube.com",
@@ -54,7 +54,6 @@ func (g *AppGUI) showSingleCheckScreen() {
 			customBox.Hide()
 		}
 	})
-	// Устанавливаем плейсхолдер
 	targetSelect.PlaceHolder = "(Выберите из списка)"
 
 	if g.isCustomTarget {
@@ -73,7 +72,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 		selectedType := radioType.Selected
 		checkType := selectedType
 		if selectedType == "все" {
-			checkType = "socks5"
+			checkType = "socks5" // Заглушка для одиночной проверки типа "все"
 		}
 
 		if addr == "" {
@@ -104,9 +103,10 @@ func (g *AppGUI) showSingleCheckScreen() {
 			}
 
 			item := ProxyItemWrapper{
-				Host:    host,
-				Port:    port,
-				Type:    checkType,
+				Host: host,
+				Port: port,
+				// ИСПРАВЛЕНО: приведение строки к типу common.ProxyType
+				Type:    common.ProxyType(checkType),
 				Country: "N/A",
 				TCP:     res.ProxyLatencyStr,
 				HTTP:    res.ReqLatencyStr,
