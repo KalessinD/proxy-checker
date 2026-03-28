@@ -92,16 +92,16 @@ func CheckBatch(
 
 	// Dispatcher: отправляем задачи, но слушаем контекст
 	go func() {
+		defer close(jobs)
 		for _, p := range proxiesList {
 			select {
 			case jobs <- p:
 				// отправлено
 			case <-ctx.Done():
 				// контекст отменен, прекращаем отправку
-				break
+				return
 			}
 		}
-		close(jobs)
 	}()
 
 	// Waiter: закрывает канал результатов
