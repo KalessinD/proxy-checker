@@ -42,12 +42,12 @@ git clone https://github.com/yourusername/proxy-checker.git
 cd proxy-checker
 ```
 
-# Build the binary to ./bin/proxy-checker
+### Build the binary to ./bin/proxy-checker
 ```bash
 make build
 ```
 
-# Run the binary as ./bin/proxy-checker
+### Run the binary as ./bin/proxy-checker
 ```bash
 make run
 ```
