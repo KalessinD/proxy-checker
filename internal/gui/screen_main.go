@@ -13,6 +13,27 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// minSizeWidget обертка для задания минимального размера любому контейнеру
+type minSizeWidget struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+	minSize fyne.Size
+}
+
+func newMinSizeWidget(content fyne.CanvasObject, min fyne.Size) *minSizeWidget {
+	w := &minSizeWidget{content: content, minSize: min}
+	w.ExtendBaseWidget(w)
+	return w
+}
+
+func (w *minSizeWidget) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(w.content)
+}
+
+func (w *minSizeWidget) MinSize() fyne.Size {
+	return w.minSize
+}
+
 // tableCell кастомный виджет для одной ячейки таблицы.
 type tableCell struct {
 	widget.BaseWidget
@@ -92,13 +113,13 @@ func (w *resizableTable) updateColumnWidths(availableWidth float32) {
 
 	buttonWidth := float32(0)
 	if w.hasButtonCol {
-		buttonWidth = 110
+		buttonWidth = 100
 	}
 
-	const rightMargin float32 = 10
-	usableWidth := availableWidth - buttonWidth - rightMargin
+	const rightMargin float32 = 25
+	totalTableWidth := availableWidth - rightMargin
+	usableWidth := totalTableWidth - buttonWidth
 
-	// Пропорции колонок
 	proportions := []float32{0.30, 0.08, 0.10, 0.15, 0.185, 0.185}
 
 	w.table.SetColumnWidth(0, usableWidth*proportions[0])
@@ -131,7 +152,7 @@ func (g *AppGUI) showMainScreen() {
 	g.btnCancel = widget.NewButton("Прервать", func() {
 		if g.cancelFunc != nil {
 			g.cancelFunc()
-			g.logText.Set("Проверка прервана пользователем.\n")
+			g.appendLog("Проверка прервана пользователем.\n")
 		}
 	})
 	g.btnCancel.Importance = widget.DangerImportance
@@ -149,9 +170,12 @@ func (g *AppGUI) showMainScreen() {
 		container.NewPadded(buttonsBar),
 	)
 
-	logEntry := widget.NewEntryWithData(g.logText)
-	logEntry.MultiLine = true
-	logEntry.Wrapping = fyne.TextWrapWord
+	g.logLabel = widget.NewLabel("")
+	g.logLabel.Wrapping = fyne.TextWrapWord
+	g.logScroll = container.NewScroll(g.logLabel)
+
+	// Задаем минимальную высоту для области логов
+	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
 	progressBar := widget.NewProgressBarWithData(g.progress)
 	g.progressBar = progressBar
@@ -159,7 +183,7 @@ func (g *AppGUI) showMainScreen() {
 
 	topBox := container.NewVBox(
 		widget.NewLabel("Логи:"),
-		logEntry,
+		logArea,
 		widget.NewLabel("Прогресс:"),
 		progressBar,
 	)
@@ -179,11 +203,10 @@ func (g *AppGUI) showMainScreen() {
 		g.table,
 		tableHeader,
 		g.systemProxySupported,
-		float32(g.cfg.MinWidth), // БЕРЕМ ИЗ КОНФИГА
+		float32(g.cfg.MinWidth),
 		float32(g.cfg.MinHeight),
 	)
 
-	// Оставляем легкий системный отступ, а основной зазор формирует математика выше
 	paddedTable := container.NewPadded(scalableTable)
 
 	content := container.NewBorder(
@@ -211,7 +234,8 @@ func (g *AppGUI) setUIState(running bool) {
 }
 
 func (g *AppGUI) runBatchCheck() {
-	g.logText.Set("Подготовка...\n")
+	g.logBuffer = ""
+	g.appendLog("Подготовка...\n")
 	g.progress.Set(0)
 	g.listData.Set([]interface{}{})
 
@@ -228,13 +252,11 @@ func (g *AppGUI) runBatchCheck() {
 		g.progressBar.Hide()
 	})
 
-	currentLog, _ := g.logText.Get()
-	g.logText.Set(currentLog + fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
+	g.appendLog(fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
 
 	validProxies, err := services.RunPipeline(ctx, g.cfg, services.PipelineCallbacks{
 		OnFetched: func(total int) {
-			currentLog, _ := g.logText.Get()
-			g.logText.Set(currentLog + fmt.Sprintf("Найдено: %d. Проверка...\n", total))
+			g.appendLog(fmt.Sprintf("Найдено: %d. Проверка...\n", total))
 		},
 		OnProgress: func(current, total int32) {
 			if ctx.Err() == nil {
@@ -244,8 +266,7 @@ func (g *AppGUI) runBatchCheck() {
 	})
 
 	if err != nil {
-		currentLog, _ := g.logText.Get()
-		g.logText.Set(currentLog + fmt.Sprintf("Ошибка получения прокси: %v\n", err))
+		g.appendLog(fmt.Sprintf("Ошибка получения прокси: %v\n", err))
 		return
 	}
 
@@ -262,11 +283,10 @@ func (g *AppGUI) runBatchCheck() {
 	}
 	g.listData.Set(items)
 
-	currentLog, _ = g.logText.Get()
 	if ctx.Err() != nil {
-		g.logText.Set(currentLog + "Проверка остановлена.\n")
+		g.appendLog("Проверка остановлена.\n")
 	} else {
-		g.logText.Set(currentLog + fmt.Sprintf("Готово. Найдено рабочих: %d\n", len(validProxies)))
+		g.appendLog(fmt.Sprintf("Готово. Найдено рабочих: %d\n", len(validProxies)))
 	}
 	g.progress.Set(1.0)
 }
@@ -334,8 +354,8 @@ func (g *AppGUI) createResultTable() *widget.Table {
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	err := setSystemProxy(host, port, proxyType)
 	if err != nil {
-		g.logText.Set(fmt.Sprintf("Ошибка применения прокси %s:%s (%s): %v\n", host, port, proxyType, err))
+		g.appendLog(fmt.Sprintf("Ошибка применения прокси %s:%s (%s): %v\n", host, port, proxyType, err))
 	} else {
-		g.logText.Set(fmt.Sprintf("Системный прокси изменен: %s://%s:%s\n", strings.ToLower(proxyType), host, port))
+		g.appendLog(fmt.Sprintf("Системный прокси изменен: %s://%s:%s\n", strings.ToLower(proxyType), host, port))
 	}
 }

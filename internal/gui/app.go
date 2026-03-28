@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -28,12 +29,16 @@ type AppGUI struct {
 	window fyne.Window
 	cfg    *config.Config
 
-	logText  binding.String
 	progress binding.Float
 	listData binding.UntypedList
 
 	progressBar *widget.ProgressBar
 	table       *widget.Table
+
+	// ИСПРАВЛЕНИЕ: Заменяем logText binding.String на правильные компоненты для логов
+	logLabel  *widget.Label
+	logScroll *container.Scroll
+	logBuffer string
 
 	systemProxySupported bool
 
@@ -53,7 +58,6 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		app:      a,
 		window:   a.NewWindow("Proxy Checker"),
 		cfg:      cfg,
-		logText:  binding.NewString(),
 		progress: binding.NewFloat(),
 		listData: binding.NewUntypedList(),
 	}
@@ -63,6 +67,13 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	gui.systemProxySupported = isSystemProxySupported()
 
 	return gui
+}
+
+// appendLog добавляет текст в логи и автоматически прокручивает их вниз
+func (g *AppGUI) appendLog(text string) {
+	g.logBuffer += text
+	g.logLabel.SetText(g.logBuffer)
+	g.logScroll.ScrollToBottom()
 }
 
 func (g *AppGUI) applyTheme(themeName string) {

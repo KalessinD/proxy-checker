@@ -20,7 +20,6 @@ func (g *AppGUI) showSingleCheckScreen() {
 	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
 	radioType := widget.NewRadioGroup(proxyTypes, nil)
 	currentType := string(g.cfg.Type)
-
 	if g.cfg.Type == common.ProxyAll {
 		radioType.SetSelected("все")
 	} else {
@@ -75,12 +74,12 @@ func (g *AppGUI) showSingleCheckScreen() {
 		}
 
 		if addr == "" {
-			g.logText.Set("Ошибка: введите адрес прокси\n")
+			g.appendLog("Ошибка: введите адрес прокси\n") // ИСПРАВЛЕНО
 			return
 		}
 
 		g.showMainScreen()
-		g.logText.Set(fmt.Sprintf("Проверка %s -> %s (Type: %s)...\n", addr, target, checkType))
+		g.appendLog(fmt.Sprintf("Проверка %s -> %s (Type: %s)...\n", addr, target, checkType)) // ИСПРАВЛЕНО
 		g.progress.Set(0)
 
 		go func() {
@@ -97,7 +96,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			res := services.CheckProxy(ctx, addr, target, checkType)
 
 			if res.Error != nil {
-				g.logText.Set(fmt.Sprintf("Ошибка: %v\n", res.Error))
+				g.appendLog(fmt.Sprintf("Ошибка: %v\n", res.Error)) // ИСПРАВЛЕНО
 				return
 			}
 
@@ -111,7 +110,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			}
 
 			g.listData.Set([]interface{}{item})
-			g.logText.Set(fmt.Sprintf("Проверка завершена. Статус: %d\n", res.StatusCode))
+			g.appendLog(fmt.Sprintf("Проверка завершена. Статус: %d\n", res.StatusCode)) // ИСПРАВЛЕНО
 			g.progress.Set(1.0)
 		}()
 	})
