@@ -13,25 +13,112 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-type minSizeWidget struct {
+// tableCell кастомный виджет для одной ячейки таблицы.
+type tableCell struct {
 	widget.BaseWidget
-	content fyne.CanvasObject
-	minSize fyne.Size
+	label *widget.Label
+	btn   *widget.Button
 }
 
-func newMinSizeWidget(content fyne.CanvasObject, min fyne.Size) *minSizeWidget {
-	w := &minSizeWidget{content: content, minSize: min}
+func newTableCell() *tableCell {
+	c := &tableCell{
+		label: widget.NewLabel(""),
+		btn:   widget.NewButton("Применить", nil),
+	}
+	c.label.Truncation = fyne.TextTruncateClip
+	c.btn.Hide()
+	c.ExtendBaseWidget(c)
+	return c
+}
+
+func (c *tableCell) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(container.NewStack(c.label, c.btn))
+}
+
+func (c *tableCell) updateText(text string) {
+	c.label.SetText(text)
+	c.label.Show()
+	c.btn.Hide()
+}
+
+func (c *tableCell) updateButton(onTapped func()) {
+	c.btn.OnTapped = onTapped
+	c.btn.Show()
+	c.label.Hide()
+}
+
+// resizableTable — это кастомный виджет-обертка, который автоматически
+// пересчитывает ширину колонок при изменении размера окна.
+type resizableTable struct {
+	widget.BaseWidget
+	table        *widget.Table
+	header       *fyne.Container
+	hasButtonCol bool
+	minWidth     float32
+	minHeight    float32
+}
+
+func newResizableTable(table *widget.Table, header *fyne.Container, hasButtonCol bool, minW, minH float32) *resizableTable {
+	w := &resizableTable{
+		table:        table,
+		header:       header,
+		hasButtonCol: hasButtonCol,
+		minWidth:     minW,
+		minHeight:    minH,
+	}
 	w.ExtendBaseWidget(w)
 	return w
 }
 
-func (w *minSizeWidget) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(w.content)
+func (w *resizableTable) CreateRenderer() fyne.WidgetRenderer {
+	// Помещаем заголовок сверху, а таблицу на оставшееся место
+	c := container.NewBorder(w.header, nil, nil, nil, w.table)
+	return widget.NewSimpleRenderer(c)
 }
 
-func (w *minSizeWidget) MinSize() fyne.Size {
-	return w.minSize
+func (w *resizableTable) MinSize() fyne.Size {
+	return fyne.NewSize(w.minWidth, w.minHeight)
 }
+
+// МАГИЯ ЗДЕСЬ: Fyne вызывает этот метод каждый раз при ресайзе окна
+func (w *resizableTable) Resize(size fyne.Size) {
+	// Сначала даем базовому виджету обновить свой внутренний размер
+	w.BaseWidget.Resize(size)
+
+	// Затем пересчитываем ширину колонок таблицы исходя из НОВОЙ ширины
+	w.updateColumnWidths(size.Width)
+}
+
+func (w *resizableTable) updateColumnWidths(availableWidth float32) {
+	// Не даем таблице сжиматься меньше заданного минимума
+	if availableWidth < w.minWidth {
+		availableWidth = w.minWidth
+	}
+
+	buttonWidth := float32(0)
+	if w.hasButtonCol {
+		buttonWidth = 110 // Фиксированная ширина под кнопку
+	}
+
+	// Оставшееся пространство делим пропорционально
+	usableWidth := availableWidth - buttonWidth
+
+	// Пропорции: Host(30%), Port(8%), Type(10%), Country(15%), TCP(18.5%), HTTP(18.5%)
+	proportions := []float32{0.30, 0.08, 0.10, 0.15, 0.185, 0.185}
+
+	w.table.SetColumnWidth(0, usableWidth*proportions[0])
+	w.table.SetColumnWidth(1, usableWidth*proportions[1])
+	w.table.SetColumnWidth(2, usableWidth*proportions[2])
+	w.table.SetColumnWidth(3, usableWidth*proportions[3])
+	w.table.SetColumnWidth(4, usableWidth*proportions[4])
+	w.table.SetColumnWidth(5, usableWidth*proportions[5])
+
+	if w.hasButtonCol {
+		w.table.SetColumnWidth(6, buttonWidth)
+	}
+}
+
+// --- Конец вспомогательных структур ---
 
 func (g *AppGUI) showMainScreen() {
 	btnSettings := widget.NewButton("Настройки", func() {
@@ -72,6 +159,8 @@ func (g *AppGUI) showMainScreen() {
 	logEntry.Wrapping = fyne.TextWrapWord
 
 	progressBar := widget.NewProgressBarWithData(g.progress)
+	g.progressBar = progressBar
+	// progressBar.Hide()
 
 	topBox := container.NewVBox(
 		widget.NewLabel("Логи:"),
@@ -80,8 +169,9 @@ func (g *AppGUI) showMainScreen() {
 		progressBar,
 	)
 
-	table := g.createResultTable()
+	g.table = g.createResultTable()
 
+	// Создаем заголовок (GridWithColumns сам растянется на ширину таблицы)
 	headerObjects := []fyne.CanvasObject{
 		widget.NewLabel("Host"), widget.NewLabel("Port"), widget.NewLabel("Type"),
 		widget.NewLabel("Country"), widget.NewLabel("TCP"), widget.NewLabel("HTTP"),
@@ -91,15 +181,21 @@ func (g *AppGUI) showMainScreen() {
 	}
 	tableHeader := container.NewGridWithColumns(len(headerObjects), headerObjects...)
 
-	tableWithHeader := container.NewBorder(tableHeader, nil, nil, nil, table)
-	minTableContainer := newMinSizeWidget(tableWithHeader, fyne.NewSize(0, float32(g.cfg.MinHeight)))
+	// ИСПОЛЬЗУЕМ НАШУ НОВУЮ ОБЕРТКУ ВМЕСТО container.NewBorder И minSizeWidget
+	scalableTable := newResizableTable(
+		g.table,
+		tableHeader,
+		g.systemProxySupported,
+		600,
+		float32(g.cfg.MinHeight),
+	)
 
 	content := container.NewBorder(
 		topBox,
 		buttonsContainer,
 		nil,
 		nil,
-		minTableContainer,
+		scalableTable, // Передаем обертку
 	)
 
 	g.window.SetContent(content)
@@ -123,18 +219,22 @@ func (g *AppGUI) runBatchCheck() {
 	g.progress.Set(0)
 	g.listData.Set([]interface{}{})
 
+	g.progressBar.Show()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelFunc = cancel
 
 	fyne.DoAndWait(func() {
 		g.setUIState(true)
 	})
-	defer fyne.DoAndWait(func() { g.setUIState(false) })
+	defer fyne.DoAndWait(func() {
+		g.setUIState(false)
+		// g.progressBar.Hide()
+	})
 
 	currentLog, _ := g.logText.Get()
 	g.logText.Set(currentLog + fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
 
-	// ИСПОЛЬЗУЕМ ЕДИНЫЙ ПАЙПЛАЙН
 	validProxies, err := services.RunPipeline(ctx, g.cfg, services.PipelineCallbacks{
 		OnFetched: func(total int) {
 			currentLog, _ := g.logText.Get()
@@ -175,54 +275,67 @@ func (g *AppGUI) runBatchCheck() {
 	g.progress.Set(1.0)
 }
 
-func (g *AppGUI) createResultTable() *widget.List {
+func (g *AppGUI) createResultTable() *widget.Table {
 	cols := 6
 	if g.systemProxySupported {
 		cols = 7
 	}
 
-	return widget.NewListWithData(
-		g.listData,
-		func() fyne.CanvasObject {
-			hostEntry := widget.NewEntry()
-			portEntry := widget.NewEntry()
-			typeEntry := widget.NewEntry()
-			countryEntry := widget.NewEntry()
-			tcpEntry := widget.NewEntry()
-			httpEntry := widget.NewEntry()
-			rowObjects := []fyne.CanvasObject{
-				hostEntry, portEntry, typeEntry, countryEntry, tcpEntry, httpEntry,
-			}
-			if g.systemProxySupported {
-				applyBtn := widget.NewButton("Применить", nil)
-				rowObjects = append(rowObjects, applyBtn)
-			}
-			return container.NewGridWithColumns(cols, rowObjects...)
+	table := widget.NewTable(
+		func() (int, int) {
+			length := g.listData.Length()
+			return length, cols
 		},
-		func(id binding.DataItem, obj fyne.CanvasObject) {
-			val := id.(binding.Untyped)
-			item, _ := val.Get()
-			p := item.(ProxyItemWrapper)
+		func() fyne.CanvasObject {
+			return newTableCell()
+		},
+		func(id widget.TableCellID, cell fyne.CanvasObject) {
+			val, err := g.listData.GetItem(id.Row)
+			if err != nil {
+				return
+			}
 
-			row := obj.(*fyne.Container)
-			row.Objects[0].(*widget.Entry).SetText(p.Host)
-			row.Objects[1].(*widget.Entry).SetText(p.Port)
-			row.Objects[2].(*widget.Entry).SetText(string(p.Type))
-			row.Objects[3].(*widget.Entry).SetText(p.Country)
-			row.Objects[4].(*widget.Entry).SetText(p.TCP)
-			row.Objects[5].(*widget.Entry).SetText(p.HTTP)
+			item, _ := val.(binding.Untyped).Get()
+			p, ok := item.(ProxyItemWrapper)
+			if !ok {
+				return
+			}
 
-			if g.systemProxySupported && len(row.Objects) > 6 {
-				btn := row.Objects[6].(*widget.Button)
+			tc := cell.(*tableCell)
+
+			if g.systemProxySupported && id.Col == 6 {
 				h := p.Host
 				pt := p.Port
 				t := p.Type
-				btn.OnTapped = func() {
+				tc.updateButton(func() {
 					g.applySystemProxy(h, pt, string(t))
-				}
+				})
+				return
 			}
+
+			var text string
+			switch id.Col {
+			case 0:
+				text = p.Host
+			case 1:
+				text = p.Port
+			case 2:
+				text = string(p.Type)
+			case 3:
+				text = p.Country
+			case 4:
+				text = p.TCP
+			case 5:
+				text = p.HTTP
+			}
+			tc.updateText(text)
 		},
 	)
+
+	// Ширина больше не задается статически здесь!
+	// Обертка resizableTable сама вызовет SetColumnWidth при первом отображении и при ресайзе.
+
+	return table
 }
 
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {

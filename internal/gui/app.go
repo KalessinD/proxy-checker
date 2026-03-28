@@ -32,7 +32,8 @@ type AppGUI struct {
 	progress binding.Float
 	listData binding.UntypedList
 
-	progressBar *widget.ProgressBar // ДОБАВЛЕНО ДЛЯ УПРАВЛЕНИЯ ВИДИМОСТЬЮ
+	progressBar *widget.ProgressBar
+	table       *widget.Table // ДОБАВЛЕНО: Чтобы иметь доступ к таблице при ресайзе
 
 	systemProxySupported bool
 
