@@ -37,19 +37,26 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 
 Clone the repository and build the binary:
 
-``bash
+```bash
 git clone https://github.com/yourusername/proxy-checker.git
 cd proxy-checker
+```
 
 # Build the binary to ./bin/proxy-checker
+```bash
 make build
-``g
+```
+
+# Run the binary as ./bin/proxy-checker
+```bash
+make run
+```
 
 ### Install (Linux)
 
 To install the binary system-wide (`/usr/bin/`), copy the application icon, and create a desktop shortcut:
 
-``bash
+```bash
 sudo make install
 ```
 *(Note: Ensure your `assets/proxy-checker.png` exists before running install).*
@@ -60,7 +67,7 @@ sudo make install
 
 Simply run the executable. By default, it launches the graphical interface.
 
-``bash
+```bash
 ./bin/proxy-checker
 # or explicitly
 ./bin/proxy-checker -gui
@@ -82,7 +89,7 @@ The CLI is designed for quick checks and pipeline scripting.
 ```
 
 **Fetch a list of proxies (without checking):**
-``bash
+```bash
 ./bin/proxy-checker -proxies-stat -source proxymania -type http -rtt 100 -pages 2
 ```
 
@@ -145,7 +152,7 @@ The project follows standard Go layout principles with clean separation between 
         — fetcher/       # Web scrapers for different proxy sources
 ... assets/                # Icons and static resources
 ... Makefile
-``h
+```
 
 ## Contributing
 
