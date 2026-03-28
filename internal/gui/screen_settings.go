@@ -152,9 +152,9 @@ func (g *AppGUI) showSettingsScreen() {
 
 	btnSave := widget.NewButton("Сохранить", func() {
 		if err := g.cfg.SaveToFile(); err != nil {
-			g.appendLog(fmt.Sprintf("Ошибка сохранения: %v\n", err)) // ИСПРАВЛЕНО
+			g.appendLog(fmt.Sprintf("Ошибка сохранения: %v\n", err))
 		} else {
-			g.appendLog("Настройки сохранены в файл.\n") // ИСПРАВЛЕНО
+			g.appendLog("Настройки сохранены в файл.\n")
 		}
 		g.showMainScreen()
 	})

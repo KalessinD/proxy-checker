@@ -56,6 +56,8 @@ func ParseFlags(cfg *config.Config) (*Options, error) {
 		}
 		if cfg.Workers < 1 {
 			return nil, fmt.Errorf("workers должен быть не меньше 1")
+		} else if cfg.Workers > 256 {
+			return nil, fmt.Errorf("workers должен быть не больше 256")
 		}
 	}
 

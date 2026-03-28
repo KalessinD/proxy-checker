@@ -13,6 +13,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// ================= Вспомогательные виджеты =================
+
 // minSizeWidget обертка для задания минимального размера любому контейнеру
 type minSizeWidget struct {
 	widget.BaseWidget
@@ -68,8 +70,7 @@ func (c *tableCell) updateButton(onTapped func()) {
 	c.label.Hide()
 }
 
-// resizableTable — это кастомный виджет-обертка, который автоматически
-// пересчитывает ширину колонок при изменении размера окна.
+// resizableTable — кастомный виджет-обертка для автоматического ресайза колонок
 type resizableTable struct {
 	widget.BaseWidget
 	table        *widget.Table
@@ -134,37 +135,17 @@ func (w *resizableTable) updateColumnWidths(availableWidth float32) {
 	}
 }
 
-// --- Конец вспомогательных структур ---
+// ================= Логика главного экрана =================
 
 func (g *AppGUI) showMainScreen() {
-	btnSettings := widget.NewButton("Настройки", func() {
-		g.showSettingsScreen()
-	})
-
-	g.btnCheckSingle = widget.NewButton("Проверить один прокси", func() {
-		g.showSingleCheckScreen()
-	})
-
-	g.btnCheckList = widget.NewButton("Проверить по источнику", func() {
-		go g.runBatchCheck()
-	})
-
-	g.btnCancel = widget.NewButton("Прервать", func() {
-		if g.cancelFunc != nil {
-			g.cancelFunc()
-			g.appendLog("Проверка прервана пользователем.\n")
-		}
-	})
-	g.btnCancel.Importance = widget.DangerImportance
-	// g.btnCancel.Hide()
-
+	// Используем уже созданные в app.go кнопки
 	rightButtons := container.NewHBox(
 		g.btnCancel,
 		g.btnCheckSingle,
 		g.btnCheckList,
 	)
 
-	buttonsBar := container.NewBorder(nil, nil, btnSettings, rightButtons)
+	buttonsBar := container.NewBorder(nil, nil, g.btnSettings, rightButtons)
 	buttonsContainer := container.NewVBox(
 		widget.NewLabel(""),
 		container.NewPadded(buttonsBar),
@@ -174,12 +155,11 @@ func (g *AppGUI) showMainScreen() {
 	g.logLabel.Wrapping = fyne.TextWrapWord
 	g.logScroll = container.NewScroll(g.logLabel)
 
-	// Задаем минимальную высоту для области логов
+	// Задаем минимальную высоту для области логов (используя newMinSizeWidget)
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
 	progressBar := widget.NewProgressBarWithData(g.progress)
 	g.progressBar = progressBar
-	// progressBar.Hide()
 
 	topBox := container.NewVBox(
 		widget.NewLabel("Логи:"),
@@ -224,11 +204,11 @@ func (g *AppGUI) setUIState(running bool) {
 	if running {
 		g.btnCheckList.Disable()
 		g.btnCheckSingle.Disable()
-		g.btnCancel.Show()
+		g.btnCancel.Enable()
 	} else {
 		g.btnCheckList.Enable()
 		g.btnCheckSingle.Enable()
-		g.btnCancel.Hide()
+		g.btnCancel.Disable()
 		g.cancelFunc = nil
 	}
 }

@@ -35,7 +35,6 @@ type AppGUI struct {
 	progressBar *widget.ProgressBar
 	table       *widget.Table
 
-	// ИСПРАВЛЕНИЕ: Заменяем logText binding.String на правильные компоненты для логов
 	logLabel  *widget.Label
 	logScroll *container.Scroll
 	logBuffer string
@@ -45,10 +44,13 @@ type AppGUI struct {
 	customTargetURL string
 	isCustomTarget  bool
 
-	cancelFunc     context.CancelFunc
-	btnCheckList   *widget.Button
-	btnCheckSingle *widget.Button
+	cancelFunc context.CancelFunc
+
+	// ИСПРАВЛЕНИЕ: Кнопки создаются ОДИН РАЗ здесь
 	btnCancel      *widget.Button
+	btnCheckSingle *widget.Button
+	btnCheckList   *widget.Button
+	btnSettings    *widget.Button
 }
 
 func NewAppGUI(cfg *config.Config) *AppGUI {
@@ -66,14 +68,41 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	gui.applyTheme(cfg.Theme)
 	gui.systemProxySupported = isSystemProxySupported()
 
+	gui.btnSettings = widget.NewButton("Настройки", func() {
+		gui.showSettingsScreen()
+	})
+
+	gui.btnCheckSingle = widget.NewButton("Проверить один прокси", func() {
+		gui.showSingleCheckScreen()
+	})
+
+	gui.btnCheckList = widget.NewButton("Проверить по источнику", func() {
+		go gui.runBatchCheck()
+	})
+
+	gui.btnCancel = widget.NewButton("Прервать", func() {
+		if gui.cancelFunc != nil {
+			gui.cancelFunc()
+			gui.appendLog("Проверка прервана пользователем.\n")
+		}
+	})
+	gui.btnCancel.Importance = widget.DangerImportance
+	gui.btnCancel.Disable()
+
 	return gui
 }
 
-// appendLog добавляет текст в логи и автоматически прокручивает их вниз
+// appendLog безопасно добавляет текст в логи из любого потока
 func (g *AppGUI) appendLog(text string) {
 	g.logBuffer += text
-	g.logLabel.SetText(g.logBuffer)
-	g.logScroll.ScrollToBottom()
+	if g.logLabel != nil {
+		fyne.Do(func() {
+			if g.logLabel != nil && g.logScroll != nil {
+				g.logLabel.SetText(g.logBuffer)
+				g.logScroll.ScrollToBottom()
+			}
+		})
+	}
 }
 
 func (g *AppGUI) applyTheme(themeName string) {
