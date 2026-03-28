@@ -10,22 +10,24 @@ import (
 	"proxy-checker/internal/services/fetcher"
 )
 
-func Run(cfg *config.Config) {
-	if cfg.ProxiesStat {
-		handleProxiesList(cfg)
+func Run(cfg *config.Config, opts *Options) {
+	if opts.ProxiesStat {
+		handleProxiesList(cfg, opts)
+	} else if opts.ProxyAddr != "" {
+		handleSingleCheck(cfg, opts)
 	} else {
-		handleSingleCheck(cfg)
+		// Если не передали никакие рабочие флаги - показываем помощь
+		println("Укажите действие: -proxy (для проверки) или -proxies-stat (для получения списка)")
+		// flag.Usage() // можно вызвать стандартную справку
 	}
 }
 
-func handleSingleCheck(cfg *config.Config) {
-	fmt.Printf("Проверка прокси %s (тип: %s)...\n", cfg.ProxyAddr, cfg.Type)
+func handleSingleCheck(cfg *config.Config, opts *Options) {
+	fmt.Printf("Проверка прокси %s (тип: %s)...\n", opts.ProxyAddr, cfg.Type)
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
 
-	// ИСПРАВЛЕНИЕ: приводим common.ProxyType к строке
-	res := services.CheckProxy(ctx, cfg.ProxyAddr, cfg.DestAddr, string(cfg.Type))
-
+	res := services.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type))
 	if res.Error != nil {
 		fmt.Printf("[FAIL] %v\n", res.Error)
 		return
@@ -34,11 +36,11 @@ func handleSingleCheck(cfg *config.Config) {
 	fmt.Printf("[OK] TCP: %v | HTTP: %v | Status: %d\n", res.ProxyLatency, res.ReqLatency, res.StatusCode)
 }
 
-func handleProxiesList(cfg *config.Config) {
+func handleProxiesList(cfg *config.Config, opts *Options) {
 	fmt.Printf("Режим: %s (Source: %s, RTT < %dms, Pages: %d)\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
 
 	// Если нужно только получить список без проверки - делаем это локально
-	if !cfg.Check {
+	if !opts.Check {
 		f := services.NewFetcher(cfg.Source)
 		settings := fetcher.Settings{
 			Type:   cfg.Type,

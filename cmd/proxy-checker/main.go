@@ -2,25 +2,40 @@ package main
 
 import (
 	"log"
+	"os"
+	"strings"
+
 	"proxy-checker/internal/cli"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
 )
 
 func main() {
-	// Если нужно создать файл конфига при первом запуске (опционально)
 	config.EnsureConfigExists()
 
-	// Вся логика загрузки в одной строчке
-	cfg, err := config.NewConfig()
+	// 1. Определяем, нужен ли GUI (быстрая проверка без полного парсинга)
+	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
+
+	if isGUI {
+		// GUI не нуждается в парсинге флагов, ему нужен только файл конфигурации
+		cfg, err := config.Load()
+		if err != nil {
+			log.Fatal(err)
+		}
+		gui.Run(cfg)
+		return
+	}
+
+	// 2. Если это CLI - загружаем конфиг и парсим флаги
+	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Дальше логика запуска
-	if cfg.GUI {
-		gui.Run(cfg)
-	} else {
-		cli.Run(cfg)
+	opts, err := cli.ParseFlags(cfg) // Передаем cfg, чтобы флаги могли его переопределить
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	cli.Run(cfg, opts)
 }
