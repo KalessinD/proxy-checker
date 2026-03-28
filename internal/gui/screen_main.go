@@ -3,17 +3,63 @@ package gui
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"strings"
 
 	"proxy-checker/internal/services"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 // ================= Вспомогательные виджеты =================
+
+// vPad добавляет фиксированный отступ сверху для точного выравнивания виджетов
+type vPad struct {
+	widget.BaseWidget
+	child  fyne.CanvasObject
+	topPad float32
+}
+
+func newVPad(child fyne.CanvasObject, topPad float32) *vPad {
+	w := &vPad{child: child, topPad: topPad}
+	w.ExtendBaseWidget(w)
+	return w
+}
+
+func (v *vPad) CreateRenderer() fyne.WidgetRenderer {
+	// Прозрачный прямоугольник, который будет выполнять роль жесткого отступа
+	topSpacer := canvas.NewRectangle(color.Transparent)
+	topSpacer.SetMinSize(fyne.NewSize(0, v.topPad))
+
+	// Border layout прижмет child вниз, оставив topSpacer сверху
+	return widget.NewSimpleRenderer(container.NewBorder(topSpacer, nil, nil, nil, v.child))
+}
+
+// borderedBox обертка, которая рисует рамку вокруг любого виджета
+type borderedBox struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+}
+
+func newBorderedBox(content fyne.CanvasObject) *borderedBox {
+	w := &borderedBox{content: content}
+	w.ExtendBaseWidget(w)
+	return w
+}
+
+func (b *borderedBox) CreateRenderer() fyne.WidgetRenderer {
+	borderRect := canvas.NewRectangle(color.Transparent)
+	borderRect.StrokeColor = theme.InputBorderColor()
+	borderRect.StrokeWidth = 1
+
+	box := container.NewPadded(container.NewMax(borderRect, b.content))
+	return widget.NewSimpleRenderer(box)
+}
 
 // minSizeWidget обертка для задания минимального размера любому контейнеру
 type minSizeWidget struct {
@@ -138,14 +184,31 @@ func (w *resizableTable) updateColumnWidths(availableWidth float32) {
 // ================= Логика главного экрана =================
 
 func (g *AppGUI) showMainScreen() {
-	// Используем уже созданные в app.go кнопки
 	rightButtons := container.NewHBox(
 		g.btnCancel,
 		g.btnCheckSingle,
 		g.btnCheckList,
 	)
 
-	buttonsBar := container.NewBorder(nil, nil, g.btnSettings, rightButtons)
+	var leftSide fyne.CanvasObject
+	if g.systemProxySupported {
+		proxyLabel := widget.NewLabelWithStyle("Системный прокси:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+
+		// ИЗМЕНЕНИЕ: Оборачиваем лейбл и чекбокс в vPad со сдвигом 3 пикселя вниз
+		alignedLabel := newVPad(proxyLabel, 3)
+		borderedSwitch := newBorderedBox(g.switchProxy)
+		alignedSwitch := newVPad(borderedSwitch, 3)
+
+		leftSide = container.NewHBox(
+			g.btnSettings,
+			alignedLabel,
+			alignedSwitch,
+		)
+	} else {
+		leftSide = g.btnSettings
+	}
+
+	buttonsBar := container.NewBorder(nil, nil, leftSide, rightButtons)
 	buttonsContainer := container.NewVBox(
 		widget.NewLabel(""),
 		container.NewPadded(buttonsBar),
@@ -155,7 +218,6 @@ func (g *AppGUI) showMainScreen() {
 	g.logLabel.Wrapping = fyne.TextWrapWord
 	g.logScroll = container.NewScroll(g.logLabel)
 
-	// Задаем минимальную высоту для области логов (используя newMinSizeWidget)
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
 	progressBar := widget.NewProgressBarWithData(g.progress)
@@ -337,5 +399,6 @@ func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 		g.appendLog(fmt.Sprintf("Ошибка применения прокси %s:%s (%s): %v\n", host, port, proxyType, err))
 	} else {
 		g.appendLog(fmt.Sprintf("Системный прокси изменен: %s://%s:%s\n", strings.ToLower(proxyType), host, port))
+		g.switchProxy.SetChecked(true)
 	}
 }
