@@ -171,3 +171,35 @@ func (c *Config) Validate() error {
 
 	return errors.New("укажите -proxy (для проверки) или -proxies-stat (для получения списка)")
 }
+
+func DefaultConfig() *Config {
+	return &Config{
+		Theme:     "system",
+		MinHeight: 300,
+		Source:    "proxymania",
+		Type:      "socks5",
+		Timeout:   10 * time.Second,
+		Workers:   256,
+		Pages:     4,
+		RTT:       150,
+	}
+}
+
+func EnsureConfigExists() error {
+	path, err := getConfigPath()
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		cfg := DefaultConfig()
+
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return err
+		}
+
+		return cfg.SaveToFile()
+	}
+
+	return nil
+}
