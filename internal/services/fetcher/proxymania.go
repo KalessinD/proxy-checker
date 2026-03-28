@@ -16,7 +16,7 @@ import (
 // ProxyManiaFetcher реализует получение прокси с сайта proxymania
 type ProxyManiaFetcher struct{}
 
-const proxyManiaBaseURL = "https://www.proxyscan.io"
+const proxyManiaBaseURL = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
 
 func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
 	u, err := url.Parse(proxyManiaBaseURL)

@@ -2,8 +2,6 @@ package gui
 
 import (
 	"fmt"
-	"log"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// showSettingsScreen отрисовывает экран настроек
 func (g *AppGUI) showSettingsScreen() {
 	// 1. Тип прокси
 	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
@@ -43,24 +40,20 @@ func (g *AppGUI) showSettingsScreen() {
 	selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
 
 	// 3. Workers
-	workerOptions := []string{}
-	for i := 2; i <= 20; i += 2 {
-		workerOptions = append(workerOptions, strconv.Itoa(i))
-	}
+	workerOptions := []string{"2", "4", "8", "16", "32", "64", "128", "256"}
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, _ := strconv.Atoi(s)
 		g.cfg.Workers = val
 	})
 	selectWorkers.SetSelected(strconv.Itoa(g.cfg.Workers))
 
-	// 4. Source URL
-	parsedSrc, _ := url.Parse(g.cfg.Source)
-	log.Println(g.cfg)
-	log.Println(g.cfg.Source)
-	log.Println(parsedSrc)
-	srcDisplay := parsedSrc.Scheme + "://" + parsedSrc.Host
-	selectSource := widget.NewSelect([]string{srcDisplay}, func(s string) {})
-	selectSource.SetSelected(srcDisplay)
+	// 4. Source (ИСПРАВЛЕНО: Список с двумя значениями)
+	sources := []string{"proxymania", "thespeedx"}
+	selectSource := widget.NewSelect(sources, func(s string) {
+		g.cfg.Source = s
+	})
+	// Устанавливаем текущее значение из конфига
+	selectSource.SetSelected(g.cfg.Source)
 
 	// 5. Timeout
 	timeoutOptions := []string{"1s", "3s", "5s", "10s", "20s", "30s"}
@@ -106,14 +99,12 @@ func (g *AppGUI) showSettingsScreen() {
 			customBox.Hide()
 		}
 	})
-	// Устанавливаем плейсхолдер для выбора сайта
 	selectTarget.PlaceHolder = "(Выберите из списка)"
 
 	if g.isCustomTarget {
 		selectTarget.SetSelected("Иной сайт")
 		customBox.Show()
 	} else {
-		// Если в конфиге пусто, не выбираем ничего, покажется плейсхолдер
 		if g.cfg.DestAddr != "" {
 			selectTarget.SetSelected(g.cfg.DestAddr)
 		}
@@ -144,7 +135,6 @@ func (g *AppGUI) showSettingsScreen() {
 	}
 	selectTheme.SetSelected(currentThemeLabel)
 
-	// Кнопки
 	btnSave := widget.NewButton("Сохранить", func() {
 		if err := g.cfg.SaveToFile(); err != nil {
 			g.logText.Set(fmt.Sprintf("Ошибка сохранения: %v\n", err))
@@ -158,12 +148,11 @@ func (g *AppGUI) showSettingsScreen() {
 		g.showMainScreen()
 	})
 
-	// Форма
 	formItems := []*widget.FormItem{
 		widget.NewFormItem("Тип прокси:", radioType),
 		widget.NewFormItem("Макс. RTT (мс):", selectRTT),
 		widget.NewFormItem("Потоки:", selectWorkers),
-		widget.NewFormItem("Источник:", selectSource),
+		widget.NewFormItem("Источник:", selectSource), // Вот этот элемент
 		widget.NewFormItem("Таймаут:", selectTimeout),
 		widget.NewFormItem("Число страниц:", selectPages),
 		widget.NewFormItem("Сайт проверки:", selectTarget),
