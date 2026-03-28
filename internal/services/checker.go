@@ -86,6 +86,7 @@ func CheckBatch(
 	}
 
 	go func() {
+		defer close(jobs)
 		for _, p := range proxiesList {
 			select {
 			case jobs <- p:
@@ -93,7 +94,6 @@ func CheckBatch(
 				return
 			}
 		}
-		close(jobs)
 	}()
 
 	go func() {
