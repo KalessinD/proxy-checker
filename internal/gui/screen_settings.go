@@ -19,11 +19,10 @@ func (g *AppGUI) showSettingsScreen() {
 		if s == "все" {
 			g.cfg.Type = common.ProxyAll
 		} else {
-			g.cfg.Type = common.ProxyType(s) // ЯВНОЕ ПРИВЕДЕНИЕ К ТИПУ
+			g.cfg.Type = common.ProxyType(s)
 		}
 	})
 
-	// ИСПРАВЛЕНО: string(currentType)
 	currentType := string(g.cfg.Type)
 	if g.cfg.Type == common.ProxyAll {
 		radioType.SetSelected("все")
@@ -33,9 +32,8 @@ func (g *AppGUI) showSettingsScreen() {
 
 	sources := []string{"proxymania", "thespeedx"}
 	selectSource := widget.NewSelect(sources, func(s string) {
-		g.cfg.Source = common.Source(s) // ЯВНОЕ ПРИВЕДЕНИЕ К ТИПУ
+		g.cfg.Source = common.Source(s)
 	})
-	// ИСПРАВЛЕНО: string(g.cfg.Source)
 	selectSource.SetSelected(string(g.cfg.Source))
 
 	rttOptions := []string{}
@@ -145,7 +143,6 @@ func (g *AppGUI) showSettingsScreen() {
 		}
 	}
 
-	// ИСПРАВЛЕНО: string(g.cfg.Source)
 	toggleDynamicFields(string(g.cfg.Source))
 
 	selectSource.OnChanged = func(s string) {

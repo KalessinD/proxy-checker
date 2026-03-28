@@ -58,7 +58,6 @@ func NewClient(proxyAddr, mode string) (*http.Client, error) {
 			return nil, fmt.Errorf("ошибка инициализации SOCKS5: %w", err)
 		}
 
-		// ИСПРАВЛЕНО: Используем обертку для поддержки контекста
 		contextDialer := &contextDialerWrapper{Dialer: dialer}
 		transport = &http.Transport{
 			DialContext: contextDialer.DialContext,
