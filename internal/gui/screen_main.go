@@ -71,7 +71,6 @@ func newResizableTable(table *widget.Table, header *fyne.Container, hasButtonCol
 }
 
 func (w *resizableTable) CreateRenderer() fyne.WidgetRenderer {
-	// Помещаем заголовок сверху, а таблицу на оставшееся место
 	c := container.NewBorder(w.header, nil, nil, nil, w.table)
 	return widget.NewSimpleRenderer(c)
 }
@@ -80,30 +79,26 @@ func (w *resizableTable) MinSize() fyne.Size {
 	return fyne.NewSize(w.minWidth, w.minHeight)
 }
 
-// МАГИЯ ЗДЕСЬ: Fyne вызывает этот метод каждый раз при ресайзе окна
+// Resize вызывается Fyne каждый раз при изменении размера окна
 func (w *resizableTable) Resize(size fyne.Size) {
-	// Сначала даем базовому виджету обновить свой внутренний размер
 	w.BaseWidget.Resize(size)
-
-	// Затем пересчитываем ширину колонок таблицы исходя из НОВОЙ ширины
 	w.updateColumnWidths(size.Width)
 }
 
 func (w *resizableTable) updateColumnWidths(availableWidth float32) {
-	// Не даем таблице сжиматься меньше заданного минимума
 	if availableWidth < w.minWidth {
 		availableWidth = w.minWidth
 	}
 
 	buttonWidth := float32(0)
 	if w.hasButtonCol {
-		buttonWidth = 110 // Фиксированная ширина под кнопку
+		buttonWidth = 110
 	}
 
-	// Оставшееся пространство делим пропорционально
-	usableWidth := availableWidth - buttonWidth
+	const rightMargin float32 = 10
+	usableWidth := availableWidth - buttonWidth - rightMargin
 
-	// Пропорции: Host(30%), Port(8%), Type(10%), Country(15%), TCP(18.5%), HTTP(18.5%)
+	// Пропорции колонок
 	proportions := []float32{0.30, 0.08, 0.10, 0.15, 0.185, 0.185}
 
 	w.table.SetColumnWidth(0, usableWidth*proportions[0])
@@ -140,7 +135,7 @@ func (g *AppGUI) showMainScreen() {
 		}
 	})
 	g.btnCancel.Importance = widget.DangerImportance
-	g.btnCancel.Hide()
+	// g.btnCancel.Hide()
 
 	rightButtons := container.NewHBox(
 		g.btnCancel,
@@ -171,7 +166,6 @@ func (g *AppGUI) showMainScreen() {
 
 	g.table = g.createResultTable()
 
-	// Создаем заголовок (GridWithColumns сам растянется на ширину таблицы)
 	headerObjects := []fyne.CanvasObject{
 		widget.NewLabel("Host"), widget.NewLabel("Port"), widget.NewLabel("Type"),
 		widget.NewLabel("Country"), widget.NewLabel("TCP"), widget.NewLabel("HTTP"),
@@ -181,21 +175,23 @@ func (g *AppGUI) showMainScreen() {
 	}
 	tableHeader := container.NewGridWithColumns(len(headerObjects), headerObjects...)
 
-	// ИСПОЛЬЗУЕМ НАШУ НОВУЮ ОБЕРТКУ ВМЕСТО container.NewBorder И minSizeWidget
 	scalableTable := newResizableTable(
 		g.table,
 		tableHeader,
 		g.systemProxySupported,
-		600,
+		float32(g.cfg.MinWidth), // БЕРЕМ ИЗ КОНФИГА
 		float32(g.cfg.MinHeight),
 	)
+
+	// Оставляем легкий системный отступ, а основной зазор формирует математика выше
+	paddedTable := container.NewPadded(scalableTable)
 
 	content := container.NewBorder(
 		topBox,
 		buttonsContainer,
 		nil,
 		nil,
-		scalableTable, // Передаем обертку
+		paddedTable,
 	)
 
 	g.window.SetContent(content)
@@ -229,7 +225,7 @@ func (g *AppGUI) runBatchCheck() {
 	})
 	defer fyne.DoAndWait(func() {
 		g.setUIState(false)
-		// g.progressBar.Hide()
+		g.progressBar.Hide()
 	})
 
 	currentLog, _ := g.logText.Get()
@@ -331,9 +327,6 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			tc.updateText(text)
 		},
 	)
-
-	// Ширина больше не задается статически здесь!
-	// Обертка resizableTable сама вызовет SetColumnWidth при первом отображении и при ресайзе.
 
 	return table
 }
