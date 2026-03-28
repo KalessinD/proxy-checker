@@ -8,8 +8,8 @@ import (
 
 // PipelineCallbacks позволяет клиентам (GUI, CLI) реагировать на этапы пайплайна
 type PipelineCallbacks struct {
-	OnFetched  func(total int)            // Вызывается после завершения парсинга
-	OnProgress func(current, total int32) // Вызывается при проверке каждого прокси
+	OnFetched  func(total int)
+	OnProgress func(current, total int32)
 }
 
 // RunPipeline запускает полный цикл: Fetch -> Check
@@ -20,7 +20,6 @@ func RunPipeline(
 	cb PipelineCallbacks,
 ) ([]ProxyItemFull, error) {
 
-	// 1. Fetch
 	f := NewFetcher(cfg.Source)
 	settings := fetcher.Settings{
 		Type:    cfg.Type,
@@ -34,12 +33,10 @@ func RunPipeline(
 		return nil, err
 	}
 
-	// Уведомляем о количестве найденных
 	if cb.OnFetched != nil {
 		cb.OnFetched(len(allProxies))
 	}
 
-	// 2. Check
 	validProxies := CheckBatch(
 		ctx,
 		allProxies,

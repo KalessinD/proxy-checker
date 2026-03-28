@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sort"
@@ -35,7 +36,7 @@ func CheckBatch(
 	ctx context.Context,
 	proxiesList []ProxyItem,
 	dest string,
-	mode common.ProxyType, // ИСПОЛЬЗУЕМ ТИП
+	mode common.ProxyType,
 	timeout time.Duration,
 	workers int,
 	progressCallback func(current, total int32),
@@ -58,14 +59,11 @@ func CheckBatch(
 
 			currentMode := mode
 			if mode == common.ProxyAll {
-				// Если пришел all, берем тип конкретного прокси из списка
 				currentMode = p.Type
 			}
 
 			addr := fmt.Sprintf("%s:%s", p.Host, p.Port)
 			ctxCheck, cancel := context.WithTimeout(ctx, timeout)
-
-			// Передаем строку в низкоуровневый чекер
 			res := CheckProxy(ctxCheck, addr, dest, string(currentMode))
 			cancel()
 
@@ -92,7 +90,7 @@ func CheckBatch(
 			select {
 			case jobs <- p:
 			case <-ctx.Done():
-				return // ИСПРАВЛЕНИЕ: выход из горутины диспетчера
+				return
 			}
 		}
 		close(jobs)
@@ -117,12 +115,20 @@ func CheckBatch(
 	return validProxies
 }
 
-// CheckProxy оставляем на уровне строк, так как proxies.NewClient ожидает строку
 func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 	var res Result
 
+	// ИСПРАВЛЕНО: Вычисляем таймаут из контекста, а не берем захардкоженный 5 секунд
+	dialTimeout := 10 * time.Second // Максимальный дефолт
+	if deadline, ok := ctx.Deadline(); ok {
+		remain := time.Until(deadline)
+		if remain > 0 && remain < dialTimeout {
+			dialTimeout = remain
+		}
+	}
+
 	start := time.Now()
-	dialer := net.Dialer{Timeout: 5 * time.Second}
+	dialer := net.Dialer{Timeout: dialTimeout}
 	conn, err := dialer.DialContext(ctx, "tcp", proxyAddr)
 	if err != nil {
 		res.Error = fmt.Errorf("TCP: %w", err)
@@ -143,7 +149,11 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 		target = "http://google.com"
 	}
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", target, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
+	if err != nil {
+		res.Error = fmt.Errorf("создание запроса: %w", err)
+		return res
+	}
 
 	start = time.Now()
 	resp, err := client.Do(req)
@@ -154,7 +164,11 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 		res.Error = err
 		return res
 	}
+
+	// ИСПРАВЛЕНО: Обязательно сбрасываем тело, чтобы соединение вернулось в пул (Keep-Alive)
+	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
+
 	res.StatusCode = resp.StatusCode
 	return res
 }

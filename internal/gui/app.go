@@ -14,7 +14,6 @@ import (
 	"proxy-checker/internal/config"
 )
 
-// ProxyItemWrapper обертка для отображения данных в таблице
 type ProxyItemWrapper struct {
 	Host    string
 	Port    string
@@ -24,7 +23,6 @@ type ProxyItemWrapper struct {
 	HTTP    string
 }
 
-// AppGUI основная структура графического интерфейса
 type AppGUI struct {
 	app    fyne.App
 	window fyne.Window
@@ -34,19 +32,19 @@ type AppGUI struct {
 	progress binding.Float
 	listData binding.UntypedList
 
+	progressBar *widget.ProgressBar // ДОБАВЛЕНО ДЛЯ УПРАВЛЕНИЯ ВИДИМОСТЬЮ
+
 	systemProxySupported bool
 
 	customTargetURL string
 	isCustomTarget  bool
 
-	// Поля для управления состоянием проверки
 	cancelFunc     context.CancelFunc
 	btnCheckList   *widget.Button
 	btnCheckSingle *widget.Button
 	btnCancel      *widget.Button
 }
 
-// NewAppGUI создает новый экземпляр GUI
 func NewAppGUI(cfg *config.Config) *AppGUI {
 	a := app.NewWithID("Proxy Checker")
 
@@ -61,14 +59,11 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 
 	gui.window.Resize(fyne.NewSize(800, 600))
 	gui.applyTheme(cfg.Theme)
-
-	// Проверяем поддержку системы при старте
 	gui.systemProxySupported = isSystemProxySupported()
 
 	return gui
 }
 
-// applyTheme применяет тему по названию
 func (g *AppGUI) applyTheme(themeName string) {
 	switch strings.ToLower(themeName) {
 	case "light":
@@ -80,13 +75,11 @@ func (g *AppGUI) applyTheme(themeName string) {
 	}
 }
 
-// Run запускает главный цикл приложения
 func (g *AppGUI) Run() {
 	g.showMainScreen()
 	g.window.ShowAndRun()
 }
 
-// getTargetURL возвращает целевой URL для проверки прокси.
 func (g *AppGUI) getTargetURL() string {
 	if g.isCustomTarget && g.customTargetURL != "" {
 		return g.customTargetURL
@@ -94,7 +87,6 @@ func (g *AppGUI) getTargetURL() string {
 	return g.cfg.DestAddr
 }
 
-// Run обертка для запуска из main
 func Run(cfg *config.Config) {
 	gui := NewAppGUI(cfg)
 	gui.Run()

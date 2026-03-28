@@ -17,7 +17,11 @@ import (
 
 type ProxyManiaFetcher struct{}
 
-const proxyManiaBaseURL = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
+const (
+	proxyManiaBaseURL    = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
+	defaultUnknownRTT    = 99999 // Значение, если не удалось распарсить RTT со страницы
+	fetcherClientTimeout = 20 * time.Second
+)
 
 func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
 	u, err := url.Parse(proxyManiaBaseURL)
@@ -29,7 +33,6 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]Pro
 	if settings.Type == common.ProxyAll {
 		q.Del("type")
 	} else {
-		// Маппинг наших внутренних типов на то, что понимает сайт
 		typeMap := map[common.ProxyType]string{
 			common.ProxySOCKS5: "SOCKS5", common.ProxySOCKS4: "SOCKS4",
 			common.ProxyHTTP: "HTTP", common.ProxyHTTPS: "HTTPS",
@@ -55,7 +58,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]Pro
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: 20 * time.Second}
+	client := &http.Client{Timeout: fetcherClientTimeout} // ИСПОЛЬЗУЕМ КОНСТАНТУ
 
 	for len(queue) > 0 {
 		if maxPages > 0 && pagesFetched >= maxPages {
@@ -123,7 +126,6 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 	var proxies []ProxyItem
 	var pageLinks []string
 
-	// Обратный маппинг: то что спарсили с сайта -> в наши типы
 	siteToInternalType := map[string]common.ProxyType{
 		"SOCKS5": common.ProxySOCKS5,
 		"SOCKS4": common.ProxySOCKS4,
@@ -150,14 +152,13 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		country := strings.TrimSpace(countryCell.Text())
 		typeCell := countryCell.Next()
 
-		// Нормализация типа
 		proxyTypeStr := strings.TrimSpace(typeCell.Text())
-		proxyType := siteToInternalType[proxyTypeStr] // Если не найдет, будет пустая строка (zero value)
+		proxyType := siteToInternalType[proxyTypeStr]
 
 		speedCell := row.Find("td.speed-fast")
 		rttText := strings.TrimSpace(speedCell.Text())
 
-		rttMs := 99999
+		rttMs := defaultUnknownRTT // ИСПОЛЬЗУЕМ КОНСТАНТУ
 		if p := strings.Fields(rttText); len(p) > 0 {
 			if val, err := strconv.Atoi(p[0]); err == nil {
 				rttMs = val
