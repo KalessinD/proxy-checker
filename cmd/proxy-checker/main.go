@@ -1,35 +1,23 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
+	"log"
 	"proxy-checker/internal/cli"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
 )
 
 func main() {
-	cfg := &config.Config{}
+	// Если нужно создать файл конфига при первом запуске (опционально)
+	config.EnsureConfigExists()
 
-	if err := config.EnsureConfigExists(); err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка создания конфига: %v\n", err)
+	// Вся логика загрузки в одной строчке
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	if err := cfg.LoadFromFile(); err != nil {
-		fmt.Fprintf(os.Stderr, "Предупреждение: не удалось загрузить конфиг: %v\n", err)
-	}
-
-	if err := cfg.Parse(); err != nil {
-		fmt.Printf("Ошибка аргументов: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := cfg.Validate(); err != nil {
-		fmt.Printf("Ошибка валидации: %v\n", err)
-		os.Exit(1)
-	}
-
+	// Дальше логика запуска
 	if cfg.GUI {
 		gui.Run(cfg)
 	} else {
