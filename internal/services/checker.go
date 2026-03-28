@@ -118,7 +118,6 @@ func CheckBatch(
 func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 	var res Result
 
-	// ИСПРАВЛЕНО: Вычисляем таймаут из контекста, а не берем захардкоженный 5 секунд
 	dialTimeout := 10 * time.Second // Максимальный дефолт
 	if deadline, ok := ctx.Deadline(); ok {
 		remain := time.Until(deadline)
@@ -165,7 +164,6 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 		return res
 	}
 
-	// ИСПРАВЛЕНО: Обязательно сбрасываем тело, чтобы соединение вернулось в пул (Keep-Alive)
 	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 

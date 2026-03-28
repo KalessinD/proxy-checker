@@ -19,9 +19,8 @@ func (g *AppGUI) showSingleCheckScreen() {
 
 	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
 	radioType := widget.NewRadioGroup(proxyTypes, nil)
-
-	// ИСПРАВЛЕНО: string(g.cfg.Type)
 	currentType := string(g.cfg.Type)
+
 	if g.cfg.Type == common.ProxyAll {
 		radioType.SetSelected("все")
 	} else {
@@ -72,7 +71,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 		selectedType := radioType.Selected
 		checkType := selectedType
 		if selectedType == "все" {
-			checkType = "socks5" // Заглушка для одиночной проверки типа "все"
+			checkType = "socks5"
 		}
 
 		if addr == "" {
@@ -103,9 +102,8 @@ func (g *AppGUI) showSingleCheckScreen() {
 			}
 
 			item := ProxyItemWrapper{
-				Host: host,
-				Port: port,
-				// ИСПРАВЛЕНО: приведение строки к типу common.ProxyType
+				Host:    host,
+				Port:    port,
 				Type:    common.ProxyType(checkType),
 				Country: "N/A",
 				TCP:     res.ProxyLatencyStr,
