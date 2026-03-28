@@ -8,24 +8,27 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"proxy-checker/internal/common"
 )
 
-// TheSpeedXFetcher реализует получение прокси из репозитория TheSpeedX/PROXY-List
 type TheSpeedXFetcher struct{}
 
 const theSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
 
 func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
 	fileName := ""
-	switch strings.ToLower(settings.Type) {
-	case "socks5":
+
+	// Используем типизированные константы
+	switch settings.Type {
+	case common.ProxySOCKS5:
 		fileName = "socks5.txt"
-	case "socks4":
+	case common.ProxySOCKS4:
 		fileName = "socks4.txt"
-	case "http", "https":
+	case common.ProxyHTTP, common.ProxyHTTPS:
 		fileName = "http.txt"
-	case "all":
-		fileName = "http.txt" // Берем http по умолчанию для all
+	case common.ProxyAll:
+		fileName = "http.txt"
 	default:
 		fileName = "http.txt"
 	}
@@ -68,7 +71,7 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 		items = append(items, ProxyItem{
 			Host:    host,
 			Port:    port,
-			Type:    settings.Type,
+			Type:    settings.Type, // Присваиваем строго типизированный параметр
 			Country: "N/A",
 			RTT:     "N/A",
 			RTTms:   0,

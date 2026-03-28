@@ -10,13 +10,18 @@ import (
 	"strings"
 	"time"
 
+	"proxy-checker/internal/common"
+
 	"github.com/PuerkitoBio/goquery"
 )
 
-// ProxyManiaFetcher реализует получение прокси с сайта proxymania
 type ProxyManiaFetcher struct{}
 
-const proxyManiaBaseURL = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
+const (
+	proxyManiaBaseURL    = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
+	defaultUnknownRTT    = 99999 // Значение, если не удалось распарсить RTT со страницы
+	fetcherClientTimeout = 20 * time.Second
+)
 
 func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
 	u, err := url.Parse(proxyManiaBaseURL)
@@ -25,12 +30,12 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]Pro
 	}
 	q := u.Query()
 
-	if settings.Type == "all" {
+	if settings.Type == common.ProxyAll {
 		q.Del("type")
 	} else {
-		typeMap := map[string]string{
-			"socks5": "SOCKS5", "socks4": "SOCKS4",
-			"http": "HTTP", "https": "HTTPS",
+		typeMap := map[common.ProxyType]string{
+			common.ProxySOCKS5: "SOCKS5", common.ProxySOCKS4: "SOCKS4",
+			common.ProxyHTTP: "HTTP", common.ProxyHTTPS: "HTTPS",
 		}
 		if t, ok := typeMap[settings.Type]; ok {
 			q.Set("type", t)
@@ -53,7 +58,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]Pro
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: 20 * time.Second}
+	client := &http.Client{Timeout: fetcherClientTimeout} // ИСПОЛЬЗУЕМ КОНСТАНТУ
 
 	for len(queue) > 0 {
 		if maxPages > 0 && pagesFetched >= maxPages {
@@ -121,6 +126,13 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 	var proxies []ProxyItem
 	var pageLinks []string
 
+	siteToInternalType := map[string]common.ProxyType{
+		"SOCKS5": common.ProxySOCKS5,
+		"SOCKS4": common.ProxySOCKS4,
+		"HTTP":   common.ProxyHTTP,
+		"HTTPS":  common.ProxyHTTPS,
+	}
+
 	doc.Find("table.table_proxychecker tbody tr").Each(func(i int, row *goquery.Selection) {
 		addressCell := row.Find("td.proxy-cell")
 		fullAddress := strings.TrimSpace(addressCell.Text())
@@ -139,11 +151,14 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		countryCell := row.Find("td.country-cell")
 		country := strings.TrimSpace(countryCell.Text())
 		typeCell := countryCell.Next()
-		proxyType := strings.TrimSpace(typeCell.Text())
+
+		proxyTypeStr := strings.TrimSpace(typeCell.Text())
+		proxyType := siteToInternalType[proxyTypeStr]
+
 		speedCell := row.Find("td.speed-fast")
 		rttText := strings.TrimSpace(speedCell.Text())
 
-		rttMs := 99999
+		rttMs := defaultUnknownRTT // ИСПОЛЬЗУЕМ КОНСТАНТУ
 		if p := strings.Fields(rttText); len(p) > 0 {
 			if val, err := strconv.Atoi(p[0]); err == nil {
 				rttMs = val

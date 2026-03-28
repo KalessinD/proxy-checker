@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
+	"strings"
 
 	"proxy-checker/internal/cli"
 	"proxy-checker/internal/config"
@@ -10,29 +11,31 @@ import (
 )
 
 func main() {
-	cfg := &config.Config{}
+	config.EnsureConfigExists()
 
-	if err := config.EnsureConfigExists(); err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка создания конфига: %v\n", err)
-	}
+	// 1. Определяем, нужен ли GUI (быстрая проверка без полного парсинга)
+	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
 
-	if err := cfg.LoadFromFile(); err != nil {
-		fmt.Fprintf(os.Stderr, "Предупреждение: не удалось загрузить конфиг: %v\n", err)
-	}
-
-	if err := cfg.Parse(); err != nil {
-		fmt.Printf("Ошибка аргументов: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := cfg.Validate(); err != nil {
-		fmt.Printf("Ошибка валидации: %v\n", err)
-		os.Exit(1)
-	}
-
-	if cfg.GUI {
+	if isGUI {
+		// GUI не нуждается в парсинге флагов, ему нужен только файл конфигурации
+		cfg, err := config.Load()
+		if err != nil {
+			log.Fatal(err)
+		}
 		gui.Run(cfg)
-	} else {
-		cli.Run(cfg)
+		return
 	}
+
+	// 2. Если это CLI - загружаем конфиг и парсим флаги
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	opts, err := cli.ParseFlags(cfg) // Передаем cfg, чтобы флаги могли его переопределить
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cli.Run(cfg, opts)
 }

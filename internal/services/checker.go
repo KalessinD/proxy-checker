@@ -3,14 +3,15 @@ package services
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/proxies"
 	"proxy-checker/internal/services/fetcher"
 )
@@ -24,7 +25,6 @@ type Result struct {
 	ReqLatencyStr   string
 }
 
-// ProxyItem теперь алиас к структуре из fetcher
 type ProxyItem = fetcher.ProxyItem
 
 type ProxyItemFull struct {
@@ -36,7 +36,7 @@ func CheckBatch(
 	ctx context.Context,
 	proxiesList []ProxyItem,
 	dest string,
-	mode string,
+	mode common.ProxyType,
 	timeout time.Duration,
 	workers int,
 	progressCallback func(current, total int32),
@@ -48,11 +48,9 @@ func CheckBatch(
 	var processedCount int32
 	totalCount := int32(len(proxiesList))
 
-	// Worker logic
 	worker := func() {
 		defer wg.Done()
 		for p := range jobs {
-			// Проверяем контекст перед началом новой задачи
 			select {
 			case <-ctx.Done():
 				return
@@ -60,18 +58,15 @@ func CheckBatch(
 			}
 
 			currentMode := mode
-			if mode == "all" {
-				currentMode = strings.ToLower(p.Type)
+			if mode == common.ProxyAll {
+				currentMode = p.Type
 			}
 
 			addr := fmt.Sprintf("%s:%s", p.Host, p.Port)
-			// Используем ctx для таймаута, но оборачиваем в новый context для жесткого лимита
-			// Важно: ctx передается в NewRequestWithContext внутри CheckProxy
 			ctxCheck, cancel := context.WithTimeout(ctx, timeout)
-			res := CheckProxy(ctxCheck, addr, dest, currentMode)
+			res := CheckProxy(ctxCheck, addr, dest, string(currentMode))
 			cancel()
 
-			// Если контекст отменен, не отправляем результат в канал, чтобы не блокировать
 			if ctx.Err() != nil {
 				return
 			}
@@ -90,21 +85,17 @@ func CheckBatch(
 		go worker()
 	}
 
-	// Dispatcher: отправляем задачи, но слушаем контекст
 	go func() {
 		for _, p := range proxiesList {
 			select {
 			case jobs <- p:
-				// отправлено
 			case <-ctx.Done():
-				// контекст отменен, прекращаем отправку
-				break
+				return
 			}
 		}
 		close(jobs)
 	}()
 
-	// Waiter: закрывает канал результатов
 	go func() {
 		wg.Wait()
 		close(results)
@@ -117,7 +108,6 @@ func CheckBatch(
 		}
 	}
 
-	// Сортировка только если мы не были прерваны (или сортируем что успели)
 	sort.Slice(validProxies, func(i, j int) bool {
 		return validProxies[i].CheckResult.ReqLatency < validProxies[j].CheckResult.ReqLatency
 	})
@@ -128,8 +118,17 @@ func CheckBatch(
 func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 	var res Result
 
+	// ИСПРАВЛЕНО: Вычисляем таймаут из контекста, а не берем захардкоженный 5 секунд
+	dialTimeout := 10 * time.Second // Максимальный дефолт
+	if deadline, ok := ctx.Deadline(); ok {
+		remain := time.Until(deadline)
+		if remain > 0 && remain < dialTimeout {
+			dialTimeout = remain
+		}
+	}
+
 	start := time.Now()
-	dialer := net.Dialer{Timeout: 5 * time.Second}
+	dialer := net.Dialer{Timeout: dialTimeout}
 	conn, err := dialer.DialContext(ctx, "tcp", proxyAddr)
 	if err != nil {
 		res.Error = fmt.Errorf("TCP: %w", err)
@@ -150,7 +149,11 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 		target = "http://google.com"
 	}
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", target, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
+	if err != nil {
+		res.Error = fmt.Errorf("создание запроса: %w", err)
+		return res
+	}
 
 	start = time.Now()
 	resp, err := client.Do(req)
@@ -161,7 +164,11 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 		res.Error = err
 		return res
 	}
+
+	// ИСПРАВЛЕНО: Обязательно сбрасываем тело, чтобы соединение вернулось в пул (Keep-Alive)
+	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
+
 	res.StatusCode = resp.StatusCode
 	return res
 }
