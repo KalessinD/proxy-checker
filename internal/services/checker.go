@@ -48,36 +48,63 @@ func CheckBatch(
 	var processedCount int32
 	totalCount := int32(len(proxiesList))
 
+	// Worker logic
+	worker := func() {
+		defer wg.Done()
+		for p := range jobs {
+			// Проверяем контекст перед началом новой задачи
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			currentMode := mode
+			if mode == "all" {
+				currentMode = strings.ToLower(p.Type)
+			}
+
+			addr := fmt.Sprintf("%s:%s", p.Host, p.Port)
+			// Используем ctx для таймаута, но оборачиваем в новый context для жесткого лимита
+			// Важно: ctx передается в NewRequestWithContext внутри CheckProxy
+			ctxCheck, cancel := context.WithTimeout(ctx, timeout)
+			res := CheckProxy(ctxCheck, addr, dest, currentMode)
+			cancel()
+
+			// Если контекст отменен, не отправляем результат в канал, чтобы не блокировать
+			if ctx.Err() != nil {
+				return
+			}
+
+			results <- ProxyItemFull{ProxyItem: p, CheckResult: res}
+
+			if progressCallback != nil {
+				current := atomic.AddInt32(&processedCount, 1)
+				progressCallback(current, totalCount)
+			}
+		}
+	}
+
 	for w := 1; w <= workers; w++ {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for p := range jobs {
-				currentMode := mode
-				if mode == "all" {
-					currentMode = strings.ToLower(p.Type)
-				}
+		go worker()
+	}
 
-				addr := fmt.Sprintf("%s:%s", p.Host, p.Port)
-				ctxCheck, cancel := context.WithTimeout(context.Background(), timeout)
-				res := CheckProxy(ctxCheck, addr, dest, currentMode)
-				cancel()
-
-				results <- ProxyItemFull{ProxyItem: p, CheckResult: res}
-
-				if progressCallback != nil {
-					current := atomic.AddInt32(&processedCount, 1)
-					progressCallback(current, totalCount)
-				}
+	// Dispatcher: отправляем задачи, но слушаем контекст
+	go func() {
+		for _, p := range proxiesList {
+			select {
+			case jobs <- p:
+				// отправлено
+			case <-ctx.Done():
+				// контекст отменен, прекращаем отправку
+				break
 			}
-		}()
-	}
+		}
+		close(jobs)
+	}()
 
-	for _, p := range proxiesList {
-		jobs <- p
-	}
-	close(jobs)
-
+	// Waiter: закрывает канал результатов
 	go func() {
 		wg.Wait()
 		close(results)
@@ -90,6 +117,7 @@ func CheckBatch(
 		}
 	}
 
+	// Сортировка только если мы не были прерваны (или сортируем что успели)
 	sort.Slice(validProxies, func(i, j int) bool {
 		return validProxies[i].CheckResult.ReqLatency < validProxies[j].CheckResult.ReqLatency
 	})

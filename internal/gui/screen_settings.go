@@ -28,7 +28,14 @@ func (g *AppGUI) showSettingsScreen() {
 		radioType.SetSelected(currentType)
 	}
 
-	// 2. RTT
+	// 2. Источник
+	sources := []string{"proxymania", "thespeedx"}
+	selectSource := widget.NewSelect(sources, func(s string) {
+		g.cfg.Source = s
+	})
+	selectSource.SetSelected(g.cfg.Source)
+
+	// 3. RTT (Скрывается для thespeedx)
 	rttOptions := []string{}
 	for i := 50; i <= 500; i += 50 {
 		rttOptions = append(rttOptions, strconv.Itoa(i))
@@ -38,24 +45,26 @@ func (g *AppGUI) showSettingsScreen() {
 		g.cfg.RTT = val
 	})
 	selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
+	rttLabel := widget.NewLabel("Макс. RTT (мс):")
 
-	// 3. Workers
-	workerOptions := []string{"2", "4", "8", "16", "32", "64", "128", "256"}
+	// 4. Workers
+	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256"}
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, _ := strconv.Atoi(s)
 		g.cfg.Workers = val
 	})
 	selectWorkers.SetSelected(strconv.Itoa(g.cfg.Workers))
 
-	// 4. Source (ИСПРАВЛЕНО: Список с двумя значениями)
-	sources := []string{"proxymania", "thespeedx"}
-	selectSource := widget.NewSelect(sources, func(s string) {
-		g.cfg.Source = s
+	// 5. Pages (Скрывается для thespeedx)
+	pageOptions := []string{"1", "2", "3", "4", "5"}
+	selectPages := widget.NewSelect(pageOptions, func(s string) {
+		val, _ := strconv.Atoi(s)
+		g.cfg.Pages = val
 	})
-	// Устанавливаем текущее значение из конфига
-	selectSource.SetSelected(g.cfg.Source)
+	selectPages.SetSelected(strconv.Itoa(g.cfg.Pages))
+	pagesLabel := widget.NewLabel("Число страниц:")
 
-	// 5. Timeout
+	// 6. Timeout
 	timeoutOptions := []string{"1s", "3s", "5s", "10s", "20s", "30s"}
 	selectTimeout := widget.NewSelect(timeoutOptions, func(s string) {
 		d, _ := time.ParseDuration(s)
@@ -63,14 +72,6 @@ func (g *AppGUI) showSettingsScreen() {
 	})
 	currentTimeoutStr := fmt.Sprintf("%ds", int(g.cfg.Timeout.Seconds()))
 	selectTimeout.SetSelected(currentTimeoutStr)
-
-	// 6. Pages
-	pageOptions := []string{"1", "2", "3", "4", "5"}
-	selectPages := widget.NewSelect(pageOptions, func(s string) {
-		val, _ := strconv.Atoi(s)
-		g.cfg.Pages = val
-	})
-	selectPages.SetSelected(strconv.Itoa(g.cfg.Pages))
 
 	// 7. Target Site
 	targetSites := []string{
@@ -99,12 +100,14 @@ func (g *AppGUI) showSettingsScreen() {
 			customBox.Hide()
 		}
 	})
+	// ИЗМЕНЕНО: Явно задаем плейсхолдер
 	selectTarget.PlaceHolder = "(Выберите из списка)"
 
 	if g.isCustomTarget {
 		selectTarget.SetSelected("Иной сайт")
 		customBox.Show()
 	} else {
+		// Если в конфиге что-то есть, выбираем это, иначе будет показан плейсхолдер
 		if g.cfg.DestAddr != "" {
 			selectTarget.SetSelected(g.cfg.DestAddr)
 		}
@@ -135,6 +138,25 @@ func (g *AppGUI) showSettingsScreen() {
 	}
 	selectTheme.SetSelected(currentThemeLabel)
 
+	// Контейнеры для динамических элементов (RTT и Pages)
+	rttBox := container.NewGridWithColumns(2, rttLabel, selectRTT)
+	pagesBox := container.NewGridWithColumns(2, pagesLabel, selectPages)
+	dynamicBox := container.NewVBox(rttBox, pagesBox)
+
+	// Логика скрытия RTT и Pages
+	toggleDynamicFields := func(source string) {
+		if source == "thespeedx" {
+			dynamicBox.Hide()
+		} else {
+			dynamicBox.Show()
+		}
+	}
+	toggleDynamicFields(g.cfg.Source)
+	selectSource.OnChanged = func(s string) {
+		g.cfg.Source = s
+		toggleDynamicFields(s)
+	}
+
 	btnSave := widget.NewButton("Сохранить", func() {
 		if err := g.cfg.SaveToFile(); err != nil {
 			g.logText.Set(fmt.Sprintf("Ошибка сохранения: %v\n", err))
@@ -148,28 +170,34 @@ func (g *AppGUI) showSettingsScreen() {
 		g.showMainScreen()
 	})
 
-	formItems := []*widget.FormItem{
-		widget.NewFormItem("Тип прокси:", radioType),
-		widget.NewFormItem("Макс. RTT (мс):", selectRTT),
-		widget.NewFormItem("Потоки:", selectWorkers),
-		widget.NewFormItem("Источник:", selectSource), // Вот этот элемент
-		widget.NewFormItem("Таймаут:", selectTimeout),
-		widget.NewFormItem("Число страниц:", selectPages),
-		widget.NewFormItem("Сайт проверки:", selectTarget),
-		widget.NewFormItem("", customBox),
-		widget.NewFormItem("Тема интерфейса:", selectTheme),
-	}
+	// ИЗМЕНЕНО: Верстка "Сайт проверки" как Grid строки
+	settingsContent := container.NewVBox(
+		widget.NewLabel("Настройки проверки"),
+		widget.NewSeparator(),
+		// Ряд 1: Тип прокси
+		container.NewGridWithColumns(2, widget.NewLabel("Тип прокси:"), radioType),
+		// Ряд 2: Источник
+		container.NewGridWithColumns(2, widget.NewLabel("Источник:"), selectSource),
+		// Динамические ряды (RTT и Pages)
+		dynamicBox,
+		// Ряд: Потоки
+		container.NewGridWithColumns(2, widget.NewLabel("Потоки:"), selectWorkers),
+		// Ряд: Таймаут
+		container.NewGridWithColumns(2, widget.NewLabel("Таймаут:"), selectTimeout),
+		// Ряд: Сайт проверки (Исправлено: Label слева, Select справа)
+		container.NewGridWithColumns(2, widget.NewLabel("Сайт проверки:"), selectTarget),
+		// Поле для ввода своего адреса (появляется под селектором)
+		customBox,
+		widget.NewSeparator(),
+		// Ряд: Тема
+		container.NewGridWithColumns(2, widget.NewLabel("Тема интерфейса:"), selectTheme),
+	)
 
-	settingsForm := widget.NewForm(formItems...)
 	buttonsBox := container.NewHBox(btnBack, layout.NewSpacer(), btnSave)
 
 	content := container.NewBorder(
 		nil, buttonsBox, nil, nil,
-		container.NewVBox(
-			widget.NewLabel("Настройки проверки"),
-			widget.NewSeparator(),
-			settingsForm,
-		),
+		settingsContent,
 	)
 
 	g.window.SetContent(content)

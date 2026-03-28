@@ -39,17 +39,29 @@ func (g *AppGUI) showMainScreen() {
 		g.showSettingsScreen()
 	})
 
-	btnCheckList := widget.NewButton("Проверить по источнику", func() {
-		go g.runBatchCheck()
-	})
-
-	btnCheckSingle := widget.NewButton("Проверить один прокси", func() {
+	// Инициализируем кнопки
+	g.btnCheckSingle = widget.NewButton("Проверить один прокси", func() {
 		g.showSingleCheckScreen()
 	})
 
+	g.btnCheckList = widget.NewButton("Проверить по источнику", func() {
+		go g.runBatchCheck()
+	})
+
+	g.btnCancel = widget.NewButton("Прервать", func() {
+		if g.cancelFunc != nil {
+			g.cancelFunc()
+			g.logText.Set("Проверка прервана пользователем.\n")
+		}
+	})
+	g.btnCancel.Importance = widget.DangerImportance
+	g.btnCancel.Hide()
+
+	// Порядок кнопок - Прервать, затем Проверить
 	rightButtons := container.NewHBox(
-		btnCheckSingle,
-		btnCheckList,
+		g.btnCancel,
+		g.btnCheckSingle,
+		g.btnCheckList,
 	)
 
 	buttonsBar := container.NewBorder(nil, nil, btnSettings, rightButtons)
@@ -96,65 +108,100 @@ func (g *AppGUI) showMainScreen() {
 	g.window.SetContent(content)
 }
 
+// setUIState управляет доступностью кнопок и видимостью кнопки отмены
+// Внимание: Этот метод должен вызываться из главного потока (или через RunOnMain)
+func (g *AppGUI) setUIState(running bool) {
+	if running {
+		g.btnCheckList.Disable()
+		g.btnCheckSingle.Disable()
+		g.btnCancel.Show()
+	} else {
+		g.btnCheckList.Enable()
+		g.btnCheckSingle.Enable()
+		g.btnCancel.Hide()
+		g.cancelFunc = nil
+	}
+}
+
 func (g *AppGUI) runBatchCheck() {
 	g.logText.Set("Подготовка...\n")
 	g.progress.Set(0)
 	g.listData.Set([]interface{}{})
 
-	go func() {
+	ctx, cancel := context.WithCancel(context.Background())
+	g.cancelFunc = cancel
+
+	// Обновляем UI в главном потоке
+	//	g.app.Driver().RunOnMain(func() {
+	//		g.setUIState(true)
+	//	})
+
+	// Используем defer для гарантии восстановления UI
+	//defer func() {
+	//g.app.Driver().RunOnMain(func() {
+	//	g.setUIState(false)
+	//})
+	//}()
+
+	currentLog, _ := g.logText.Get()
+	g.logText.Set(currentLog + fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
+
+	f := services.NewFetcher(g.cfg.Source)
+	settings := fetcher.Settings{
+		Type:    g.cfg.Type,
+		MaxRTT:  g.cfg.RTT,
+		Pages:   g.cfg.Pages,
+		Timeout: int(g.cfg.Timeout),
+	}
+
+	allProxies, err := f.Fetch(ctx, settings)
+	if err != nil {
 		currentLog, _ := g.logText.Get()
-		g.logText.Set(currentLog + fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
+		g.logText.Set(currentLog + fmt.Sprintf("Ошибка получения прокси: %v\n", err))
+		return
+	}
 
-		// Используем фабрику
-		f := services.NewFetcher(g.cfg.Source)
+	if ctx.Err() != nil {
+		return
+	}
 
-		settings := fetcher.Settings{
-			Type:    g.cfg.Type,
-			MaxRTT:  g.cfg.RTT,
-			Pages:   g.cfg.Pages,
-			Timeout: int(g.cfg.Timeout),
-		}
+	currentLog, _ = g.logText.Get()
+	g.logText.Set(currentLog + fmt.Sprintf("Найдено: %d. Проверка...\n", len(allProxies)))
 
-		allProxies, err := f.Fetch(context.Background(), settings)
-		if err != nil {
-			currentLog, _ := g.logText.Get()
-			g.logText.Set(currentLog + fmt.Sprintf("Ошибка получения прокси: %v\n", err))
-			return
-		}
-
-		currentLog, _ = g.logText.Get()
-		g.logText.Set(currentLog + fmt.Sprintf("Найдено: %d. Проверка...\n", len(allProxies)))
-
-		// Конвертация не нужна, так как мы сделали alias в services
-		validProxies := services.CheckBatch(
-			context.Background(),
-			allProxies,
-			g.getTargetURL(),
-			g.cfg.Type,
-			g.cfg.Timeout,
-			g.cfg.Workers,
-			func(current, total int32) {
+	validProxies := services.CheckBatch(
+		ctx,
+		allProxies,
+		g.getTargetURL(),
+		g.cfg.Type,
+		g.cfg.Timeout,
+		g.cfg.Workers,
+		func(current, total int32) {
+			if ctx.Err() == nil {
 				g.progress.Set(float64(current) / float64(total))
-			},
-		)
-
-		items := make([]interface{}, len(validProxies))
-		for i, p := range validProxies {
-			items[i] = ProxyItemWrapper{
-				Host:    p.Host,
-				Port:    p.Port,
-				Type:    p.Type,
-				Country: p.Country,
-				TCP:     p.CheckResult.ProxyLatencyStr,
-				HTTP:    p.CheckResult.ReqLatencyStr,
 			}
-		}
-		g.listData.Set(items)
+		},
+	)
 
-		currentLog, _ = g.logText.Get()
+	items := make([]interface{}, len(validProxies))
+	for i, p := range validProxies {
+		items[i] = ProxyItemWrapper{
+			Host:    p.Host,
+			Port:    p.Port,
+			Type:    p.Type,
+			Country: p.Country,
+			TCP:     p.CheckResult.ProxyLatencyStr,
+			HTTP:    p.CheckResult.ReqLatencyStr,
+		}
+	}
+	g.listData.Set(items)
+
+	currentLog, _ = g.logText.Get()
+	if ctx.Err() != nil {
+		g.logText.Set(currentLog + "Проверка остановлена.\n")
+	} else {
 		g.logText.Set(currentLog + fmt.Sprintf("Готово. Найдено рабочих: %d\n", len(validProxies)))
-		g.progress.Set(1.0)
-	}()
+	}
+	g.progress.Set(1.0)
 }
 
 func (g *AppGUI) createResultTable() *widget.List {
