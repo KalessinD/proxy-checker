@@ -22,7 +22,7 @@ build:
 	go mod tidy
 	@mkdir -p $(BUILD_DIR)
 	go build -o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_PATH)
-	@echo ">>> Built successfully!": $(BUILD_DIR)/$(BINARY_NAME)"
+	@echo ">>> Built successfully!: $(BUILD_DIR)/$(BINARY_NAME)"
 
 install:
 	@echo ">>> Installing..."
