@@ -74,12 +74,12 @@ func (g *AppGUI) showSingleCheckScreen() {
 		}
 
 		if addr == "" {
-			g.appendLog("Ошибка: введите адрес прокси\n") // ИСПРАВЛЕНО
+			g.appendLog("Ошибка: введите адрес прокси\n")
 			return
 		}
 
 		g.showMainScreen()
-		g.appendLog(fmt.Sprintf("Проверка %s -> %s (Type: %s)...\n", addr, target, checkType)) // ИСПРАВЛЕНО
+		g.appendLog(fmt.Sprintf("Проверка %s -> %s (Type: %s)...\n", addr, target, checkType))
 		g.progress.Set(0)
 
 		go func() {
@@ -96,7 +96,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			res := services.CheckProxy(ctx, addr, target, checkType)
 
 			if res.Error != nil {
-				g.appendLog(fmt.Sprintf("Ошибка: %v\n", res.Error)) // ИСПРАВЛЕНО
+				g.appendLog(fmt.Sprintf("Ошибка: %v\n", res.Error))
 				return
 			}
 
@@ -110,7 +110,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			}
 
 			g.listData.Set([]interface{}{item})
-			g.appendLog(fmt.Sprintf("Проверка завершена. Статус: %d\n", res.StatusCode)) // ИСПРАВЛЕНО
+			g.appendLog(fmt.Sprintf("Проверка завершена. Статус: %d\n", res.StatusCode))
 			g.progress.Set(1.0)
 		}()
 	})
