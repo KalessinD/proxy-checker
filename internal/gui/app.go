@@ -40,7 +40,8 @@ type AppGUI struct {
 
 // NewAppGUI создает новый экземпляр GUI
 func NewAppGUI(cfg *config.Config) *AppGUI {
-	a := app.New()
+	// os.Setenv("FYNE_APP_ID", "Proxy Checker")
+	a := app.NewWithID("Proxy Checker")
 
 	gui := &AppGUI{
 		app:      a,
