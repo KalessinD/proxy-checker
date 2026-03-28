@@ -109,7 +109,6 @@ func (g *AppGUI) showMainScreen() {
 }
 
 // setUIState управляет доступностью кнопок и видимостью кнопки отмены
-// Внимание: Этот метод должен вызываться из главного потока (или через RunOnMain)
 func (g *AppGUI) setUIState(running bool) {
 	if running {
 		g.btnCheckList.Disable()
@@ -131,17 +130,14 @@ func (g *AppGUI) runBatchCheck() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelFunc = cancel
 
-	// Обновляем UI в главном потоке
-	//	g.app.Driver().RunOnMain(func() {
-	//		g.setUIState(true)
-	//	})
+	// ИСПРАВЛЕНО: Используем глобальный доступ к драйверу для переключения потока
+	//fyne.CurrentApp().Driver().RunOnMainThread(func() {
+	fyne.DoAndWait(func() {
+		g.setUIState(true)
+	})
 
 	// Используем defer для гарантии восстановления UI
-	//defer func() {
-	//g.app.Driver().RunOnMain(func() {
-	//	g.setUIState(false)
-	//})
-	//}()
+	defer fyne.DoAndWait(func() { g.setUIState(false) })
 
 	currentLog, _ := g.logText.Get()
 	g.logText.Set(currentLog + fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
