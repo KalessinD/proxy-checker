@@ -42,12 +42,12 @@ git clone https://github.com/yourusername/proxy-checker.git
 cd proxy-checker
 ```
 
-# Build the binary to ./bin/proxy-checker
+### Build the binary to ./bin/proxy-checker
 ```bash
 make build
 ```
 
-# Run the binary as ./bin/proxy-checker
+### Run the binary as ./bin/proxy-checker
 ```bash
 make run
 ```
@@ -116,7 +116,7 @@ The CLI is designed for quick checks and pipeline scripting.
 
 ## Configuration
 
-Proxy Checker uses a TOML settings file located at `~?.config/proxy-checker.conf`.
+Proxy Checker uses a TOML settings file located at `~/.config/proxy-checker.conf`.
 
 If the file does not exist, it is automatically created with default values on the first run.
 
@@ -143,14 +143,14 @@ The project follows standard Go layout principles with clean separation between 
 .
 ... cmd/proxy-checker/   # Application entry point
 ... internal/
-|   — cli/             # Command line interface and argument parsing
-    — common/           # Shared domain types (ProxyType, Source)
-    ‐ config/           # TOML settings loading, saving, and validation
-    — gui/              # Fyne v2 graphical interface (windows, widgets)
-    — proxies/           # Low-level proxy dialers (SOCK4/5, HTTP)
-    — services/          # Core business logic (checking, fetching pipeline)
-        — fetcher/       # Web scrapers for different proxy sources
-... assets/                # Icons and static resources
+    - cli/              # Command line interface and argument parsing
+    - common/           # Shared domain types (ProxyType, Source)
+    - config/           # TOML settings loading, saving, and validation
+    - gui/              # Fyne v2 graphical interface (windows, widgets)
+    - proxies/          # Low-level proxy dialers (SOCK4/5, HTTP)
+    - services/         # Core business logic (checking, fetching pipeline)
+        - fetcher/      # Web scrapers for different proxy sources
+... assets/             # Icons and static resources
 ... Makefile
 ```
 
