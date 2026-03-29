@@ -127,3 +127,18 @@ func gsettingsSet(schema, key, value string) error {
 	}
 	return nil
 }
+
+func getSystemProxyMode() (string, error) {
+    cmd := exec.Command("gsettings", "get", "org.gnome.system.proxy", "mode")
+    var out bytes.Buffer
+    cmd.Stdout = &out
+
+    if err := cmd.Run(); err != nil {
+        return "", err
+    }
+
+    // gsettings возвращает значение в одинарных кавычках, например 'manual' или 'none'
+    mode := strings.TrimSpace(out.String())
+    mode = strings.Trim(mode, "'")
+    return mode, nil
+}

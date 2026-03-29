@@ -15,3 +15,7 @@ func setSystemProxy(host, port, proxyType string) error {
 func setSystemProxyMode(mode string) error {
 	return nil
 }
+
+func getSystemProxyMode() (string, error) {
+    return "", nil
+}
