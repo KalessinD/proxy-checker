@@ -35,6 +35,7 @@ func DefaultConfig() *Config {
 		Pages:      4,
 		RTT:        150,
 		CheckHTTP2: false,
+		DestAddr:   "google.com",
 	}
 }
 

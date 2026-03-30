@@ -27,10 +27,10 @@ func (g *AppGUI) showSingleCheckScreen() {
 	}
 
 	targetSites := []string{
-		"https://google.com",
-		"https://youtube.com",
-		"https://chatgpt.com",
-		"https://web.telegram.org",
+		"google.com",
+		"youtube.com",
+		"chatgpt.com",
+		"web.telegram.org",
 		"Иной сайт",
 	}
 

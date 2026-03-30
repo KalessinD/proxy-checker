@@ -125,6 +125,25 @@ func CheckBatch(
 	return validProxies
 }
 
+// resolveSchema возвращает схему в зависимости от типа прокси.
+// Если запрошена принудительная проверка HTTP/2, всегда возвращаем https.
+func resolveSchema(mode string, forceHTTP2 bool) string {
+	if forceHTTP2 {
+		return "https://"
+	}
+
+	switch mode {
+	case "http":
+		return "http://"
+	case "https":
+		return "https://"
+	case "socks4", "socks5":
+		return "http://"
+	default:
+		return "http://"
+	}
+}
+
 func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
 	var res Result
 
@@ -151,13 +170,15 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	target := destAddr
 	if target == "" {
-		target = "https://google.com"
+		target = "google.com" // Теперь без схемы
 	}
 
-	if checkHTTP2 && !strings.HasPrefix(target, "https://") {
-		res.Error = errors.New("HTTP/2 требует HTTPS")
-		return res
-	}
+	// Защита от случая, если пользователь вручную ввел схему в настройках/GUI
+	target = strings.TrimPrefix(target, "http://")
+	target = strings.TrimPrefix(target, "https://")
+
+	schema := resolveSchema(mode, checkHTTP2)
+	target = schema + target
 
 	if mode == "socks4" && checkHTTP2 {
 		res.Error = errors.New("SOCKS4 не поддерживает HTTP/2")

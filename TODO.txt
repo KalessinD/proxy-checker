@@ -14,21 +14,3 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 11. linters
 12. zap logger + log file in config
 13. Добавить строку NO_PROXY
-
-в checkProxy есть такой код
-
-	if target == "" {
-		target = "https://google.com"
-	}
-
-мне он не нравится, т.к. в вслучае выбора проверки прокси с типом http и остутвуимем целевого сайта -  мы будем првоерить https транспорт, хотя http прокси не поддерживает его
-
-есть и обратная проблема, при замене  тут в коде схемы на Http - тогда нельзя будет честно проверить доступность http2
-
- стоит указыаать целевые сайты бех схемы и хранить их в конфиге без схемы, а схему выбирать исходя из типа прокси:
--  http proxy -> http schema
--  https proxy -> https schema
--  socks4 proxy -> http schema
--  socks5 proxy -> http schema
-
-если меппинг верный, то давай реализуем
