@@ -278,8 +278,8 @@ func (g *AppGUI) setUIState(running bool) {
 func (g *AppGUI) runBatchCheck() {
 	g.logBuffer = ""
 	g.appendLog("Подготовка...\n")
-	g.progress.Set(0)
-	g.listData.Set([]interface{}{})
+	_ = g.progress.Set(0)
+	_ = g.listData.Set([]interface{}{})
 
 	g.progressBar.Show()
 
@@ -302,7 +302,7 @@ func (g *AppGUI) runBatchCheck() {
 		},
 		OnProgress: func(current, total int32) {
 			if ctx.Err() == nil {
-				g.progress.Set(float64(current) / float64(total))
+				_ = g.progress.Set(float64(current) / float64(total))
 			}
 		},
 	})
@@ -323,14 +323,14 @@ func (g *AppGUI) runBatchCheck() {
 			HTTP:    p.CheckResult.ReqLatencyStr,
 		}
 	}
-	g.listData.Set(items)
+	_ = g.listData.Set(items)
 
 	if ctx.Err() != nil {
 		g.appendLog("Проверка остановлена.\n")
 	} else {
 		g.appendLog(fmt.Sprintf("Готово. Найдено рабочих: %d\n", len(validProxies)))
 	}
-	g.progress.Set(1.0)
+	_ = g.progress.Set(1.0)
 }
 
 func (g *AppGUI) createResultTable() *widget.Table {
@@ -359,7 +359,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 				return
 			}
 
-			tc := cell.(*tableCell)
+			tc, _ := cell.(*tableCell)
 
 			if g.systemProxySupported && id.Col == 6 {
 				h := p.Host

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -135,8 +136,6 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 		}
 	}
 
-	// ================= TCP =================
-
 	start := time.Now()
 	dialer := net.Dialer{Timeout: dialTimeout}
 
@@ -150,20 +149,18 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 	res.ProxyLatency = time.Since(start)
 	res.ProxyLatencyStr = res.ProxyLatency.String()
 
-	// ================= HTTP =================
-
 	target := destAddr
 	if target == "" {
 		target = "https://google.com"
 	}
 
 	if checkHTTP2 && !strings.HasPrefix(target, "https://") {
-		res.Error = fmt.Errorf("HTTP/2 требует HTTPS")
+		res.Error = errors.New("HTTP/2 требует HTTPS")
 		return res
 	}
 
 	if mode == "socks4" && checkHTTP2 {
-		res.Error = fmt.Errorf("SOCKS4 не поддерживает HTTP/2")
+		res.Error = errors.New("SOCKS4 не поддерживает HTTP/2")
 		return res
 	}
 
@@ -173,7 +170,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 		return res
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		res.Error = fmt.Errorf("создание запроса: %w", err)
 		return res
@@ -190,7 +187,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 	}
 	defer resp.Body.Close()
 
-	// ⚠️ не читаем весь body
+	// не читаем весь body
 	io.CopyN(io.Discard, resp.Body, 512)
 
 	res.StatusCode = resp.StatusCode

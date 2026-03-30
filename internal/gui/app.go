@@ -108,28 +108,26 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		go gui.runBatchCheck()
 	})
 
-    gui.btnCancel = widget.NewButton("Прервать", func() {
-        if gui.cancelFunc != nil {
-            gui.cancelFunc()
-            gui.appendLog("Проверка прервана пользователем.\n")
-        }
-    })
-    gui.btnCancel.Importance = widget.DangerImportance
-    gui.btnCancel.Disable()
+	gui.btnCancel = widget.NewButton("Прервать", func() {
+		if gui.cancelFunc != nil {
+			gui.cancelFunc()
+			gui.appendLog("Проверка прервана пользователем.\n")
+		}
+	})
+	gui.btnCancel.Importance = widget.DangerImportance
+	gui.btnCancel.Disable()
 
-    if gui.systemProxySupported {
-        currentMode, err := getSystemProxyMode()
-        if err != nil {
-            gui.appendLog(fmt.Sprintf("Не удалось получить статус системного прокси: %v\n", err))
-        } else {
-            // Если режим 'manual', считаем, что прокси включен (наш чекбокс нажат)
-            if currentMode == "manual" {
-                gui.switchProxy.SetChecked(true)
-            }
-        }
-    }
+	if gui.systemProxySupported {
+		currentMode, err := getSystemProxyMode()
+		if err != nil {
+			gui.appendLog(fmt.Sprintf("Не удалось получить статус системного прокси: %v\n", err))
+		} else if currentMode == "manual" {
+			// Если режим 'manual', считаем, что прокси включен (наш чекбокс нажат)
+			gui.switchProxy.SetChecked(true)
+		}
+	}
 
-    return gui
+	return gui
 }
 
 // appendLog безопасно добавляет текст в логи из любого потока

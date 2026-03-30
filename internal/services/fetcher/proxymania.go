@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"proxy-checker/internal/common"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"proxy-checker/internal/common"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -101,7 +100,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]Pro
 }
 
 func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Client, urlStr string, _ *url.URL) ([]ProxyItem, []string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -114,7 +113,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != 200 {
+	if res.StatusCode != http.StatusOK {
 		return nil, nil, fmt.Errorf("status %d", res.StatusCode)
 	}
 
@@ -133,7 +132,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		"HTTPS":  common.ProxyHTTPS,
 	}
 
-	doc.Find("table.table_proxychecker tbody tr").Each(func(i int, row *goquery.Selection) {
+	doc.Find("table.table_proxychecker tbody tr").Each(func(_ int, row *goquery.Selection) {
 		addressCell := row.Find("td.proxy-cell")
 		fullAddress := strings.TrimSpace(addressCell.Text())
 		if fullAddress == "" {
@@ -141,11 +140,9 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		}
 
 		parts := strings.Split(fullAddress, ":")
-		host, port := "", ""
+		host, port := fullAddress, ""
 		if len(parts) == 2 {
 			host, port = parts[0], parts[1]
-		} else {
-			host = fullAddress
 		}
 
 		countryCell := row.Find("td.country-cell")
@@ -170,7 +167,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		})
 	})
 
-	doc.Find("ul.pagination li.page-item").Each(func(i int, s *goquery.Selection) {
+	doc.Find("ul.pagination li.page-item").Each(func(_ int, s *goquery.Selection) {
 		if s.HasClass("active") {
 			return
 		}

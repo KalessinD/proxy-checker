@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	config.EnsureConfigExists()
+	_ = config.EnsureConfigExists()
 
 	// 1. Определяем, нужен ли GUI (быстрая проверка без полного парсинга)
 	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")

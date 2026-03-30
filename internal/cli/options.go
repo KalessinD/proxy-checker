@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -33,12 +34,12 @@ func ParseFlags(cfg *config.Config) (*Options, error) {
 	flag.Parse()
 
 	if opts.ProxyAddr != "" && opts.ProxiesStat {
-		return nil, fmt.Errorf("нельзя одновременно использовать -proxy и -proxies-stat")
+		return nil, errors.New("нельзя одновременно использовать -proxy и -proxies-stat")
 	}
 
 	if opts.ProxyAddr != "" {
 		if cfg.DestAddr == "" {
-			return nil, fmt.Errorf("для проверки прокси (-proxy) необходимо указать -dest в конфиге")
+			return nil, errors.New("для проверки прокси (-proxy) необходимо указать -dest в конфиге")
 		}
 		if _, _, err := net.SplitHostPort(opts.ProxyAddr); err != nil {
 			return nil, fmt.Errorf("некорректный формат адреса прокси: %w", err)
@@ -47,12 +48,12 @@ func ParseFlags(cfg *config.Config) (*Options, error) {
 
 	if opts.ProxiesStat {
 		if cfg.RTT <= 0 {
-			return nil, fmt.Errorf("rtt должен быть больше 0")
+			return nil, errors.New("rtt должен быть больше 0")
 		}
 		if cfg.Workers < 1 {
-			return nil, fmt.Errorf("workers должен быть не меньше 1")
+			return nil, errors.New("workers должен быть не меньше 1")
 		} else if cfg.Workers > 256 {
-			return nil, fmt.Errorf("workers должен быть не больше 256")
+			return nil, errors.New("workers должен быть не больше 256")
 		}
 	}
 

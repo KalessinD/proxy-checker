@@ -57,10 +57,8 @@ func (g *AppGUI) showSingleCheckScreen() {
 	if g.isCustomTarget {
 		targetSelect.SetSelected("Иной сайт")
 		customBox.Show()
-	} else {
-		if g.cfg.DestAddr != "" {
-			targetSelect.SetSelected(g.cfg.DestAddr)
-		}
+	} else if g.cfg.DestAddr != "" {
+		targetSelect.SetSelected(g.cfg.DestAddr)
 	}
 
 	btnRun := widget.NewButton("Запустить проверку", func() {
@@ -80,7 +78,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 
 		g.showMainScreen()
 		g.appendLog(fmt.Sprintf("Проверка %s -> %s (Type: %s)...\n", addr, target, checkType))
-		g.progress.Set(0)
+		_ = g.progress.Set(0)
 
 		go func() {
 			parts := strings.Split(addr, ":")
@@ -93,7 +91,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			ctx, cancel := context.WithTimeout(context.Background(), g.cfg.Timeout)
 			defer cancel()
 
-            res := services.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
+			res := services.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
 			if res.Error != nil {
 				g.appendLog(fmt.Sprintf("Ошибка: %v\n", res.Error))
 				return
@@ -108,9 +106,9 @@ func (g *AppGUI) showSingleCheckScreen() {
 				HTTP:    res.ReqLatencyStr,
 			}
 
-			g.listData.Set([]interface{}{item})
+			_ = g.listData.Set([]interface{}{item})
 			g.appendLog(fmt.Sprintf("Проверка завершена. Статус: %d\n", res.StatusCode))
-			g.progress.Set(1.0)
+			_ = g.progress.Set(1.0)
 		}()
 	})
 

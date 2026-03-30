@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"proxy-checker/internal/common"
 	"strings"
 	"time"
-
-	"proxy-checker/internal/common"
 )
 
 type TheSpeedXFetcher struct{}
@@ -17,7 +16,7 @@ type TheSpeedXFetcher struct{}
 const theSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
 
 func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
-	fileName := ""
+	var fileName string
 
 	// Используем типизированные константы
 	switch settings.Type {
@@ -36,7 +35,7 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 	targetURL := theSpeedXBaseURL + fileName
 
 	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +46,7 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch proxy list: status %d", resp.StatusCode)
 	}
 

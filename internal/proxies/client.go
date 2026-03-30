@@ -86,6 +86,7 @@ func NewClient(proxyAddr, mode string, forceHTTP2 bool) (*http.Client, error) {
 
 		transport.TLSClientConfig = &tls.Config{
 			NextProtos: []string{"h2"},
+			MinVersion: tls.VersionTLS12,
 		}
 
 		transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
@@ -161,6 +162,6 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 		return nil, fmt.Errorf("SOCKS4 прокси вернул ошибку: код %d", resp[1])
 	}
 
-	conn.SetDeadline(time.Time{})
+	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
 }

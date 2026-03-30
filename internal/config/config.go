@@ -3,9 +3,8 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"time"
-
 	"proxy-checker/internal/common"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -46,7 +45,7 @@ func getConfigPath() (string, error) {
 	}
 	configDir := filepath.Join(homeDir, ".config")
 	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		os.MkdirAll(configDir, 0755)
+		_ = os.MkdirAll(configDir, 0755)
 	}
 	return filepath.Join(configDir, "proxy-checker.conf"), nil
 }
