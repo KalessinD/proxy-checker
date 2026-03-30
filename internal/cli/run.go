@@ -91,7 +91,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 
 func printTable(proxies []fetcher.ProxyItem) {
 	sep := strings.Repeat("-", 70)
-	zap.S().Infof("%-25s %-6s %-10s %-15s %-10s", "Host", "Port", "Type", "Country", "RTT")
+	zap.S().Infof("%-25s %-6s %-10s %-15s %-10s", i18n.T("cli.table_host"), i18n.T("cli.table_port"), i18n.T("cli.table_type"), i18n.T("cli.table_country"), i18n.T("cli.table_rtt"))
 	zap.S().Info(sep)
 	for _, p := range proxies {
 		zap.S().Infof("%-25s %-6s %-10s %-15s %-10s", p.Host, p.Port, p.Type, p.Country, p.RTT)
@@ -100,7 +100,7 @@ func printTable(proxies []fetcher.ProxyItem) {
 
 func printFullTable(proxies []services.ProxyItemFull) {
 	sep := strings.Repeat("-", 95)
-	zap.S().Infof("%-25s %-6s %-10s %-15s %-15s %-15s", "Host", "Port", "Type", "Country", "TCP", "HTTP")
+	zap.S().Infof("%-25s %-6s %-10s %-15s %-15s %-15s", i18n.T("cli.table_host"), i18n.T("cli.table_port"), i18n.T("cli.table_type"), i18n.T("cli.table_country"), i18n.T("cli.table_tcp"), i18n.T("cli.table_http"))
 	zap.S().Info(sep)
 
 	for _, p := range proxies {

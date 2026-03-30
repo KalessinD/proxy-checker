@@ -105,7 +105,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		gui.showSingleCheckScreen()
 	})
 
-	gui.btnCheckList = widget.NewButton("Проверить по источнику", func() {
+	gui.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() {
 		go gui.runBatchCheck()
 	})
 
