@@ -7,6 +7,7 @@ import (
 
 	"proxy-checker/internal/cli"
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
 
@@ -25,6 +26,13 @@ func main() {
 		log.Fatal(err)
 	}
 	defer zap.S().Sync()
+
+	if cfg.Lang != "ru" && cfg.Lang != "en" {
+		cfg.Lang = "ru"
+	}
+	if err := i18n.Init(cfg.Lang); err != nil {
+		log.Fatalf("Language loading error: %v", err)
+	}
 
 	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
 

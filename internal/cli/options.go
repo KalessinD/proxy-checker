@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 )
 
@@ -32,27 +33,28 @@ func ParseFlags(cfg *config.Config) (*Options, error) {
 	flag.IntVar(&cfg.RTT, "rtt", cfg.RTT, "Максимальное время отклика (мс)")
 	flag.IntVar(&cfg.Pages, "pages", cfg.Pages, "Количество страниц для парсинга")
 	flag.BoolVar(&cfg.CheckHTTP2, "http2", cfg.CheckHTTP2, "Проверять поддержку HTTP/2 (рекомендуется только для https/socks5)")
+	flag.StringVar(&cfg.Lang, "lang", cfg.Lang, "Язык интерфейса (ru, en)")
 
 	flag.Parse()
 
 	if opts.ProxyAddr != "" && opts.ProxiesStat {
-		return nil, errors.New("нельзя одновременно использовать -proxy и -proxies-stat")
+		return nil, errors.New(i18n.T("cli.err_mutual_exclusive"))
 	}
 
 	if opts.ProxyAddr != "" {
 		if _, _, err := net.SplitHostPort(opts.ProxyAddr); err != nil {
-			return nil, fmt.Errorf("некорректный формат адреса прокси: %w", err)
+			return nil, fmt.Errorf(i18n.T("cli.err_invalid_addr"), err)
 		}
 	}
 
 	if opts.ProxiesStat {
 		if cfg.RTT <= 0 {
-			return nil, errors.New("rtt должен быть больше 0")
+			return nil, errors.New(i18n.T("cli.err_rtt_positive"))
 		}
 		if cfg.Workers < 1 {
-			return nil, errors.New("workers должен быть не меньше 1")
+			return nil, errors.New(i18n.T("cli.err_workers_min"))
 		} else if cfg.Workers > 256 {
-			return nil, errors.New("workers должен быть не больше 256")
+			return nil, errors.New(i18n.T("cli.err_workers_max"))
 		}
 	}
 
@@ -61,11 +63,11 @@ func ParseFlags(cfg *config.Config) (*Options, error) {
 		common.ProxyHTTP: true, common.ProxyHTTPS: true, common.ProxyAll: true,
 	}
 	if !validTypes[cfg.Type] {
-		return nil, fmt.Errorf("неверный тип прокси: %s", cfg.Type)
+		return nil, fmt.Errorf(i18n.T("cli.err_invalid_type"), cfg.Type)
 	}
 
 	if cfg.Source != common.SourceProxyMania && cfg.Source != common.SourceTheSpeedX {
-		return nil, fmt.Errorf("неверный источник: %s", cfg.Source)
+		return nil, fmt.Errorf(i18n.T("cli.err_invalid_source"), cfg.Source)
 	}
 
 	return &opts, nil

@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 )
 
@@ -70,13 +71,13 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	gui.applyTheme(cfg.Theme)
 	gui.systemProxySupported = isSystemProxySupported()
 
-	gui.btnSettings = widget.NewButton("Настройки", func() {
+	gui.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() {
 		gui.showSettingsScreen()
 	})
 
 	gui.switchProxy = widget.NewCheck("", func(checked bool) {
 		if !gui.systemProxySupported {
-			gui.appendLog("Системный прокси не поддерживается на данной ОС.\n")
+			gui.appendLog(i18n.T("gui.sys_proxy_unsupported"))
 			gui.switchProxy.SetChecked(false)
 			return
 		}
@@ -89,10 +90,10 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		}
 
 		if err := setSystemProxyMode(mode); err != nil {
-			gui.appendLog(fmt.Sprintf("Ошибка смены режима прокси: %v\n", err))
+			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_error"), err))
 			gui.switchProxy.SetChecked(!checked)
 		} else {
-			gui.appendLog(fmt.Sprintf("Системный прокси переведен в режим: %s\n", mode))
+			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_mode_changed"), mode))
 		}
 	})
 
@@ -100,7 +101,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		gui.switchProxy.Disable()
 	}
 
-	gui.btnCheckSingle = widget.NewButton("Проверить один прокси", func() {
+	gui.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() {
 		gui.showSingleCheckScreen()
 	})
 
@@ -108,10 +109,10 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		go gui.runBatchCheck()
 	})
 
-	gui.btnCancel = widget.NewButton("Прервать", func() {
+	gui.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
 		if gui.cancelFunc != nil {
 			gui.cancelFunc()
-			gui.appendLog("Проверка прервана пользователем.\n")
+			gui.appendLog(i18n.T("gui.log_stopped"))
 		}
 	})
 	gui.btnCancel.Importance = widget.DangerImportance
@@ -120,7 +121,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	if gui.systemProxySupported {
 		currentMode, err := getSystemProxyMode()
 		if err != nil {
-			gui.appendLog(fmt.Sprintf("Не удалось получить статус системного прокси: %v\n", err))
+			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_status_error"), err))
 		} else if currentMode == "manual" {
 			gui.switchProxy.SetChecked(true)
 		}

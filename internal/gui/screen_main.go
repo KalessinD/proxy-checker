@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"strings"
 
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/services"
 
 	"fyne.io/fyne/v2"
@@ -92,7 +93,7 @@ type tableCell struct {
 func newTableCell() *tableCell {
 	c := &tableCell{
 		label: widget.NewLabel(""),
-		btn:   widget.NewButton("Применить", nil),
+		btn:   widget.NewButton(i18n.T("gui.btn_apply"), nil),
 	}
 	c.label.Truncation = fyne.TextTruncateClip
 	c.btn.Hide()
@@ -192,7 +193,7 @@ func (g *AppGUI) showMainScreen() {
 
 	var leftSide fyne.CanvasObject
 	if g.systemProxySupported {
-		proxyLabel := widget.NewLabelWithStyle("Системный прокси:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+		proxyLabel := widget.NewLabelWithStyle(i18n.T("gui.label_sys_proxy"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 		// ИЗМЕНЕНИЕ: Оборачиваем лейбл и чекбокс в vPad со сдвигом 3 пикселя вниз
 		alignedLabel := newVPad(proxyLabel, 3)
@@ -224,17 +225,17 @@ func (g *AppGUI) showMainScreen() {
 	g.progressBar = progressBar
 
 	topBox := container.NewVBox(
-		widget.NewLabel("Логи:"),
+		widget.NewLabel(i18n.T("gui.label_logs")),
 		logArea,
-		widget.NewLabel("Прогресс:"),
+		widget.NewLabel(i18n.T("gui.label_progress")),
 		progressBar,
 	)
 
 	g.table = g.createResultTable()
 
 	headerObjects := []fyne.CanvasObject{
-		widget.NewLabel("Host"), widget.NewLabel("Port"), widget.NewLabel("Type"),
-		widget.NewLabel("Country"), widget.NewLabel("TCP"), widget.NewLabel("HTTP"),
+		widget.NewLabel(i18n.T("gui.header_host")), widget.NewLabel(i18n.T("gui.header_port")), widget.NewLabel(i18n.T("gui.header_type")),
+		widget.NewLabel(i18n.T("gui.header_country")), widget.NewLabel(i18n.T("gui.header_tcp")), widget.NewLabel(i18n.T("gui.header_http")),
 	}
 	if g.systemProxySupported {
 		headerObjects = append(headerObjects, widget.NewLabel(""))
@@ -277,7 +278,7 @@ func (g *AppGUI) setUIState(running bool) {
 
 func (g *AppGUI) runBatchCheck() {
 	g.logBuffer = ""
-	g.appendLog("Подготовка...\n")
+	g.appendLog(i18n.T("gui.log_preparing"))
 	_ = g.progress.Set(0)
 	_ = g.listData.Set([]interface{}{})
 
@@ -294,11 +295,11 @@ func (g *AppGUI) runBatchCheck() {
 		g.progressBar.Hide()
 	})
 
-	g.appendLog(fmt.Sprintf("Загрузка прокси из источника: %s...\n", g.cfg.Source))
+	g.appendLog(fmt.Sprintf(i18n.T("gui.log_fetching"), g.cfg.Source))
 
 	validProxies, err := services.RunPipeline(ctx, g.cfg, services.PipelineCallbacks{
 		OnFetched: func(total int) {
-			g.appendLog(fmt.Sprintf("Найдено: %d. Проверка...\n", total))
+			g.appendLog(fmt.Sprintf(i18n.T("gui.log_found"), total))
 		},
 		OnProgress: func(current, total int32) {
 			if ctx.Err() == nil {
@@ -308,7 +309,7 @@ func (g *AppGUI) runBatchCheck() {
 	})
 
 	if err != nil {
-		g.appendLog(fmt.Sprintf("Ошибка получения прокси: %v\n", err))
+		g.appendLog(fmt.Sprintf(i18n.T("gui.log_fetch_error"), err))
 		return
 	}
 
@@ -326,9 +327,9 @@ func (g *AppGUI) runBatchCheck() {
 	_ = g.listData.Set(items)
 
 	if ctx.Err() != nil {
-		g.appendLog("Проверка остановлена.\n")
+		g.appendLog(i18n.T("gui.log_stopped"))
 	} else {
-		g.appendLog(fmt.Sprintf("Готово. Найдено рабочих: %d\n", len(validProxies)))
+		g.appendLog(fmt.Sprintf(i18n.T("gui.log_done"), len(validProxies)))
 	}
 	_ = g.progress.Set(1.0)
 }
@@ -396,9 +397,9 @@ func (g *AppGUI) createResultTable() *widget.Table {
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	err := setSystemProxy(host, port, proxyType)
 	if err != nil {
-		g.appendLog(fmt.Sprintf("Ошибка применения прокси %s:%s (%s): %v\n", host, port, proxyType, err))
+		g.appendLog(fmt.Sprintf(i18n.T("gui.log_apply_error"), host, port, proxyType, err))
 	} else {
-		g.appendLog(fmt.Sprintf("Системный прокси изменен: %s://%s:%s\n", strings.ToLower(proxyType), host, port))
+		g.appendLog(fmt.Sprintf(i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 		g.switchProxy.SetChecked(true)
 	}
 }
