@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"proxy-checker/internal/common/i18n"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -35,10 +37,10 @@ func InitLogger(logPath string) error {
 				)
 				cores = append(cores, fileCore)
 			} else {
-				fmt.Printf("[WARN] Не удалось открыть файл логов %s: %v\n", logPath, err)
+				fmt.Printf(i18n.T("log.warn_open_file"), logPath, err)
 			}
 		} else {
-			fmt.Printf("[WARN] Нет доступа к директории логов %s. Логирование только в консоль.\n", dir)
+			fmt.Printf(i18n.T("log.warn_dir_access"), dir)
 		}
 	}
 

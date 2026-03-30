@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"proxy-checker/internal/common"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -114,7 +116,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("status %d", res.StatusCode)
+		return nil, nil, fmt.Errorf(i18n.T("fetcher.err_status"), res.StatusCode)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)

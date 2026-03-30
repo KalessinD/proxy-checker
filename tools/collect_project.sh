@@ -44,7 +44,7 @@ find . -type f \
 
     # Проверка на текстовый файл через MIME-тип (самый надежный способ)
     # Если MIME-тип начинается с "text/" (например, text/plain, text/x-go) — выводим
-    if file -b --mime-type "$file" | grep -q '^text/'; then
+    if file -b --mime-type "$file" | grep -qE '^text/|application/json'; then
         
         # Получаем абсолютный путь для красивой шапки
         FULL_PATH=$(realpath "$file")

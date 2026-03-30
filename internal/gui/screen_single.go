@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/services"
 
 	"fyne.io/fyne/v2/container"
@@ -15,13 +16,13 @@ import (
 
 func (g *AppGUI) showSingleCheckScreen() {
 	proxyEntry := widget.NewEntry()
-	proxyEntry.SetPlaceHolder("host:port")
+	proxyEntry.SetPlaceHolder(i18n.T("gui.single.placeholder"))
 
-	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
+	proxyTypes := []string{"http", "https", "socks4", "socks5", i18n.T("gui.single.type_all")}
 	radioType := widget.NewRadioGroup(proxyTypes, nil)
 	currentType := string(g.cfg.Type)
 	if g.cfg.Type == common.ProxyAll {
-		radioType.SetSelected("все")
+		radioType.SetSelected(i18n.T("gui.single.type_all"))
 	} else {
 		radioType.SetSelected(currentType)
 	}
@@ -31,19 +32,19 @@ func (g *AppGUI) showSingleCheckScreen() {
 		"youtube.com",
 		"chatgpt.com",
 		"web.telegram.org",
-		"Иной сайт",
+		i18n.T("gui.single.custom_site"),
 	}
 
 	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder("https://example.com")
+	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
 	customEntry.SetText(g.customTargetURL)
 	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
 
-	customBox := container.NewVBox(widget.NewLabel("Введите адрес:"), customEntry)
+	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
 	customBox.Hide()
 
 	targetSelect := widget.NewSelect(targetSites, func(s string) {
-		if s == "Иной сайт" {
+		if s == i18n.T("gui.single.custom_site") {
 			g.isCustomTarget = true
 			customBox.Show()
 		} else {
@@ -52,7 +53,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			customBox.Hide()
 		}
 	})
-	targetSelect.PlaceHolder = "(Выберите из списка)"
+	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
 
 	if g.isCustomTarget {
 		targetSelect.SetSelected("Иной сайт")
@@ -61,23 +62,23 @@ func (g *AppGUI) showSingleCheckScreen() {
 		targetSelect.SetSelected(g.cfg.DestAddr)
 	}
 
-	btnRun := widget.NewButton("Запустить проверку", func() {
+	btnRun := widget.NewButton(i18n.T("gui.btn_run"), func() {
 		addr := proxyEntry.Text
 		target := g.getTargetURL()
 
 		selectedType := radioType.Selected
 		checkType := selectedType
-		if selectedType == "все" {
+		if selectedType == i18n.T("gui.single.type_all") {
 			checkType = "socks5"
 		}
 
 		if addr == "" {
-			g.appendLog("Ошибка: введите адрес прокси\n")
+			g.appendLog(i18n.T("gui.single.err_empty_addr"))
 			return
 		}
 
 		g.showMainScreen()
-		g.appendLog(fmt.Sprintf("Проверка %s -> %s (Type: %s)...\n", addr, target, checkType))
+		g.appendLog(fmt.Sprintf(i18n.T("gui.single.log_checking"), addr, target, checkType))
 		_ = g.progress.Set(0)
 
 		go func() {
@@ -93,7 +94,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 
 			res := services.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
 			if res.Error != nil {
-				g.appendLog(fmt.Sprintf("Ошибка: %v\n", res.Error))
+				g.appendLog(fmt.Sprintf(i18n.T("cli.fail"), res.Error))
 				return
 			}
 
@@ -107,21 +108,21 @@ func (g *AppGUI) showSingleCheckScreen() {
 			}
 
 			_ = g.listData.Set([]interface{}{item})
-			g.appendLog(fmt.Sprintf("Проверка завершена. Статус: %d\n", res.StatusCode))
+			g.appendLog(fmt.Sprintf(i18n.T("gui.single.log_done"), res.StatusCode))
 			_ = g.progress.Set(1.0)
 		}()
 	})
 
-	btnBack := widget.NewButton("Назад", func() {
+	btnBack := widget.NewButton(i18n.T("gui.btn_back"), func() {
 		g.showMainScreen()
 	})
 
 	buttonsBox := container.NewHBox(btnBack, layout.NewSpacer(), btnRun)
 
 	inputForm := widget.NewForm(
-		widget.NewFormItem("Тип прокси:", radioType),
-		widget.NewFormItem("Адрес прокси", proxyEntry),
-		widget.NewFormItem("Сайт для проверки", targetSelect),
+		widget.NewFormItem(i18n.T("gui.settings.type"), radioType),
+		widget.NewFormItem(i18n.T("gui.single.title"), proxyEntry),
+		widget.NewFormItem(i18n.T("gui.settings.target"), targetSelect),
 		widget.NewFormItem("", customBox),
 	)
 
@@ -130,7 +131,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 		buttonsBox,
 		nil, nil,
 		container.NewVBox(
-			widget.NewLabel("Проверка одного прокси"),
+			widget.NewLabel(i18n.T("gui.single.title")),
 			widget.NewSeparator(),
 			inputForm,
 		),
