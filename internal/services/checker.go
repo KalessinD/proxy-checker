@@ -208,8 +208,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 	}
 	defer resp.Body.Close()
 
-	// не читаем весь body
-	io.CopyN(io.Discard, resp.Body, 512)
+	_, _ = io.CopyN(io.Discard, resp.Body, 512)
 
 	res.StatusCode = resp.StatusCode
 	res.SupportsHTTP = true
