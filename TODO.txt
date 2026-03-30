@@ -11,6 +11,7 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 8. запуск и останов по кнопке некоей горутины для мониторинга доступности раз в минуту выбранного прокси
 9. Добавить источник https://github.com/proxifly/free-proxy-list/tree/main/proxies/protocols/socks5
 10. Добавить источник https://proxyverity.com/free-proxy-list/
+11. linters
 
 в checkProxy есть такой код
 
@@ -22,5 +23,10 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 
 есть и обратная проблема, при замене  тут в коде схемы на Http - тогда нельзя будет честно проверить доступность http2
 
- виду этих проблем и развития цифровых технолгий, стоит ли рассмотреть отказ от поддержки типов прокси Http/socks4?
- 
+ стоит указыаать целевые сайты бех схемы и хранить их в конфиге без схемы, а схему выбирать исходя из типа прокси:
+-  http proxy -> http schema
+-  https proxy -> https schema
+-  socks4 proxy -> http schema
+-  socks5 proxy -> http schema
+
+если меппинг верный, то давай реаоизуем
