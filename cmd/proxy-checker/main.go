@@ -27,12 +27,7 @@ func main() {
 	}
 	defer zap.S().Sync()
 
-	if cfg.Lang != "ru" && cfg.Lang != "en" {
-		cfg.Lang = "ru"
-	}
-	if err := i18n.Init(cfg.Lang); err != nil {
-		log.Fatalf("Language loading error: %v", err)
-	}
+	setupLanguage(cfg)
 
 	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
 
@@ -46,5 +41,15 @@ func main() {
 		zap.S().Fatal(err)
 	}
 
+	setupLanguage(cfg)
 	cli.Run(cfg, opts)
+}
+
+func setupLanguage(cfg *config.Config) {
+	if cfg.Lang != "ru" && cfg.Lang != "en" {
+		cfg.Lang = "en"
+	}
+	if err := i18n.Init(cfg.Lang); err != nil {
+		log.Fatalf(i18n.T("main.err_lang_init"), err)
+	}
 }

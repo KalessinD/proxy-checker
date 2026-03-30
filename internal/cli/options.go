@@ -20,20 +20,20 @@ type Options struct {
 func ParseFlags(cfg *config.Config) (*Options, error) {
 	var opts Options
 
-	flag.StringVar(&opts.ProxyAddr, "proxy", "", "Адрес прокси-сервера для проверки (host:port)")
-	flag.BoolVar(&opts.ProxiesStat, "proxies-stat", false, "Режим получения списка прокси")
-	flag.BoolVar(&opts.Check, "check", false, "Проверить доступность найденных прокси")
+	flag.StringVar(&opts.ProxyAddr, "proxy", "", i18n.T("cli.help_proxy"))
+	flag.BoolVar(&opts.ProxiesStat, "proxies-stat", false, i18n.T("cli.help_proxies_stat"))
+	flag.BoolVar(&opts.Check, "check", false, i18n.T("cli.help_check"))
 
-	flag.StringVar(&cfg.DestAddr, "dest", cfg.DestAddr, "Целевой сайт для проверки (без схемы, например google.com)")
-	flag.StringVar(&cfg.LogPath, "log", cfg.LogPath, "Путь к файлу журнала") // НОВОЕ
-	flag.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "Таймаут ожидания ответа")
-	flag.IntVar(&cfg.Workers, "workers", cfg.Workers, "Количество потоков для проверки")
-	flag.StringVar((*string)(&cfg.Type), "type", string(cfg.Type), "Тип прокси (socks5, socks4, http, https, all)")
-	flag.StringVar((*string)(&cfg.Source), "source", string(cfg.Source), "Источник прокси (proxymania, thespeedx)")
-	flag.IntVar(&cfg.RTT, "rtt", cfg.RTT, "Максимальное время отклика (мс)")
-	flag.IntVar(&cfg.Pages, "pages", cfg.Pages, "Количество страниц для парсинга")
-	flag.BoolVar(&cfg.CheckHTTP2, "http2", cfg.CheckHTTP2, "Проверять поддержку HTTP/2 (рекомендуется только для https/socks5)")
-	flag.StringVar(&cfg.Lang, "lang", cfg.Lang, "Язык интерфейса (ru, en)")
+	flag.StringVar(&cfg.DestAddr, "dest", cfg.DestAddr, i18n.T("cli.help_dest"))
+	flag.StringVar(&cfg.LogPath, "log", cfg.LogPath, i18n.T("cli.help_log"))
+	flag.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, i18n.T("cli.help_timeout"))
+	flag.IntVar(&cfg.Workers, "workers", cfg.Workers, i18n.T("cli.help_workers"))
+	flag.StringVar((*string)(&cfg.Type), "type", string(cfg.Type), i18n.T("cli.help_type"))
+	flag.StringVar((*string)(&cfg.Source), "source", string(cfg.Source), i18n.T("cli.help_source"))
+	flag.IntVar(&cfg.RTT, "rtt", cfg.RTT, i18n.T("cli.help_rtt"))
+	flag.IntVar(&cfg.Pages, "pages", cfg.Pages, i18n.T("cli.help_pages"))
+	flag.BoolVar(&cfg.CheckHTTP2, "http2", cfg.CheckHTTP2, i18n.T("cli.help_http2"))
+	flag.StringVar(&cfg.Lang, "lang", cfg.Lang, i18n.T("cli.help_lang"))
 
 	flag.Parse()
 
