@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"go.uber.org/zap"
 
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
@@ -33,7 +34,7 @@ type AppGUI struct {
 	progress binding.Float
 	listData binding.UntypedList
 
-	progressBar *widget.ProgressBar // ИСПРАВЛЕНО: был *widget.Table
+	progressBar *widget.ProgressBar
 	table       *widget.Table
 
 	logLabel  *widget.Label
@@ -51,15 +52,15 @@ type AppGUI struct {
 	btnCheckSingle *widget.Button
 	btnCheckList   *widget.Button
 	btnSettings    *widget.Button
-	switchProxy    *widget.Check // ИСПРАВЛЕНО: в Fyne v2 свитч называется *widget.Check
+	switchProxy    *widget.Check
 }
 
 func NewAppGUI(cfg *config.Config) *AppGUI {
-	a := app.NewWithID("Proxy Checker")
+	a := app.NewWithID(common.AppName)
 
 	gui := &AppGUI{
 		app:      a,
-		window:   a.NewWindow("Proxy Checker"),
+		window:   a.NewWindow(common.AppName),
 		cfg:      cfg,
 		progress: binding.NewFloat(),
 		listData: binding.NewUntypedList(),
@@ -73,7 +74,6 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		gui.showSettingsScreen()
 	})
 
-	// ИСПРАВЛЕНО: widget.NewCheck вместо widget.NewSwitch
 	gui.switchProxy = widget.NewCheck("", func(checked bool) {
 		if !gui.systemProxySupported {
 			gui.appendLog("Системный прокси не поддерживается на данной ОС.\n")
@@ -122,7 +122,6 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		if err != nil {
 			gui.appendLog(fmt.Sprintf("Не удалось получить статус системного прокси: %v\n", err))
 		} else if currentMode == "manual" {
-			// Если режим 'manual', считаем, что прокси включен (наш чекбокс нажат)
 			gui.switchProxy.SetChecked(true)
 		}
 	}
@@ -133,6 +132,16 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 // appendLog безопасно добавляет текст в логи из любого потока
 func (g *AppGUI) appendLog(text string) {
 	g.logBuffer += text
+
+	cleanText := strings.TrimSpace(text)
+	if cleanText != "" {
+		if strings.Contains(strings.ToLower(cleanText), "ошибка") || strings.Contains(strings.ToLower(cleanText), "error") {
+			zap.S().Error(cleanText)
+		} else {
+			zap.S().Info(cleanText)
+		}
+	}
+
 	if g.logLabel != nil {
 		fyne.Do(func() {
 			if g.logLabel != nil && g.logScroll != nil {

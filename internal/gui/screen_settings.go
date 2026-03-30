@@ -22,6 +22,11 @@ func (g *AppGUI) showSettingsScreen() {
 	http2Check.SetChecked(g.cfg.CheckHTTP2)
 	http2Box := container.NewGridWithColumns(2, widget.NewLabel("Проверка HTTP/2:"), http2Check)
 
+	logPathEntry := widget.NewEntry()
+	logPathEntry.SetPlaceHolder(common.DefaultLogPath())
+	logPathEntry.SetText(g.cfg.LogPath)
+	logPathEntry.OnChanged = func(s string) { g.cfg.LogPath = s }
+
 	radioType := widget.NewRadioGroup(proxyTypes, func(s string) {
 		if s == "все" {
 			g.cfg.Type = common.ProxyAll
@@ -167,19 +172,6 @@ func (g *AppGUI) showSettingsScreen() {
 		toggleDynamicFields(s)
 	}
 
-	btnSave := widget.NewButton("Сохранить", func() {
-		if err := g.cfg.SaveToFile(); err != nil {
-			g.appendLog(fmt.Sprintf("Ошибка сохранения: %v\n", err))
-		} else {
-			g.appendLog("Настройки сохранены в файл.\n")
-		}
-		g.showMainScreen()
-	})
-
-	btnBack := widget.NewButton("Назад", func() {
-		g.showMainScreen()
-	})
-
 	settingsContent := container.NewVBox(
 		widget.NewLabel("Настройки проверки"),
 		widget.NewSeparator(),
@@ -192,8 +184,22 @@ func (g *AppGUI) showSettingsScreen() {
 		container.NewGridWithColumns(2, widget.NewLabel("Сайт проверки:"), selectTarget),
 		customBox,
 		widget.NewSeparator(),
+		container.NewGridWithColumns(2, widget.NewLabel("Файл журнала:"), logPathEntry), // НОВОЕ
 		container.NewGridWithColumns(2, widget.NewLabel("Тема интерфейса:"), selectTheme),
 	)
+
+	btnSave := widget.NewButton("Сохранить", func() {
+		if err := g.cfg.SaveToFile(); err != nil {
+			g.appendLog(fmt.Sprintf("Ошибка сохранения: %v\n", err))
+		} else {
+			g.appendLog("Настройки сохранены в файл.\n")
+		}
+		g.showMainScreen()
+	})
+
+	btnBack := widget.NewButton("Назад", func() {
+		g.showMainScreen()
+	})
 
 	buttonsBox := container.NewHBox(btnBack, layout.NewSpacer(), btnSave)
 

@@ -12,5 +12,4 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 9. Добавить источник https://github.com/proxifly/free-proxy-list/tree/main/proxies/protocols/socks5
 10. Добавить источник https://proxyverity.com/free-proxy-list/
 11. linters
-12. zap logger + log file in config
-13. Добавить строку NO_PROXY
+12. Добавить строку NO_PROXY

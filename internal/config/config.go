@@ -21,6 +21,7 @@ type Config struct {
 	MinHeight  int              `toml:"min_height"`
 	MinWidth   int              `toml:"min_width"`
 	CheckHTTP2 bool             `toml:"check_http2"`
+	LogPath    string           `toml:"log_path"`
 }
 
 func DefaultConfig() *Config {
@@ -36,6 +37,7 @@ func DefaultConfig() *Config {
 		RTT:        150,
 		CheckHTTP2: false,
 		DestAddr:   "google.com",
+		LogPath:    common.DefaultLogPath(),
 	}
 }
 
