@@ -6,35 +6,36 @@ import (
 	"strings"
 
 	"proxy-checker/internal/cli"
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
+
+	"go.uber.org/zap"
 )
 
 func main() {
 	_ = config.EnsureConfigExists()
 
-	// 1. Определяем, нужен ли GUI (быстрая проверка без полного парсинга)
-	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
-
-	if isGUI {
-		// GUI не нуждается в парсинге флагов, ему нужен только файл конфигурации
-		cfg, err := config.Load()
-		if err != nil {
-			log.Fatal(err)
-		}
-		gui.Run(cfg)
-		return
-	}
-
-	// 2. Если это CLI - загружаем конфиг и парсим флаги
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	opts, err := cli.ParseFlags(cfg) // Передаем cfg, чтобы флаги могли его переопределить
-	if err != nil {
+	if err := common.InitLogger(cfg.LogPath); err != nil {
 		log.Fatal(err)
+	}
+	defer zap.S().Sync()
+
+	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
+
+	if isGUI {
+		gui.Run(cfg)
+		return
+	}
+
+	opts, err := cli.ParseFlags(cfg)
+	if err != nil {
+		zap.S().Fatal(err)
 	}
 
 	cli.Run(cfg, opts)
