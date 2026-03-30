@@ -93,8 +93,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			ctx, cancel := context.WithTimeout(context.Background(), g.cfg.Timeout)
 			defer cancel()
 
-			res := services.CheckProxy(ctx, addr, target, checkType)
-
+            res := services.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
 			if res.Error != nil {
 				g.appendLog(fmt.Sprintf("Ошибка: %v\n", res.Error))
 				return

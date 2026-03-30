@@ -14,175 +14,195 @@ import (
 )
 
 func (g *AppGUI) showSettingsScreen() {
-	proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
-	radioType := widget.NewRadioGroup(proxyTypes, func(s string) {
-		if s == "все" {
-			g.cfg.Type = common.ProxyAll
-		} else {
-			g.cfg.Type = common.ProxyType(s)
-		}
-	})
+    proxyTypes := []string{"http", "https", "socks4", "socks5", "все"}
 
-	currentType := string(g.cfg.Type)
-	if g.cfg.Type == common.ProxyAll {
-		radioType.SetSelected("все")
-	} else {
-		radioType.SetSelected(currentType)
-	}
+    http2Check := widget.NewCheck("", func(checked bool) {
+        g.cfg.CheckHTTP2 = checked
+    })
+    http2Check.SetChecked(g.cfg.CheckHTTP2)
+    http2Box := container.NewGridWithColumns(2, widget.NewLabel("Проверка HTTP/2:"), http2Check)
 
-	sources := []string{"proxymania", "thespeedx"}
-	selectSource := widget.NewSelect(sources, func(s string) {
-		g.cfg.Source = common.Source(s)
-	})
-	selectSource.SetSelected(string(g.cfg.Source))
+    radioType := widget.NewRadioGroup(proxyTypes, func(s string) {
+        if s == "все" {
+            g.cfg.Type = common.ProxyAll
+        } else {
+            g.cfg.Type = common.ProxyType(s)
+        }
 
-	rttOptions := []string{}
-	for i := 50; i <= 500; i += 50 {
-		rttOptions = append(rttOptions, strconv.Itoa(i))
-	}
-	selectRTT := widget.NewSelect(rttOptions, func(s string) {
-		val, _ := strconv.Atoi(s)
-		g.cfg.RTT = val
-	})
-	selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
-	rttLabel := widget.NewLabel("Макс. RTT (мс):")
+        if s == "https" || s == "socks5" || s == "все" {
+            http2Box.Show()
+        } else {
+            http2Box.Hide()
+            g.cfg.CheckHTTP2 = false
+            http2Check.SetChecked(false)
+        }
+    })
 
-	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256"}
-	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
-		val, _ := strconv.Atoi(s)
-		g.cfg.Workers = val
-	})
-	selectWorkers.SetSelected(strconv.Itoa(g.cfg.Workers))
+    currentType := string(g.cfg.Type)
+    if g.cfg.Type == common.ProxyAll {
+        radioType.SetSelected("все")
+    } else {
+        radioType.SetSelected(currentType)
+    }
 
-	pageOptions := []string{"1", "2", "3", "4", "5"}
-	selectPages := widget.NewSelect(pageOptions, func(s string) {
-		val, _ := strconv.Atoi(s)
-		g.cfg.Pages = val
-	})
-	selectPages.SetSelected(strconv.Itoa(g.cfg.Pages))
-	pagesLabel := widget.NewLabel("Число страниц:")
+    if currentType != "https" && currentType != "socks5" && currentType != "все" {
+        http2Box.Hide()
+    }
 
-	timeoutOptions := []string{"1s", "3s", "5s", "10s", "20s", "30s"}
-	selectTimeout := widget.NewSelect(timeoutOptions, func(s string) {
-		d, _ := time.ParseDuration(s)
-		g.cfg.Timeout = d
-	})
-	currentTimeoutStr := fmt.Sprintf("%ds", int(g.cfg.Timeout.Seconds()))
-	selectTimeout.SetSelected(currentTimeoutStr)
+    sources := []string{"proxymania", "thespeedx"}
+    selectSource := widget.NewSelect(sources, func(s string) {
+        g.cfg.Source = common.Source(s)
+    })
+    selectSource.SetSelected(string(g.cfg.Source))
 
-	targetSites := []string{
-		"https://google.com",
-		"https://youtube.com",
-		"https://chatgpt.com",
-		"https://web.telegram.org",
-		"Иной сайт",
-	}
+    rttOptions := []string{}
+    for i := 50; i <= 500; i += 50 {
+        rttOptions = append(rttOptions, strconv.Itoa(i))
+    }
+    selectRTT := widget.NewSelect(rttOptions, func(s string) {
+        val, _ := strconv.Atoi(s)
+        g.cfg.RTT = val
+    })
+    selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
+    rttLabel := widget.NewLabel("Макс. RTT (мс):")
 
-	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder("https://example.com")
-	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
+    workerOptions := []string{"2", "8", "16", "32", "64", "128", "256"}
+    selectWorkers := widget.NewSelect(workerOptions, func(s string) {
+        val, _ := strconv.Atoi(s)
+        g.cfg.Workers = val
+    })
+    selectWorkers.SetSelected(strconv.Itoa(g.cfg.Workers))
 
-	customBox := container.NewVBox(widget.NewLabel("Введите адрес:"), customEntry)
-	customBox.Hide()
+    pageOptions := []string{"1", "2", "3", "4", "5"}
+    selectPages := widget.NewSelect(pageOptions, func(s string) {
+        val, _ := strconv.Atoi(s)
+        g.cfg.Pages = val
+    })
+    selectPages.SetSelected(strconv.Itoa(g.cfg.Pages))
+    pagesLabel := widget.NewLabel("Число страниц:")
 
-	selectTarget := widget.NewSelect(targetSites, func(s string) {
-		if s == "Иной сайт" {
-			g.isCustomTarget = true
-			customBox.Show()
-		} else {
-			g.isCustomTarget = false
-			g.cfg.DestAddr = s
-			g.customTargetURL = ""
-			customBox.Hide()
-		}
-	})
-	selectTarget.PlaceHolder = "(Выберите из списка)"
+    timeoutOptions := []string{"1s", "3s", "5s", "10s", "20s", "30s"}
+    selectTimeout := widget.NewSelect(timeoutOptions, func(s string) {
+        d, _ := time.ParseDuration(s)
+        g.cfg.Timeout = d
+    })
+    currentTimeoutStr := fmt.Sprintf("%ds", int(g.cfg.Timeout.Seconds()))
+    selectTimeout.SetSelected(currentTimeoutStr)
 
-	if g.isCustomTarget {
-		selectTarget.SetSelected("Иной сайт")
-		customBox.Show()
-	} else {
-		if g.cfg.DestAddr != "" {
-			selectTarget.SetSelected(g.cfg.DestAddr)
-		}
-	}
+    targetSites := []string{
+        "https://google.com",
+        "https://youtube.com",
+        "https://chatgpt.com",
+        "https://web.telegram.org",
+        "Иной сайт",
+    }
 
-	themeLabels := []string{"системная", "светлая", "тёмная"}
-	selectTheme := widget.NewSelect(themeLabels, func(s string) {
-		var val string
-		switch s {
-		case "светлая":
-			val = "light"
-		case "тёмная":
-			val = "dark"
-		default:
-			val = "system"
-		}
-		g.cfg.Theme = val
-		g.applyTheme(val)
-	})
+    customEntry := widget.NewEntry()
+    customEntry.SetPlaceHolder("https://example.com")
+    customEntry.OnChanged = func(s string) { g.customTargetURL = s }
 
-	currentThemeLabel := "системная"
-	switch strings.ToLower(g.cfg.Theme) {
-	case "light":
-		currentThemeLabel = "светлая"
-	case "dark":
-		currentThemeLabel = "тёмная"
-	}
-	selectTheme.SetSelected(currentThemeLabel)
+    customBox := container.NewVBox(widget.NewLabel("Введите адрес:"), customEntry)
+    customBox.Hide()
 
-	rttBox := container.NewGridWithColumns(2, rttLabel, selectRTT)
-	pagesBox := container.NewGridWithColumns(2, pagesLabel, selectPages)
-	dynamicBox := container.NewVBox(rttBox, pagesBox)
+    selectTarget := widget.NewSelect(targetSites, func(s string) {
+        if s == "Иной сайт" {
+            g.isCustomTarget = true
+            customBox.Show()
+        } else {
+            g.isCustomTarget = false
+            g.cfg.DestAddr = s
+            g.customTargetURL = ""
+            customBox.Hide()
+        }
+    })
+    selectTarget.PlaceHolder = "(Выберите из списка)"
 
-	toggleDynamicFields := func(source string) {
-		if source == string(common.SourceTheSpeedX) {
-			dynamicBox.Hide()
-		} else {
-			dynamicBox.Show()
-		}
-	}
+    if g.isCustomTarget {
+        selectTarget.SetSelected("Иной сайт")
+        customBox.Show()
+    } else {
+        if g.cfg.DestAddr != "" {
+            selectTarget.SetSelected(g.cfg.DestAddr)
+        }
+    }
 
-	toggleDynamicFields(string(g.cfg.Source))
+    themeLabels := []string{"системная", "светлая", "тёмная"}
+    selectTheme := widget.NewSelect(themeLabels, func(s string) {
+        var val string
+        switch s {
+        case "светлая":
+            val = "light"
+        case "тёмная":
+            val = "dark"
+        default:
+            val = "system"
+        }
+        g.cfg.Theme = val
+        g.applyTheme(val)
+    })
 
-	selectSource.OnChanged = func(s string) {
-		g.cfg.Source = common.Source(s)
-		toggleDynamicFields(s)
-	}
+    currentThemeLabel := "системная"
+    switch strings.ToLower(g.cfg.Theme) {
+    case "light":
+        currentThemeLabel = "светлая"
+    case "dark":
+        currentThemeLabel = "тёмная"
+    }
+    selectTheme.SetSelected(currentThemeLabel)
 
-	btnSave := widget.NewButton("Сохранить", func() {
-		if err := g.cfg.SaveToFile(); err != nil {
-			g.appendLog(fmt.Sprintf("Ошибка сохранения: %v\n", err))
-		} else {
-			g.appendLog("Настройки сохранены в файл.\n")
-		}
-		g.showMainScreen()
-	})
+    rttBox := container.NewGridWithColumns(2, rttLabel, selectRTT)
+    pagesBox := container.NewGridWithColumns(2, pagesLabel, selectPages)
+    dynamicBox := container.NewVBox(rttBox, pagesBox)
 
-	btnBack := widget.NewButton("Назад", func() {
-		g.showMainScreen()
-	})
+    toggleDynamicFields := func(source string) {
+        if source == string(common.SourceTheSpeedX) {
+            dynamicBox.Hide()
+        } else {
+            dynamicBox.Show()
+        }
+    }
 
-	settingsContent := container.NewVBox(
-		widget.NewLabel("Настройки проверки"),
-		widget.NewSeparator(),
-		container.NewGridWithColumns(2, widget.NewLabel("Тип прокси:"), radioType),
-		container.NewGridWithColumns(2, widget.NewLabel("Источник:"), selectSource),
-		dynamicBox,
-		container.NewGridWithColumns(2, widget.NewLabel("Потоки:"), selectWorkers),
-		container.NewGridWithColumns(2, widget.NewLabel("Таймаут:"), selectTimeout),
-		container.NewGridWithColumns(2, widget.NewLabel("Сайт проверки:"), selectTarget),
-		customBox,
-		widget.NewSeparator(),
-		container.NewGridWithColumns(2, widget.NewLabel("Тема интерфейса:"), selectTheme),
-	)
+    toggleDynamicFields(string(g.cfg.Source))
 
-	buttonsBox := container.NewHBox(btnBack, layout.NewSpacer(), btnSave)
+    selectSource.OnChanged = func(s string) {
+        g.cfg.Source = common.Source(s)
+        toggleDynamicFields(s)
+    }
 
-	content := container.NewBorder(
-		nil, buttonsBox, nil, nil,
-		settingsContent,
-	)
+    btnSave := widget.NewButton("Сохранить", func() {
+        if err := g.cfg.SaveToFile(); err != nil {
+            g.appendLog(fmt.Sprintf("Ошибка сохранения: %v\n", err))
+        } else {
+            g.appendLog("Настройки сохранены в файл.\n")
+        }
+        g.showMainScreen()
+    })
 
-	g.window.SetContent(content)
+    btnBack := widget.NewButton("Назад", func() {
+        g.showMainScreen()
+    })
+
+    settingsContent := container.NewVBox(
+        widget.NewLabel("Настройки проверки"),
+        widget.NewSeparator(),
+        container.NewGridWithColumns(2, widget.NewLabel("Тип прокси:"), radioType),
+        http2Box,
+        container.NewGridWithColumns(2, widget.NewLabel("Источник:"), selectSource),
+        dynamicBox,
+        container.NewGridWithColumns(2, widget.NewLabel("Потоки:"), selectWorkers),
+        container.NewGridWithColumns(2, widget.NewLabel("Таймаут:"), selectTimeout),
+        container.NewGridWithColumns(2, widget.NewLabel("Сайт проверки:"), selectTarget),
+        customBox,
+        widget.NewSeparator(),
+        container.NewGridWithColumns(2, widget.NewLabel("Тема интерфейса:"), selectTheme),
+    )
+
+    buttonsBox := container.NewHBox(btnBack, layout.NewSpacer(), btnSave)
+
+    content := container.NewBorder(
+        nil, buttonsBox, nil, nil,
+        settingsContent,
+    )
+
+    g.window.SetContent(content)
 }

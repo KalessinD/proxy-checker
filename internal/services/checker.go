@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,11 +19,16 @@ import (
 
 type Result struct {
 	ProxyLatency    time.Duration
-	ReqLatency      time.Duration
-	StatusCode      int
-	Error           error
 	ProxyLatencyStr string
-	ReqLatencyStr   string
+
+	ReqLatency    time.Duration
+	ReqLatencyStr string
+
+	StatusCode int
+	Error      error
+
+	SupportsHTTP  bool
+	SupportsHTTP2 bool
 }
 
 type ProxyItem = fetcher.ProxyItem
@@ -39,6 +45,7 @@ func CheckBatch(
 	mode common.ProxyType,
 	timeout time.Duration,
 	workers int,
+	checkHTTP2 bool, // НОВЫЙ ПАРАМЕТР
 	progressCallback func(current, total int32),
 ) []ProxyItemFull {
 	jobs := make(chan ProxyItem, len(proxiesList))
@@ -64,7 +71,9 @@ func CheckBatch(
 
 			addr := fmt.Sprintf("%s:%s", p.Host, p.Port)
 			ctxCheck, cancel := context.WithTimeout(ctx, timeout)
-			res := CheckProxy(ctxCheck, addr, dest, string(currentMode))
+
+			// ПЕРЕДАЕМ НОВЫЙ ФЛАГ
+			res := CheckProxy(ctxCheck, addr, dest, string(currentMode), checkHTTP2)
 			cancel()
 
 			if ctx.Err() != nil {
@@ -115,10 +124,10 @@ func CheckBatch(
 	return validProxies
 }
 
-func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
+func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
 	var res Result
 
-	dialTimeout := 10 * time.Second // Максимальный дефолт
+	dialTimeout := 10 * time.Second
 	if deadline, ok := ctx.Deadline(); ok {
 		remain := time.Until(deadline)
 		if remain > 0 && remain < dialTimeout {
@@ -126,26 +135,42 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 		}
 	}
 
+	// ================= TCP =================
+
 	start := time.Now()
 	dialer := net.Dialer{Timeout: dialTimeout}
+
 	conn, err := dialer.DialContext(ctx, "tcp", proxyAddr)
 	if err != nil {
 		res.Error = fmt.Errorf("TCP: %w", err)
 		return res
 	}
 	conn.Close()
+
 	res.ProxyLatency = time.Since(start)
 	res.ProxyLatencyStr = res.ProxyLatency.String()
 
-	client, err := proxies.NewClient(proxyAddr, mode)
-	if err != nil {
-		res.Error = err
-		return res
-	}
+	// ================= HTTP =================
 
 	target := destAddr
 	if target == "" {
-		target = "http://google.com"
+		target = "https://google.com"
+	}
+
+	if checkHTTP2 && !strings.HasPrefix(target, "https://") {
+		res.Error = fmt.Errorf("HTTP/2 требует HTTPS")
+		return res
+	}
+
+	if mode == "socks4" && checkHTTP2 {
+		res.Error = fmt.Errorf("SOCKS4 не поддерживает HTTP/2")
+		return res
+	}
+
+	client, err := proxies.NewClient(proxyAddr, mode, checkHTTP2)
+	if err != nil {
+		res.Error = err
+		return res
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
@@ -163,10 +188,18 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string) Result {
 		res.Error = err
 		return res
 	}
+	defer resp.Body.Close()
 
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	// ⚠️ не читаем весь body
+	io.CopyN(io.Discard, resp.Body, 512)
 
 	res.StatusCode = resp.StatusCode
+	res.SupportsHTTP = true
+	res.SupportsHTTP2 = resp.ProtoMajor == 2
+
+	if checkHTTP2 && !res.SupportsHTTP2 {
+		res.Error = fmt.Errorf("HTTP/2 не установлен (получен %s)", resp.Proto)
+	}
+
 	return res
 }

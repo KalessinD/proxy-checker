@@ -9,3 +9,5 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 6. иконка на панели запущенных приложений
 7. whois страны для тех источников, где её нет
 8. запуск и останов по кнопке некоей горутины для мониторинга доступности раз в минуту выбранного прокси
+9. Добавить источник https://github.com/proxifly/free-proxy-list/tree/main/proxies/protocols/socks5
+10. Добавить источник https://proxyverity.com/free-proxy-list/

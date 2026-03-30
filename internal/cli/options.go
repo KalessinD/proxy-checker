@@ -9,34 +9,29 @@ import (
 	"proxy-checker/internal/config"
 )
 
-// Options содержит флаги, которые актуальны только для CLI
 type Options struct {
 	ProxyAddr   string
 	ProxiesStat bool
 	Check       bool
 }
 
-// ParseFlags парсит аргументы командной строки и валидирует их.
-// Принимает *config.Config, чтобы пользователь мог переопределить настройки из файла через флаги (опционально).
 func ParseFlags(cfg *config.Config) (*Options, error) {
 	var opts Options
 
-	// Привязываем флаги. Дефолтные значения берем из загруженного cfg (если нужно)
 	flag.StringVar(&opts.ProxyAddr, "proxy", "", "Адрес прокси-сервера для проверки (host:port)")
 	flag.BoolVar(&opts.ProxiesStat, "proxies-stat", false, "Режим получения списка прокси")
 	flag.BoolVar(&opts.Check, "check", false, "Проверить доступность найденных прокси")
 
-	// Разрешаем переопределять файловые настройки через CLI (опционально, но удобно)
 	flag.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "Таймаут ожидания ответа")
 	flag.IntVar(&cfg.Workers, "workers", cfg.Workers, "Количество потоков для проверки")
 	flag.StringVar((*string)(&cfg.Type), "type", string(cfg.Type), "Тип прокси (socks5, socks4, http, https, all)")
 	flag.StringVar((*string)(&cfg.Source), "source", string(cfg.Source), "Источник прокси (proxymania, thespeedx)")
 	flag.IntVar(&cfg.RTT, "rtt", cfg.RTT, "Максимальное время отклика (мс)")
 	flag.IntVar(&cfg.Pages, "pages", cfg.Pages, "Количество страниц для парсинга")
+	flag.BoolVar(&cfg.CheckHTTP2, "http2", cfg.CheckHTTP2, "Проверять поддержку HTTP/2 (рекомендуется только для https/socks5)")
 
 	flag.Parse()
 
-	// Валидация ТОЛЬКО CLI логики
 	if opts.ProxyAddr != "" && opts.ProxiesStat {
 		return nil, fmt.Errorf("нельзя одновременно использовать -proxy и -proxies-stat")
 	}
@@ -61,7 +56,6 @@ func ParseFlags(cfg *config.Config) (*Options, error) {
 		}
 	}
 
-	// Проверка типа (так как мы приняли его как строку через flag)
 	validTypes := map[common.ProxyType]bool{
 		common.ProxySOCKS5: true, common.ProxySOCKS4: true,
 		common.ProxyHTTP: true, common.ProxyHTTPS: true, common.ProxyAll: true,
@@ -70,7 +64,6 @@ func ParseFlags(cfg *config.Config) (*Options, error) {
 		return nil, fmt.Errorf("неверный тип прокси: %s", cfg.Type)
 	}
 
-	// Проверка источника
 	if cfg.Source != common.SourceProxyMania && cfg.Source != common.SourceTheSpeedX {
 		return nil, fmt.Errorf("неверный источник: %s", cfg.Source)
 	}
