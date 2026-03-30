@@ -13,6 +13,7 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 10. Добавить источник https://proxyverity.com/free-proxy-list/
 11. linters
 12. zap logger + log file in config
+13. Добавить строку NO_PROXY
 
 в checkProxy есть такой код
 
@@ -30,4 +31,4 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 -  socks4 proxy -> http schema
 -  socks5 proxy -> http schema
 
-если меппинг верный, то давай реаоизуем
+если меппинг верный, то давай реализуем
