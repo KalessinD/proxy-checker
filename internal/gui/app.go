@@ -25,12 +25,12 @@ const (
 
 type (
 	ProxyItemWrapper struct {
-		Host    string
-		Port    string
-		Type    common.ProxyType
-		Country string
-		TCP     string
-		HTTP    string
+		Host    string           `json:"host"`
+		Port    string           `json:"port"`
+		Type    common.ProxyType `json:"type"`
+		Country string           `json:"country"`
+		TCP     string           `json:"tcp"`
+		HTTP    string           `json:"http"`
 	}
 
 	AppGUI struct {
@@ -191,6 +191,19 @@ func (g *AppGUI) applyTheme(themeName string) {
 
 func (g *AppGUI) Run() {
 	g.showMainScreen()
+
+	cachedItems, err := loadCache(g.cfg)
+	if err != nil {
+		g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_error"), err))
+	} else if cachedItems != nil {
+		guiItems := make([]interface{}, len(cachedItems))
+		for i, item := range cachedItems {
+			guiItems[i] = item
+		}
+		_ = g.listData.Set(guiItems)
+		g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+	}
+
 	g.window.ShowAndRun()
 }
 

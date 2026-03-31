@@ -22,6 +22,7 @@ type Config struct {
 	MinWidth   int              `toml:"min_width"`
 	CheckHTTP2 bool             `toml:"check_http2"`
 	LogPath    string           `toml:"log_path"`
+	CacheTTL   int              `toml:"cache_ttl"`
 	Lang       string           `toml:"lang"`
 }
 
@@ -39,6 +40,7 @@ func DefaultConfig() *Config {
 		CheckHTTP2: false,
 		DestAddr:   "google.com",
 		LogPath:    common.DefaultLogPath(),
+		CacheTTL:   3600,
 		Lang:       "en",
 	}
 }
