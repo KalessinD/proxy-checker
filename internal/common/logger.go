@@ -12,7 +12,9 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func InitLogger(logPath string) error {
+// InitLogger инициализирует глобальный логгер.
+// Если disableConsole == true, вывод в stdout/stderr подавляется (полезно для чистого CLI вывода).
+func InitLogger(logPath string, disableConsole bool) error {
 	pe := zap.NewProductionEncoderConfig()
 	pe.TimeKey = "time"
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -23,7 +25,11 @@ func InitLogger(logPath string) error {
 		zap.InfoLevel,
 	)
 
-	cores := []zapcore.Core{consoleCore}
+	var cores []zapcore.Core
+
+	if !disableConsole {
+		cores = append(cores, consoleCore)
+	}
 
 	if logPath != "" {
 		dir := filepath.Dir(logPath)
@@ -44,8 +50,15 @@ func InitLogger(logPath string) error {
 		}
 	}
 
+	// Защита от паники: если консоль отключена и файл недоступен,
+	// zap.NewTee на пустом слайсе упадет. Используем NopCore.
+	if len(cores) == 0 {
+		cores = append(cores, zapcore.NewNopCore())
+	}
+
 	core := zapcore.NewTee(cores...)
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+
 	zap.ReplaceGlobals(logger)
 
 	return nil

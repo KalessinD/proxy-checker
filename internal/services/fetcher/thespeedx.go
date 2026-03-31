@@ -16,73 +16,87 @@ import (
 
 type TheSpeedXFetcher struct{}
 
-const theSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
+const (
+	theSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
+
+	httpFileName   = "http.txt"
+	socks4FileName = "socks4.txt"
+	socks5FileName = "socks5.txt"
+)
 
 func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
-	var fileName string
+	var fileNames []string
+	haveToGetTypeFromFileName := false
 
 	// Используем типизированные константы
 	switch settings.Type {
 	case common.ProxySOCKS5:
-		fileName = "socks5.txt"
+		fileNames = append(fileNames, socks5FileName)
 	case common.ProxySOCKS4:
-		fileName = "socks4.txt"
+		fileNames = append(fileNames, socks4FileName)
 	case common.ProxyHTTP, common.ProxyHTTPS:
-		fileName = "http.txt"
+		fileNames = append(fileNames, httpFileName)
 	case common.ProxyAll:
-		fileName = "http.txt"
+		fileNames = append(fileNames, httpFileName, socks4FileName, socks5FileName)
+		haveToGetTypeFromFileName = true
 	default:
-		fileName = "http.txt"
-	}
-
-	targetURL := theSpeedXBaseURL + fileName
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch proxy list: status %d", resp.StatusCode)
+		fileNames = append(fileNames, socks5FileName)
 	}
 
 	var items []ProxyItem
 
-	scanner := bufio.NewScanner(resp.Body)
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+	for _, fileName := range fileNames {
+		targetURL := theSpeedXBaseURL + fileName
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+		if err != nil {
+			return nil, err
 		}
 
-		parts := strings.Split(line, ":")
-		if len(parts) != 2 {
-			continue
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
 		}
-		host := parts[0]
-		port := parts[1]
+		defer resp.Body.Close()
 
-		items = append(items, ProxyItem{
-			Host:    host,
-			Port:    port,
-			Type:    settings.Type, // Присваиваем строго типизированный параметр
-			Country: i18n.T("common.na"),
-			RTT:     i18n.T("common.na"),
-			RTTms:   0,
-		})
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("failed to fetch proxy list: status %d", resp.StatusCode)
+		}
+
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			line := scanner.Text()
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			parts := strings.Split(line, ":")
+			if len(parts) != 2 {
+				continue
+			}
+			host := parts[0]
+			port := parts[1]
+
+			proxyType := settings.Type
+			if haveToGetTypeFromFileName {
+				proxyType = common.ProxyType(strings.ToLower(strings.Split(fileName, ".")[0]))
+			}
+
+			items = append(items, ProxyItem{
+				Host:    host,
+				Port:    port,
+				Type:    proxyType,
+				Country: i18n.T("common.na"),
+				RTT:     i18n.T("common.na"),
+				RTTms:   0,
+			})
+		}
+
+		if err := scanner.Err(); err != nil && err != io.EOF {
+			return nil, err
+		}
 	}
-
-	if err := scanner.Err(); err != nil && err != io.EOF {
-		return nil, err
-	}
-
 	return items, nil
 }

@@ -15,7 +15,13 @@ import (
 )
 
 func (g *AppGUI) showSettingsScreen() {
-	proxyTypes := []string{"http", "https", "socks4", "socks5", i18n.T("gui.single.type_all")}
+	proxyTypes := []string{
+		string(common.ProxyHTTP),
+		string(common.ProxyHTTPS),
+		string(common.ProxySOCKS4),
+		string(common.ProxySOCKS5),
+		i18n.T("gui.single.type_all"),
+	}
 
 	http2Check := widget.NewCheck("", func(checked bool) {
 		g.cfg.CheckHTTP2 = checked
@@ -29,14 +35,15 @@ func (g *AppGUI) showSettingsScreen() {
 	logPathEntry.OnChanged = func(s string) { g.cfg.LogPath = s }
 
 	allValue := i18n.T("gui.single.type_all")
-	radioType := widget.NewRadioGroup(proxyTypes, func(s string) {
-		if s == allValue {
+	radioType := widget.NewRadioGroup(proxyTypes, func(pt string) {
+		proxyType := common.ProxyType(pt)
+		if proxyType == common.ProxyType(allValue) {
 			g.cfg.Type = common.ProxyAll
 		} else {
-			g.cfg.Type = common.ProxyType(s)
+			g.cfg.Type = proxyType
 		}
 
-		if s == "https" || s == "socks5" || s == allValue {
+		if proxyType == common.ProxyHTTPS || proxyType == common.ProxySOCKS5 || proxyType == common.ProxyType(allValue) {
 			http2Box.Show()
 		} else {
 			http2Box.Hide()
@@ -52,7 +59,7 @@ func (g *AppGUI) showSettingsScreen() {
 		radioType.SetSelected(currentType)
 	}
 
-	if currentType != "https" && currentType != "socks5" && currentType != allValue {
+	if currentType != string(common.ProxyHTTPS) && currentType != string(common.ProxySOCKS5) && currentType != allValue {
 		http2Box.Hide()
 	}
 
@@ -73,7 +80,7 @@ func (g *AppGUI) showSettingsScreen() {
 	selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
 	rttLabel := widget.NewLabel(i18n.T("gui.settings.max_rtt"))
 
-	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256"}
+	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256", "512", "1024"}
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, _ := strconv.Atoi(s)
 		g.cfg.Workers = val

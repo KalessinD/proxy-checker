@@ -17,8 +17,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// ================= Вспомогательные виджеты =================
-
 // vPad добавляет фиксированный отступ сверху для точного выравнивания виджетов
 type vPad struct {
 	widget.BaseWidget
@@ -33,7 +31,6 @@ func newVPad(child fyne.CanvasObject, topPad float32) *vPad {
 }
 
 func (v *vPad) CreateRenderer() fyne.WidgetRenderer {
-	// Прозрачный прямоугольник, который будет выполнять роль жесткого отступа
 	topSpacer := canvas.NewRectangle(color.Transparent)
 	topSpacer.SetMinSize(fyne.NewSize(0, v.topPad))
 
@@ -55,10 +52,10 @@ func newBorderedBox(content fyne.CanvasObject) *borderedBox {
 
 func (b *borderedBox) CreateRenderer() fyne.WidgetRenderer {
 	borderRect := canvas.NewRectangle(color.Transparent)
-	borderRect.StrokeColor = theme.InputBorderColor()
+	borderRect.StrokeColor = theme.Color(theme.ColorNameInputBorder)
 	borderRect.StrokeWidth = 1
 
-	box := container.NewPadded(container.NewMax(borderRect, b.content))
+	box := container.NewPadded(container.NewStack(borderRect, b.content))
 	return widget.NewSimpleRenderer(box)
 }
 
@@ -69,8 +66,8 @@ type minSizeWidget struct {
 	minSize fyne.Size
 }
 
-func newMinSizeWidget(content fyne.CanvasObject, min fyne.Size) *minSizeWidget {
-	w := &minSizeWidget{content: content, minSize: min}
+func newMinSizeWidget(content fyne.CanvasObject, minSize fyne.Size) *minSizeWidget {
+	w := &minSizeWidget{content: content, minSize: minSize}
 	w.ExtendBaseWidget(w)
 	return w
 }
@@ -318,7 +315,7 @@ func (g *AppGUI) runBatchCheck() {
 		OnFetched: func(total int) {
 			g.appendLog(fmt.Sprintf(i18n.T("gui.log_found"), total))
 		},
-		OnProgress: func(current, total int32) {
+		OnProgress: func(current, total int) {
 			if ctx.Err() == nil {
 				_ = g.progress.Set(float64(current) / float64(total))
 			}
@@ -371,7 +368,16 @@ func (g *AppGUI) createResultTable() *widget.Table {
 				return
 			}
 
-			item, _ := val.(binding.Untyped).Get()
+			castedVal, ok := val.(binding.Untyped)
+			if !ok {
+				return
+			}
+
+			item, err := castedVal.Get()
+			if err != nil {
+				return
+			}
+
 			p, ok := item.(ProxyItemWrapper)
 			if !ok {
 				return

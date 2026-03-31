@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"strings"
 
@@ -14,22 +14,31 @@ import (
 	"go.uber.org/zap"
 )
 
+func fatal(err error) {
+	if err != nil {
+		fmt.Fprint(os.Stderr, err.Error())
+	}
+	os.Exit(1)
+}
+
 func main() {
 	_ = config.EnsureConfigExists()
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
-
-	if err := common.InitLogger(cfg.LogPath); err != nil {
-		log.Fatal(err)
-	}
-	defer zap.S().Sync()
-
-	setupLanguage(cfg)
 
 	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
+
+	if err := common.InitLogger(cfg.LogPath, !isGUI); err != nil {
+		fatal(err)
+	}
+	defer func() {
+		_ = zap.S().Sync()
+	}()
+
+	setupLanguage(cfg)
 
 	if isGUI {
 		gui.Run(cfg)
@@ -38,10 +47,9 @@ func main() {
 
 	opts, err := cli.ParseFlags(cfg)
 	if err != nil {
-		zap.S().Fatal(err)
+		fatal(err)
 	}
 
-	setupLanguage(cfg)
 	cli.Run(cfg, opts)
 }
 
@@ -50,6 +58,6 @@ func setupLanguage(cfg *config.Config) {
 		cfg.Lang = "en"
 	}
 	if err := i18n.Init(cfg.Lang); err != nil {
-		log.Fatalf(i18n.T("main.err_lang_init"), err)
+		fatal(fmt.Errorf("%s: %w", i18n.T("main.err_lang_init"), err))
 	}
 }

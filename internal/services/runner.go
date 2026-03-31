@@ -9,7 +9,7 @@ import (
 // PipelineCallbacks позволяет клиентам (GUI, CLI) реагировать на этапы пайплайна
 type PipelineCallbacks struct {
 	OnFetched  func(total int)
-	OnProgress func(current, total int32)
+	OnProgress func(current, total int)
 }
 
 // RunPipeline запускает полный цикл: Fetch -> Check

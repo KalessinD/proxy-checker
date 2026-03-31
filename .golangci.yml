@@ -140,3 +140,10 @@ issues:
   # Default: true
   uniq-by-line: true
   exclude-use-default: true
+  exclude-rules:
+    - path: internal/cli/run.go
+      linters:
+        - forbidigo
+    - path: internal/common/logger.go
+      linters:
+        - forbidigo
