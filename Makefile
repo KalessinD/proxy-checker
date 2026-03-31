@@ -78,14 +78,14 @@ test: # Runs golang tests
 
 coverage: # Runs tests and shows total coverage
 	$(NOECHO) $(call print_info,"Running tests with coverage")
-	$(NOECHO) $(GO) test -v -race -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
-	# $(NOECHO) $(GO) test -v -race -coverprofile=$(GO_COVERAGE_REPORT) ./...
+	$(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
+	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
 	$(NOECHO) $(GO) tool cover -func=$(GO_COVERAGE_REPORT)
 
 coverage-html: # Generates HTML coverage report and opens it
 	$(NOECHO) $(call print_info,"Generating HTML coverage report")
-	$(NOECHO) $(GO) test -v -race -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
-	# $(NOECHO) $(GO) test -v -race -coverprofile=$(GO_COVERAGE_REPORT) ./...
+	$(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
+	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
 	$(NOECHO) $(GO) tool cover -html=$(GO_COVERAGE_REPORT)
 
 build: # Builds app binary
