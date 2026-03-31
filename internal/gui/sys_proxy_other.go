@@ -3,6 +3,11 @@
 
 package gui
 
+const (
+	ProxyModeManual = "manual"
+	ProxyModeNone   = "none"
+)
+
 func isSystemProxySupported() bool {
 	return false
 }
@@ -17,5 +22,5 @@ func setSystemProxyMode(mode string) error {
 }
 
 func getSystemProxyMode() (string, error) {
-    return "", nil
+	return "", nil
 }

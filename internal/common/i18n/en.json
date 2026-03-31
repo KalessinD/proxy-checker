@@ -116,5 +116,8 @@
   "fetcher.err_status": "status %d",
   "common.na": "N/A",
   "sysproxy.err_gsettings": "gsettings error: %v, %s",
-  "fetcher.err_fetch_list_status": "failed to fetch proxy list: status %d"
+  "fetcher.err_fetch_list_status": "failed to fetch proxy list: status %d",
+  "gui.log_cache_loaded": "Loaded %d proxies from cache\n",
+  "gui.log_cache_saved": "Results saved to cache\n",
+  "gui.log_cache_error": "Cache error: %v\n"  
 }

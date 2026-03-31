@@ -25,12 +25,12 @@ const (
 
 type (
 	ProxyItemWrapper struct {
-		Host    string
-		Port    string
-		Type    common.ProxyType
-		Country string
-		TCP     string
-		HTTP    string
+		Host    string           `json:"host"`
+		Port    string           `json:"port"`
+		Type    common.ProxyType `json:"type"`
+		Country string           `json:"country"`
+		TCP     string           `json:"tcp"`
+		HTTP    string           `json:"http"`
 	}
 
 	AppGUI struct {
@@ -103,9 +103,9 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 
 		var mode string
 		if checked {
-			mode = "manual"
+			mode = ProxyModeManual
 		} else {
-			mode = "none"
+			mode = ProxyModeNone
 		}
 
 		if err := setSystemProxyMode(mode); err != nil {
@@ -141,7 +141,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		currentMode, err := getSystemProxyMode()
 		if err != nil {
 			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_status_error"), err))
-		} else if currentMode == "manual" {
+		} else if currentMode == ProxyModeManual {
 			gui.switchProxy.SetChecked(true)
 		}
 	}
@@ -191,6 +191,17 @@ func (g *AppGUI) applyTheme(themeName string) {
 
 func (g *AppGUI) Run() {
 	g.showMainScreen()
+
+	cachedItems := loadCache(g.cfg)
+	if cachedItems != nil {
+		guiItems := make([]interface{}, len(cachedItems))
+		for i, item := range cachedItems {
+			guiItems[i] = item
+		}
+		_ = g.listData.Set(guiItems)
+		g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+	}
+
 	g.window.ShowAndRun()
 }
 

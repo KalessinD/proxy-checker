@@ -12,15 +12,23 @@ import (
 	"time"
 )
 
-type TheSpeedXFetcher struct{}
+type TheSpeedXFetcher struct {
+	BaseURL string
+}
 
 const (
-	theSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
+	TheSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
 
 	httpFileName   = "http.txt"
 	socks4FileName = "socks4.txt"
 	socks5FileName = "socks5.txt"
 )
+
+func NewTheSpeedXFetcher() *TheSpeedXFetcher {
+	return &TheSpeedXFetcher{
+		BaseURL: TheSpeedXBaseURL,
+	}
+}
 
 func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
 	var fileNames []string
@@ -44,7 +52,7 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 	var items []ProxyItem
 
 	for _, fileName := range fileNames {
-		targetURL := theSpeedXBaseURL + fileName
+		targetURL := f.BaseURL + fileName
 
 		client := &http.Client{Timeout: 30 * time.Second}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)

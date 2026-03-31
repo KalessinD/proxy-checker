@@ -15,16 +15,24 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type ProxyManiaFetcher struct{}
+type ProxyManiaFetcher struct {
+	BaseURL string
+}
 
 const (
-	proxyManiaBaseURL    = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
-	defaultUnknownRTT    = 99999 // Значение, если не удалось распарсить RTT со страницы
+	ProxyManiaBaseURL    = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
+	DefaultUnknownRTT    = 99999
 	fetcherClientTimeout = 20 * time.Second
 )
 
+func NewProxyManiaFetcher() *ProxyManiaFetcher {
+	return &ProxyManiaFetcher{
+		BaseURL: ProxyManiaBaseURL,
+	}
+}
+
 func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
-	u, err := url.Parse(proxyManiaBaseURL)
+	u, err := url.Parse(f.BaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +164,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		speedCell := row.Find("td.speed-fast")
 		rttText := strings.TrimSpace(speedCell.Text())
 
-		rttMs := defaultUnknownRTT // ИСПОЛЬЗУЕМ КОНСТАНТУ
+		rttMs := DefaultUnknownRTT // ИСПОЛЬЗУЕМ КОНСТАНТУ
 		if p := strings.Fields(rttText); len(p) > 0 {
 			if val, err := strconv.Atoi(p[0]); err == nil {
 				rttMs = val

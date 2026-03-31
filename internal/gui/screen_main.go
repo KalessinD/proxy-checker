@@ -325,9 +325,9 @@ func (g *AppGUI) runBatchCheck() {
 		return
 	}
 
-	items := make([]interface{}, len(validProxies))
+	wrappers := make([]ProxyItemWrapper, len(validProxies))
 	for i, p := range validProxies {
-		items[i] = ProxyItemWrapper{
+		wrappers[i] = ProxyItemWrapper{
 			Host:    p.Host,
 			Port:    p.Port,
 			Type:    p.Type,
@@ -336,12 +336,24 @@ func (g *AppGUI) runBatchCheck() {
 			HTTP:    p.CheckResult.ReqLatencyStr,
 		}
 	}
+
+	items := make([]interface{}, len(wrappers))
+	for i, item := range wrappers {
+		items[i] = item
+	}
+
 	_ = g.listData.Set(items)
 
 	if ctx.Err() != nil {
 		g.appendLog(i18n.T("gui.log_stopped"))
 	} else {
 		g.appendLog(fmt.Sprintf(i18n.T("gui.log_done"), len(validProxies)))
+
+		if err := saveCache(wrappers); err != nil {
+			g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_error"), err))
+		} else {
+			g.appendLog(i18n.T("gui.log_cache_saved"))
+		}
 	}
 	_ = g.progress.Set(1.0)
 }

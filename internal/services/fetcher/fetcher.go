@@ -5,37 +5,33 @@ import (
 	"proxy-checker/internal/common"
 )
 
-// ProxyItem представляет одну запись прокси
 type ProxyItem struct {
 	Host    string
 	Port    string
 	Country string
-	Type    common.ProxyType // ИСПОЛЬЗУЕМ ТИП
+	Type    common.ProxyType
 	RTT     string
 	RTTms   int
 }
 
-// Settings параметры для получения прокси
 type Settings struct {
-	Type    common.ProxyType // ИСПОЛЬЗУЕМ ТИП
+	Type    common.ProxyType
 	MaxRTT  int
 	Pages   int
 	Timeout int
 }
 
-// Fetcher интерфейс для источника прокси
 type Fetcher interface {
 	Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error)
 }
 
-// NewFetcher фабричный метод
-func NewFetcher(source common.Source) Fetcher { // ИСПОЛЬЗУЕМ ТИП
+func NewFetcher(source common.Source) Fetcher {
 	switch source {
 	case common.SourceTheSpeedX:
-		return &TheSpeedXFetcher{}
+		return NewTheSpeedXFetcher()
 	case common.SourceProxyMania:
-		return &ProxyManiaFetcher{}
+		return NewProxyManiaFetcher()
 	default:
-		return &ProxyManiaFetcher{}
+		return NewProxyManiaFetcher()
 	}
 }

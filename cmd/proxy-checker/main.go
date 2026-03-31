@@ -44,7 +44,7 @@ func main() {
 		return
 	}
 
-	opts, err := cli.ParseFlags(cfg)
+	opts, err := cli.ParseFlags(cfg, os.Args[1:])
 	if err != nil {
 		fatal(err)
 	}
