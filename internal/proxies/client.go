@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"time"
 
+	"proxy-checker/internal/common/i18n"
+
 	"golang.org/x/net/http2"
 	"golang.org/x/net/proxy"
 )
@@ -54,7 +56,7 @@ func NewClient(proxyAddr, mode string, forceHTTP2 bool) (*http.Client, error) {
 	case "socks5":
 		dialer, err := proxy.SOCKS5("tcp", proxyAddr, nil, proxy.Direct)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка инициализации SOCKS5: %w", err)
+			return nil, fmt.Errorf(i18n.T("proxy.err_socks5_init"), err)
 		}
 
 		contextDialer := &contextDialerWrapper{Dialer: dialer}
@@ -128,7 +130,7 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 		ips, err := net.LookupIP(host)
 		if err != nil {
 			conn.Close()
-			return nil, fmt.Errorf("SOCKS4: не удалось резолвить домен %s", host)
+			return nil, fmt.Errorf(i18n.T("proxy.err_socks4_resolve"), host)
 		}
 		ip = ips[0]
 	}
@@ -136,7 +138,7 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 	ipv4 := ip.To4()
 	if ipv4 == nil {
 		conn.Close()
-		return nil, errors.New("SOCKS4 поддерживает только IPv4")
+		return nil, errors.New(i18n.T("proxy.err_socks4_ipv4"))
 	}
 
 	req := make([]byte, 9)
@@ -159,7 +161,7 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 
 	if resp[1] != 90 {
 		conn.Close()
-		return nil, fmt.Errorf("SOCKS4 прокси вернул ошибку: код %d", resp[1])
+		return nil, fmt.Errorf(i18n.T("proxy.err_socks4_code"), resp[1])
 	}
 
 	_ = conn.SetDeadline(time.Time{})

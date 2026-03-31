@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
+
 	"strings"
 	"time"
 )
@@ -71,8 +74,8 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 			Host:    host,
 			Port:    port,
 			Type:    settings.Type, // Присваиваем строго типизированный параметр
-			Country: "N/A",
-			RTT:     "N/A",
+			Country: i18n.T("common.na"),
+			RTT:     i18n.T("common.na"),
 			RTTms:   0,
 		})
 	}

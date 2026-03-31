@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/proxies"
 	"proxy-checker/internal/services/fetcher"
 )
@@ -160,7 +161,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	conn, err := dialer.DialContext(ctx, "tcp", proxyAddr)
 	if err != nil {
-		res.Error = fmt.Errorf("TCP: %w", err)
+		res.Error = fmt.Errorf(i18n.T("checker.err_tcp"), err)
 		return res
 	}
 	conn.Close()
@@ -170,7 +171,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	target := destAddr
 	if target == "" {
-		target = "google.com" // Теперь без схемы
+		target = i18n.T("checker.default_target")
 	}
 
 	// Защита от случая, если пользователь вручную ввел схему в настройках/GUI
@@ -181,7 +182,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 	target = schema + target
 
 	if mode == "socks4" && checkHTTP2 {
-		res.Error = errors.New("SOCKS4 не поддерживает HTTP/2")
+		res.Error = errors.New(i18n.T("checker.err_socks4_no_http2"))
 		return res
 	}
 
@@ -193,7 +194,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		res.Error = fmt.Errorf("создание запроса: %w", err)
+		res.Error = fmt.Errorf(i18n.T("checker.err_create_req"), err)
 		return res
 	}
 
@@ -215,7 +216,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 	res.SupportsHTTP2 = resp.ProtoMajor == 2
 
 	if checkHTTP2 && !res.SupportsHTTP2 {
-		res.Error = fmt.Errorf("HTTP/2 не установлен (получен %s)", resp.Proto)
+		res.Error = fmt.Errorf(i18n.T("checker.err_http2_failed"), resp.Proto)
 	}
 
 	return res

@@ -14,3 +14,4 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 11. linters
 12. Добавить строку NO_PROXY
 13. не писать zlogger.Tee, это ломает CLI вывод
+14. поиск через "пуск"

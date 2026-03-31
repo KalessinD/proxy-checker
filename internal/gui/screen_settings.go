@@ -105,7 +105,7 @@ func (g *AppGUI) showSettingsScreen() {
 	}
 
 	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder("https://example.com")
+	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
 	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
 
 	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
@@ -122,10 +122,10 @@ func (g *AppGUI) showSettingsScreen() {
 			customBox.Hide()
 		}
 	})
-	selectTarget.PlaceHolder = "(Выберите из списка)"
+	selectTarget.PlaceHolder = i18n.T("gui.settings.target_placeholder")
 
 	if g.isCustomTarget {
-		selectTarget.SetSelected("Иной сайт")
+		selectTarget.SetSelected(i18n.T("gui.single.custom_site"))
 		customBox.Show()
 	} else if g.cfg.DestAddr != "" {
 		selectTarget.SetSelected(g.cfg.DestAddr)

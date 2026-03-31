@@ -36,11 +36,11 @@ func (g *AppGUI) showSingleCheckScreen() {
 	}
 
 	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder("https://example.com")
+	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
 	customEntry.SetText(g.customTargetURL)
 	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
 
-	customBox := container.NewVBox(widget.NewLabel("Введите адрес:"), customEntry)
+	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
 	customBox.Hide()
 
 	targetSelect := widget.NewSelect(targetSites, func(s string) {
@@ -53,7 +53,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			customBox.Hide()
 		}
 	})
-	targetSelect.PlaceHolder = "(Выберите из списка)"
+	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
 
 	if g.isCustomTarget {
 		targetSelect.SetSelected("Иной сайт")
