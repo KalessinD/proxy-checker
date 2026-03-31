@@ -22,14 +22,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Определяем режим ДО инициализации логгера
 	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
 
-	// Для GUI пишем в консоль и файл, для CLI — ТОЛЬКО в файл (disableConsole = !isGUI)
 	if err := common.InitLogger(cfg.LogPath, !isGUI); err != nil {
 		log.Fatal(err)
 	}
-	defer zap.S().Sync()
+	defer func() {
+		_ = zap.S().Sync()
+	}()
 
 	setupLanguage(cfg)
 
@@ -40,7 +40,6 @@ func main() {
 
 	opts, err := cli.ParseFlags(cfg)
 	if err != nil {
-		// Используем log.Fatal, так как zap в CLI模式下 консоль не пишет
 		log.Fatal(err)
 	}
 

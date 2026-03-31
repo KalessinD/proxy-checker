@@ -18,6 +18,11 @@ import (
 	"proxy-checker/internal/config"
 )
 
+const (
+	themeLight = "light"
+	themeDark  = "dark"
+)
+
 type ProxyItemWrapper struct {
 	Host    string
 	Port    string
@@ -155,9 +160,9 @@ func (g *AppGUI) appendLog(text string) {
 
 func (g *AppGUI) applyTheme(themeName string) {
 	switch strings.ToLower(themeName) {
-	case "light":
+	case themeLight:
 		g.app.Settings().SetTheme(theme.LightTheme())
-	case "dark":
+	case themeDark:
 		g.app.Settings().SetTheme(theme.DarkTheme())
 	default:
 		g.app.Settings().SetTheme(nil)
