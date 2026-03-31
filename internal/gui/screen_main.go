@@ -368,7 +368,12 @@ func (g *AppGUI) createResultTable() *widget.Table {
 				return
 			}
 
-			item, err := val.(binding.Untyped).Get()
+			castedVal, ok := val.(binding.Untyped)
+			if !ok {
+				return
+			}
+
+			item, err := castedVal.Get()
 			if err != nil {
 				return
 			}

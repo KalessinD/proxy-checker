@@ -91,7 +91,14 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 
 func printTable(proxies []fetcher.ProxyItem) {
 	sep := strings.Repeat("-", 70)
-	fmt.Printf("%-25s %-6s %-10s %-15s %-10s\n", i18n.T("cli.table_host"), i18n.T("cli.table_port"), i18n.T("cli.table_type"), i18n.T("cli.table_country"), i18n.T("cli.table_rtt"))
+	fmt.Printf(
+		"%-25s %-6s %-10s %-15s %-10s\n",
+		i18n.T("cli.table_host"),
+		i18n.T("cli.table_port"),
+		i18n.T("cli.table_type"),
+		i18n.T("cli.table_country"),
+		i18n.T("cli.table_rtt"),
+	)
 	fmt.Println(sep)
 	for _, p := range proxies {
 		fmt.Printf("%-25s %-6s %-10s %-15s %-10s\n", p.Host, p.Port, p.Type, p.Country, p.RTT)
@@ -100,7 +107,15 @@ func printTable(proxies []fetcher.ProxyItem) {
 
 func printFullTable(proxies []services.ProxyItemFull) {
 	sep := strings.Repeat("-", 95)
-	fmt.Printf("%-25s %-6s %-10s %-15s %-15s %-15s\n", i18n.T("cli.table_host"), i18n.T("cli.table_port"), i18n.T("cli.table_type"), i18n.T("cli.table_country"), i18n.T("cli.table_tcp"), i18n.T("cli.table_http"))
+	fmt.Printf(
+		"%-25s %-6s %-10s %-15s %-15s %-15s\n",
+		i18n.T("cli.table_host"),
+		i18n.T("cli.table_port"),
+		i18n.T("cli.table_type"),
+		i18n.T("cli.table_country"),
+		i18n.T("cli.table_tcp"),
+		i18n.T("cli.table_http"),
+	)
 	fmt.Println(sep)
 
 	for _, p := range proxies {

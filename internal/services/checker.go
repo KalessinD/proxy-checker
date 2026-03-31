@@ -19,26 +19,33 @@ import (
 	"proxy-checker/internal/services/fetcher"
 )
 
-type Result struct {
-	ProxyLatency    time.Duration
-	ProxyLatencyStr string
+const (
+	httpSchema  = "http://"
+	httpsSchema = "https://"
+)
 
-	ReqLatency    time.Duration
-	ReqLatencyStr string
+type (
+	Result struct {
+		ProxyLatency    time.Duration
+		ProxyLatencyStr string
 
-	StatusCode int
-	Error      error
+		ReqLatency    time.Duration
+		ReqLatencyStr string
 
-	SupportsHTTP  bool
-	SupportsHTTP2 bool
-}
+		StatusCode int
+		Error      error
 
-type ProxyItem = fetcher.ProxyItem
+		SupportsHTTP  bool
+		SupportsHTTP2 bool
+	}
 
-type ProxyItemFull struct {
-	ProxyItem
-	CheckResult Result
-}
+	ProxyItem = fetcher.ProxyItem
+
+	ProxyItemFull struct {
+		ProxyItem
+		CheckResult Result
+	}
+)
 
 func CheckBatch(
 	ctx context.Context,
@@ -130,18 +137,20 @@ func CheckBatch(
 // Если запрошена принудительная проверка HTTP/2, всегда возвращаем https.
 func resolveSchema(mode string, forceHTTP2 bool) string {
 	if forceHTTP2 {
-		return "https://"
+		return httpsSchema
 	}
 
 	switch mode {
 	case "http":
 		return "http://"
 	case "https":
-		return "https://"
-	case "socks4", "socks5":
-		return "http://"
+		return httpsSchema
+	case "socks4":
+		return httpSchema
+	case "socks5":
+		return httpsSchema
 	default:
-		return "http://"
+		return httpSchema
 	}
 }
 

@@ -74,7 +74,7 @@ func setSystemProxyMode(mode string) error {
 
 // clearProxySubkey сбрасывает настройки прокси для конкретного протокола (host и port)
 func clearProxySubkey(proto string) error {
-	schema := fmt.Sprintf("org.gnome.system.proxy.%s", proto)
+	schema := "org.gnome.system.proxy." + proto
 	if err := gsettingsSet(schema, "host", ""); err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func setSystemProxy(host, port, proxyType string) error {
 
 // setProxySubkey вспомогательная функция для установки конкретного протокола
 func setProxySubkey(proto, host, port string) error {
-	schema := fmt.Sprintf("org.gnome.system.proxy.%s", proto)
+	schema := "org.gnome.system.proxy." + proto
 	if err := gsettingsSet(schema, "host", host); err != nil {
 		return err
 	}
