@@ -3,6 +3,8 @@ package i18n
 import (
 	"embed"
 	"encoding/json"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -53,4 +55,22 @@ func T(key string) string {
 	}
 
 	return key
+}
+
+func AvailableLanguages() []string {
+	entries, err := translationsFS.ReadDir(".")
+	if err != nil {
+		return []string{"en"}
+	}
+
+	var langs []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+			lang := strings.TrimSuffix(e.Name(), ".json")
+			langs = append(langs, lang)
+		}
+	}
+
+	sort.Strings(langs)
+	return langs
 }

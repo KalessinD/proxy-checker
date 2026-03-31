@@ -3,6 +3,7 @@ package gui
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -151,6 +152,21 @@ func (g *AppGUI) appendLog(text string) {
 			}
 		})
 	}
+}
+
+func setButtonText(btn *widget.Button, text string) {
+	v := reflect.ValueOf(btn).Elem()
+	f := v.FieldByName("label")
+	if f.IsValid() {
+		f.Interface().(*widget.Label).SetText(text)
+	}
+}
+
+func (g *AppGUI) updateButtonTitles() {
+	setButtonText(g.btnSettings, i18n.T("gui.btn_settings"))
+	setButtonText(g.btnCheckSingle, i18n.T("gui.btn_check_single"))
+	setButtonText(g.btnCheckList, i18n.T("gui.btn_check_list"))
+	setButtonText(g.btnCancel, i18n.T("gui.btn_cancel"))
 }
 
 func (g *AppGUI) applyTheme(themeName string) {

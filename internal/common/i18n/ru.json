@@ -71,6 +71,7 @@
   "gui.settings.target": "Сайт проверки:",
   "gui.settings.log_path": "Файл журнала:",
   "gui.settings.theme": "Тема интерфейса:",
+  "gui.settings.lang": "Язык:",
   "gui.settings.theme_system": "системная",
   "gui.settings.theme_light": "светлая",
   "gui.settings.theme_dark": "тёмная",

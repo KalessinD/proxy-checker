@@ -219,6 +219,8 @@ func (g *AppGUI) showMainScreen() {
 	g.logLabel.Wrapping = fyne.TextWrapWord
 	g.logScroll = container.NewScroll(g.logLabel)
 
+	g.updateButtonTitles()
+
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
 	progressBar := widget.NewProgressBarWithData(g.progress)

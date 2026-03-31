@@ -155,6 +155,17 @@ func (g *AppGUI) showSettingsScreen() {
 	}
 	selectTheme.SetSelected(currentThemeLabel)
 
+	availableLangs := i18n.AvailableLanguages()
+	selectLang := widget.NewSelect(availableLangs, func(s string) {
+		if s == "" {
+			return
+		}
+		g.cfg.Lang = s
+		_ = i18n.Init(s)
+	})
+	selectLang.SetSelected(g.cfg.Lang)
+
+	langBox := container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.lang")), selectLang)
 	rttBox := container.NewGridWithColumns(2, rttLabel, selectRTT)
 	pagesBox := container.NewGridWithColumns(2, pagesLabel, selectPages)
 	dynamicBox := container.NewVBox(rttBox, pagesBox)
@@ -177,6 +188,7 @@ func (g *AppGUI) showSettingsScreen() {
 	settingsContent := container.NewVBox(
 		widget.NewLabel(i18n.T("gui.settings.title")),
 		widget.NewSeparator(),
+		langBox,
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.type")), radioType),
 		http2Box,
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.source")), selectSource),

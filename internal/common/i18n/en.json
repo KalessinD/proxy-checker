@@ -71,6 +71,7 @@
   "gui.settings.target": "Check site:",
   "gui.settings.log_path": "Log file:",
   "gui.settings.theme": "Interface theme:",
+  "gui.settings.lang": "Language:",
   "gui.settings.theme_system": "system",
   "gui.settings.theme_light": "light",
   "gui.settings.theme_dark": "dark",
