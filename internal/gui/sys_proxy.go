@@ -8,9 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
-
 	"proxy-checker/internal/common/i18n"
+	"strings"
 )
 
 // isSystemProxySupported проверяет, является ли ОС Debian-совместимой

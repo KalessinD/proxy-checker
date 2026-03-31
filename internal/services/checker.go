@@ -7,16 +7,15 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
+	"proxy-checker/internal/proxies"
+	"proxy-checker/internal/services/fetcher"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"proxy-checker/internal/common"
-	"proxy-checker/internal/common/i18n"
-	"proxy-checker/internal/proxies"
-	"proxy-checker/internal/services/fetcher"
 )
 
 const (

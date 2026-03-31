@@ -48,9 +48,15 @@ func getConfigPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	configDir := filepath.Join(homeDir, ".config")
-	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		_ = os.MkdirAll(configDir, 0755)
+
+	_, err = os.Stat(configDir)
+	if err != nil && os.IsNotExist(err) {
+		err = os.MkdirAll(configDir, 0755)
+		if err != nil {
+			return "", err
+		}
 	}
 	return filepath.Join(configDir, "proxy-checker.conf"), nil
 }

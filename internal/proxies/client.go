@@ -9,10 +9,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"proxy-checker/internal/common/i18n"
 	"strconv"
 	"time"
-
-	"proxy-checker/internal/common/i18n"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/proxy"

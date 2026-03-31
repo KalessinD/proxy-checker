@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
-
 	"proxy-checker/internal/common/i18n"
+	"runtime"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -33,21 +32,23 @@ func InitLogger(logPath string, disableConsole bool) error {
 
 	if logPath != "" {
 		dir := filepath.Dir(logPath)
-		if _, err := os.Stat(dir); err == nil {
-			file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err == nil {
-				fileCore := zapcore.NewCore(
-					zapcore.NewJSONEncoder(pe),
-					zapcore.AddSync(file),
-					zap.InfoLevel,
-				)
-				cores = append(cores, fileCore)
-			} else {
-				fmt.Printf(i18n.T("log.warn_open_file"), logPath, err)
-			}
-		} else {
-			fmt.Printf(i18n.T("log.warn_dir_access"), dir)
+
+		_, err := os.Stat(dir)
+		if err != nil {
+			return fmt.Errorf("%s: %s", i18n.T("log.warn_dir_access"), dir)
 		}
+
+		file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("%s (%s): %w", i18n.T("log.warn_open_file"), logPath, err)
+		}
+
+		fileCore := zapcore.NewCore(
+			zapcore.NewJSONEncoder(pe),
+			zapcore.AddSync(file),
+			zap.InfoLevel,
+		)
+		cores = append(cores, fileCore)
 	}
 
 	// Защита от паники: если консоль отключена и файл недоступен,
