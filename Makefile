@@ -62,7 +62,7 @@ endif
         lint lint-vet lint-golangci lint-golangci-fix \
 		test coverage coverage-html
 
-all: clean build
+all: clean test lint build
 
 help: # Shows help message
 	$(NOECHO) $(GREP) -E '^[a-zA-Z0-9 -]+:.*#' Makefile | \

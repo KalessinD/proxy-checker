@@ -160,8 +160,10 @@ func (g *AppGUI) appendLog(text string) {
 func (g *AppGUI) applyTheme(themeName string) {
 	switch strings.ToLower(themeName) {
 	case themeLight:
+		// nolint staticcheck
 		g.app.Settings().SetTheme(theme.LightTheme())
 	case themeDark:
+		// nolint staticcheck
 		g.app.Settings().SetTheme(theme.DarkTheme())
 	default:
 		g.app.Settings().SetTheme(nil)
