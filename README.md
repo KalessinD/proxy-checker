@@ -68,8 +68,10 @@ sudo make install
 Simply run the executable. By default, it launches the graphical interface.
 
 ```bash
-./bin/proxy-checker
-# or explicitly
+# CLI
+./bin/proxy-checker -proxies-stat -lang en -check -rtt 150 -source proxymania -dest some-host.com -type socks5
+
+# GUI
 ./bin/proxy-checker -gui
 ```
 
@@ -90,7 +92,7 @@ The CLI is designed for quick checks and pipeline scripting.
 
 **Fetch a list of proxies (without checking):**
 ```bash
-./bin/proxy-checker -proxies-stat -source proxymania -type http -rtt 100 -pages 2
+./bin/proxy-checker -proxies-stat -source proxymania -type socks5 -rtt 100 -pages 2
 ```
 
 **Fetch and check proxies concurrently:**
