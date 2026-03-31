@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"image/color"
-	"strings"
-
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/services"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -321,9 +320,8 @@ func (g *AppGUI) runBatchCheck() {
 			}
 		},
 	})
-
 	if err != nil {
-		g.appendLog(fmt.Sprintf(i18n.T("gui.log_fetch_error"), err))
+		g.appendLog(fmt.Sprintf("%s: %v", i18n.T("gui.log_fetch_error"), err))
 		return
 	}
 

@@ -3,11 +3,10 @@ package gui
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/services"
+	"strings"
 
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"

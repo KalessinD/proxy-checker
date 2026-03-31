@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net"
-
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"

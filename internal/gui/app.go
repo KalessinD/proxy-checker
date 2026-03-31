@@ -3,6 +3,9 @@ package gui
 import (
 	"context"
 	"fmt"
+	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
+	"proxy-checker/internal/config"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -12,10 +15,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"go.uber.org/zap"
-
-	"proxy-checker/internal/common"
-	"proxy-checker/internal/common/i18n"
-	"proxy-checker/internal/config"
 )
 
 const (

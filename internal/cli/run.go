@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
-
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
 	"proxy-checker/internal/services/fetcher"
+	"strings"
 )
 
 func Run(cfg *config.Config, opts *Options) {
@@ -74,7 +73,6 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 			},
 		},
 	)
-
 	if err != nil {
 		fmt.Fprintf(os.Stderr, i18n.T("cli.pipeline_error")+"\n", err)
 		return

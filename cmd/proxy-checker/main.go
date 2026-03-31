@@ -3,13 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
-
 	"proxy-checker/internal/cli"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
+	"strings"
 
 	"go.uber.org/zap"
 )

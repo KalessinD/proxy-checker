@@ -2,12 +2,11 @@ package gui
 
 import (
 	"fmt"
+	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"strconv"
 	"strings"
 	"time"
-
-	"proxy-checker/internal/common"
-	"proxy-checker/internal/common/i18n"
 
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"

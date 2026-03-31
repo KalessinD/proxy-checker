@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"proxy-checker/internal/common"
-	"proxy-checker/internal/common/i18n"
 
 	"github.com/PuerkitoBio/goquery"
 )

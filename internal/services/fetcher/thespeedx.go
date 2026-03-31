@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
-
 	"strings"
 	"time"
 )
