@@ -12,5 +12,4 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 9. Добавить источник https://proxyverity.com/free-proxy-list/
 10. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
 11. поиск через "пуск"
-12. кешировать результаты и при первом старте показывать их, если TTL не прошло
-13. посдтветка в таблице выбранного прокси
+12. подсветка в таблице выбранного прокси
