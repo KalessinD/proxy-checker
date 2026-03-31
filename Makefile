@@ -26,6 +26,9 @@ CD := cd
 ECHO := echo -e
 NOECHO := @
 
+GO_PACKAGES := $(shell go list ./... | grep -v '/mocks')
+GO_COVERAGE_REPORT := $(TMPDIR)/$(APP_NAME)-coverage.out
+
 OS := $(shell uname -s)
 
 # print_title = $(ECHO) "\033[1;34m$1\033[0m"
@@ -56,9 +59,10 @@ endif
         install-linux install-linux-bin install-linux-desktop-shortcut \
         install-windows install-macos install-freebsd install-unknown \
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
-        lint lint-vet lint-golangci lint-golangci-fix
+        lint lint-vet lint-golangci lint-golangci-fix \
+		test coverage coverage-html
 
-all: clean build
+all: clean lint test build
 
 help: # Shows help message
 	$(NOECHO) $(GREP) -E '^[a-zA-Z0-9 -]+:.*#' Makefile | \
@@ -66,6 +70,23 @@ help: # Shows help message
 	while read -r l; do \
 		printf "\033[1;36m$$(echo $$l | cut -f 1 -d':')\033[00m:$$(echo $$l | cut -f 2- -d'#')\n"; \
 	done
+
+test: # Runs golang tests
+	$(NOECHO) $(call print_info,"Running tests: golang")
+	$(NOECHO) $(GO) clean -testcache
+	$(NOECHO) $(GO) test -v -cover ./... # -race
+
+coverage: # Runs tests and shows total coverage
+	$(NOECHO) $(call print_info,"Running tests with coverage")
+	$(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
+	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
+	$(NOECHO) $(GO) tool cover -func=$(GO_COVERAGE_REPORT)
+
+coverage-html: # Generates HTML coverage report and opens it
+	$(NOECHO) $(call print_info,"Generating HTML coverage report")
+	$(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
+	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
+	$(NOECHO) $(GO) tool cover -html=$(GO_COVERAGE_REPORT)
 
 build: # Builds app binary
 	$(NOECHO) $(call print_info,Building project for $(OSTYPE)...)

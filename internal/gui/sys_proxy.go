@@ -153,7 +153,7 @@ func gsettingsSet(schema, key, value string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("gsettings error: %v, %s", err, stderr.String())
+		return fmt.Errorf(i18n.T("sysproxy.err_gsettings"), err, stderr.String())
 	}
 	return nil
 }

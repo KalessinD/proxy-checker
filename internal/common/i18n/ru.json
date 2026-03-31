@@ -114,5 +114,7 @@
   "checker.err_create_req": "создание запроса: %w",
   "checker.err_http2_failed": "HTTP/2 не установлен (получен %s)",
   "fetcher.err_status": "статус %d",
-  "common.na": "N/A"
+  "common.na": "N/A",
+  "sysproxy.err_gsettings": "ошибка gsettings: %v, %s",
+  "fetcher.err_fetch_list_status": "ошибка получения списка прокси: статус %d"  
 }

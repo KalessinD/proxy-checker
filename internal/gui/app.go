@@ -3,6 +3,7 @@ package gui
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
@@ -22,42 +23,56 @@ const (
 	themeDark  = "dark"
 )
 
-type ProxyItemWrapper struct {
-	Host    string
-	Port    string
-	Type    common.ProxyType
-	Country string
-	TCP     string
-	HTTP    string
-}
+type (
+	ProxyItemWrapper struct {
+		Host    string
+		Port    string
+		Type    common.ProxyType
+		Country string
+		TCP     string
+		HTTP    string
+	}
 
-type AppGUI struct {
-	app    fyne.App
-	window fyne.Window
-	cfg    *config.Config
+	AppGUI struct {
+		app    fyne.App
+		window fyne.Window
+		cfg    *config.Config
 
-	progress binding.Float
-	listData binding.UntypedList
+		progress binding.Float
+		listData binding.UntypedList
 
-	progressBar *widget.ProgressBar
-	table       *widget.Table
+		progressBar *widget.ProgressBar
+		table       *widget.Table
 
-	logLabel  *widget.Label
-	logScroll *container.Scroll
-	logBuffer string
+		logLabel  *widget.Label
+		logScroll *container.Scroll
+		logBuffer string
 
-	systemProxySupported bool
+		systemProxySupported bool
 
-	customTargetURL string
-	isCustomTarget  bool
+		customTargetURL string
+		isCustomTarget  bool
 
-	cancelFunc context.CancelFunc
+		cancelFunc context.CancelFunc
 
-	btnCancel      *widget.Button
-	btnCheckSingle *widget.Button
-	btnCheckList   *widget.Button
-	btnSettings    *widget.Button
-	switchProxy    *widget.Check
+		btnCancel      *widget.Button
+		btnCheckSingle *widget.Button
+		btnCheckList   *widget.Button
+		btnSettings    *widget.Button
+		switchProxy    *widget.Check
+	}
+
+	// forcedVariantTheme — это кастомная тема-обертка, которая принудительно
+	// устанавливает вариант (светлый/тёмный), сохраняя остальные пользовательские
+	// настройки, чтобы обойти использование deprecated theme.LightTheme()/DarkTheme().
+	forcedVariantTheme struct {
+		fyne.Theme
+		variant fyne.ThemeVariant
+	}
+)
+
+func (t *forcedVariantTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
+	return t.Theme.Color(name, t.variant)
 }
 
 func NewAppGUI(cfg *config.Config) *AppGUI {
@@ -160,9 +175,15 @@ func (g *AppGUI) appendLog(text string) {
 func (g *AppGUI) applyTheme(themeName string) {
 	switch strings.ToLower(themeName) {
 	case themeLight:
-		g.app.Settings().SetTheme(theme.LightTheme())
+		g.app.Settings().SetTheme(&forcedVariantTheme{
+			Theme:   theme.DefaultTheme(),
+			variant: theme.VariantLight,
+		})
 	case themeDark:
-		g.app.Settings().SetTheme(theme.DarkTheme())
+		g.app.Settings().SetTheme(&forcedVariantTheme{
+			Theme:   theme.DefaultTheme(),
+			variant: theme.VariantDark,
+		})
 	default:
 		g.app.Settings().SetTheme(nil)
 	}

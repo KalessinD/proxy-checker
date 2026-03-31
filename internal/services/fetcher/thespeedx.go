@@ -59,7 +59,7 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("failed to fetch proxy list: status %d", resp.StatusCode)
+			return nil, fmt.Errorf(i18n.T("fetcher.err_fetch_list_status"), resp.StatusCode)
 		}
 
 		scanner := bufio.NewScanner(resp.Body)
