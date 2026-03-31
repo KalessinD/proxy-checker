@@ -55,10 +55,10 @@ func newBorderedBox(content fyne.CanvasObject) *borderedBox {
 
 func (b *borderedBox) CreateRenderer() fyne.WidgetRenderer {
 	borderRect := canvas.NewRectangle(color.Transparent)
-	borderRect.StrokeColor = theme.InputBorderColor()
+	borderRect.StrokeColor = theme.Color(theme.ColorNameInputBorder)
 	borderRect.StrokeWidth = 1
 
-	box := container.NewPadded(container.NewMax(borderRect, b.content))
+	box := container.NewPadded(container.NewStack(borderRect, b.content))
 	return widget.NewSimpleRenderer(box)
 }
 
@@ -318,7 +318,7 @@ func (g *AppGUI) runBatchCheck() {
 		OnFetched: func(total int) {
 			g.appendLog(fmt.Sprintf(i18n.T("gui.log_found"), total))
 		},
-		OnProgress: func(current, total int32) {
+		OnProgress: func(current, total int) {
 			if ctx.Err() == nil {
 				_ = g.progress.Set(float64(current) / float64(total))
 			}

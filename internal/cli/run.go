@@ -69,7 +69,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 			OnFetched: func(total int) {
 				fmt.Printf(i18n.T("cli.total_found")+"\n", total)
 			},
-			OnProgress: func(current, total int32) {
+			OnProgress: func(current, total int) {
 				fmt.Printf(i18n.T("cli.progress")+"\n", current, total)
 			},
 		},

@@ -47,15 +47,15 @@ func CheckBatch(
 	mode common.ProxyType,
 	timeout time.Duration,
 	workers int,
-	checkHTTP2 bool, // НОВЫЙ ПАРАМЕТР
-	progressCallback func(current, total int32),
+	checkHTTP2 bool,
+	progressCallback func(current, total int),
 ) []ProxyItemFull {
 	jobs := make(chan ProxyItem, len(proxiesList))
 	results := make(chan ProxyItemFull, len(proxiesList))
 
 	var wg sync.WaitGroup
 	var processedCount int32
-	totalCount := int32(len(proxiesList))
+	totalCount := len(proxiesList)
 
 	worker := func() {
 		defer wg.Done()
@@ -85,7 +85,7 @@ func CheckBatch(
 			results <- ProxyItemFull{ProxyItem: p, CheckResult: res}
 
 			if progressCallback != nil {
-				current := atomic.AddInt32(&processedCount, 1)
+				current := int(atomic.AddInt32(&processedCount, 1))
 				progressCallback(current, totalCount)
 			}
 		}
