@@ -10,6 +10,6 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 7. запуск и останов по кнопке некоей горутины для мониторинга доступности раз в минуту выбранного прокси
 8. Добавить источник https://github.com/proxifly/free-proxy-list/tree/main/proxies/protocols/socks5
 9. Добавить источник https://proxyverity.com/free-proxy-list/
-10. Добавить строку NO_PROXY
+10. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
 11. поиск через "пуск"
 12. кешировать результаты и при первом старте показывать их, если TTL не прошло

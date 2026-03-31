@@ -114,5 +114,7 @@
   "checker.err_create_req": "request creation: %w",
   "checker.err_http2_failed": "HTTP/2 not established (received %s)",
   "fetcher.err_status": "status %d",
-  "common.na": "N/A"
+  "common.na": "N/A",
+  "sysproxy.err_gsettings": "gsettings error: %v, %s",
+  "fetcher.err_fetch_list_status": "failed to fetch proxy list: status %d"
 }
