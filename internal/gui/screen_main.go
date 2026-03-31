@@ -185,6 +185,23 @@ func (w *resizableTable) updateColumnWidths(availableWidth float32) {
 // ================= Логика главного экрана =================
 
 func (g *AppGUI) showMainScreen() {
+	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() { g.showSettingsScreen() })
+	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() { g.showSingleCheckScreen() })
+	g.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() { go g.runBatchCheck() })
+	g.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
+		if g.cancelFunc != nil {
+			g.cancelFunc()
+			g.appendLog(i18n.T("gui.log_stopped"))
+		}
+	})
+	g.btnCancel.Importance = widget.DangerImportance
+
+	if g.cancelFunc != nil {
+		g.setUIState(true)
+	} else {
+		g.setUIState(false)
+	}
+
 	rightButtons := container.NewHBox(
 		g.btnCancel,
 		g.btnCheckSingle,
@@ -218,8 +235,6 @@ func (g *AppGUI) showMainScreen() {
 	g.logLabel = widget.NewLabel("")
 	g.logLabel.Wrapping = fyne.TextWrapWord
 	g.logScroll = container.NewScroll(g.logLabel)
-
-	g.updateButtonTitles()
 
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
