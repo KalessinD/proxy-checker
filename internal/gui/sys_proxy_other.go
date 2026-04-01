@@ -24,3 +24,11 @@ func setSystemProxyMode(mode string) error {
 func getSystemProxyMode() (string, error) {
 	return "", nil
 }
+
+func GetSystemProxyIgnoreHosts() (string, error) {
+	return "", nil
+}
+
+func SetSystemProxyIgnoreHosts(ignoreHostsText string) error {
+	return nil
+}

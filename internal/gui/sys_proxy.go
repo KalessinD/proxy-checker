@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"proxy-checker/internal/common/i18n"
+	"sort"
 	"strings"
 )
 
@@ -176,4 +177,80 @@ func getSystemProxyMode() (string, error) {
 	mode := strings.TrimSpace(out.String())
 	mode = strings.Trim(mode, "'")
 	return mode, nil
+}
+
+func GetSystemProxyIgnoreHosts() (string, error) {
+	cmd := exec.Command("gsettings", "get", "org.gnome.system.proxy", "ignore-hosts")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf(i18n.T("sysproxy.err_get_ignore_hosts"), err)
+	}
+
+	rawList := parseGVariantStringArray(out.String())
+	return strings.Join(rawList, "\n"), nil
+}
+
+// SetSystemProxyIgnoreHosts принимает многострочный текст, склеивает его
+// в формат GVariant и записывает в системные настройки.
+func SetSystemProxyIgnoreHosts(ignoreHostsText string) error {
+	lines := strings.Split(ignoreHostsText, "\n")
+
+	var cleanedHosts []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			cleanedHosts = append(cleanedHosts, line)
+		}
+	}
+
+	gVariantArray := formatGVariantStringArray(cleanedHosts)
+
+	if err := gsettingsSet("org.gnome.system.proxy", "ignore-hosts", gVariantArray); err != nil {
+		return fmt.Errorf(i18n.T("sysproxy.err_set_ignore_hosts"), err)
+	}
+
+	return nil
+}
+
+// parseGVariantStringArray парсит строку вида "['localhost', '127.0.0.0/8']" в слайс строк.
+func parseGVariantStringArray(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "[]" {
+		return nil
+	}
+
+	raw = strings.TrimPrefix(raw, "[")
+	raw = strings.TrimSuffix(raw, "]")
+
+	elements := strings.Split(raw, ",")
+
+	var result []string
+	for _, elem := range elements {
+		cleaned := strings.TrimSpace(elem)
+		cleaned = strings.Trim(cleaned, "'")
+		if cleaned != "" {
+			result = append(result, cleaned)
+		}
+	}
+
+	sort.Strings(result)
+	return result
+}
+
+// formatGVariantStringArray формирует из слайса строк валидную строку GVariant массива.
+func formatGVariantStringArray(hosts []string) string {
+	if len(hosts) == 0 {
+		return "[]"
+	}
+
+	sort.Strings(hosts)
+
+	quoted := make([]string, len(hosts))
+	for i, host := range hosts {
+		quoted[i] = "'" + host + "'"
+	}
+
+	return "[" + strings.Join(quoted, ", ") + "]"
 }

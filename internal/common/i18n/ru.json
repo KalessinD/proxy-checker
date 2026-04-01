@@ -119,5 +119,9 @@
   "fetcher.err_fetch_list_status": "ошибка получения списка прокси: статус %d" ,
   "gui.log_cache_loaded": "Загружено %d прокси из кэша\n",
   "gui.log_cache_saved": "Результаты сохранены в кэш\n",
-  "gui.log_cache_error": "Ошибка кэша: %v\n"  
+  "gui.log_cache_error": "Ошибка кэша: %v\n",
+  "gui.settings.ignore_hosts": "Proxy exceptions",
+  "gui.settings.ignore_hosts_saved": "Proxy exceptions saved to system.\n",
+  "sysproxy.err_get_ignore_hosts": "failed to get proxy exceptions: %w",
+  "sysproxy.err_set_ignore_hosts": "failed to set proxy exceptions: %w"  
 }

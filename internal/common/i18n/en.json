@@ -119,5 +119,9 @@
   "fetcher.err_fetch_list_status": "failed to fetch proxy list: status %d",
   "gui.log_cache_loaded": "Loaded %d proxies from cache\n",
   "gui.log_cache_saved": "Results saved to cache\n",
-  "gui.log_cache_error": "Cache error: %v\n"  
+  "gui.log_cache_error": "Cache error: %v\n",
+  "gui.settings.ignore_hosts": "Исключения для прокси",
+  "gui.settings.ignore_hosts_saved": "Исключения для прокси сохранены в систему.\n",
+  "sysproxy.err_get_ignore_hosts": "ошибка получения исключений прокси: %w",
+  "sysproxy.err_set_ignore_hosts": "ошибка сохранения исключений прокси: %w"  
 }

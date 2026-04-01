@@ -191,6 +191,28 @@ func (g *AppGUI) showSettingsScreen() {
 		toggleDynamicFields(s)
 	}
 
+	ignoreHostsEntry := widget.NewEntry()
+	ignoreHostsEntry.MultiLine = true
+	ignoreHostsEntry.SetPlaceHolder("localhost\n127.0.0.0/8")
+	ignoreHostsEntry.SetMinRowsVisible(5)
+
+	if g.systemProxySupported {
+		ignoreHosts, err := GetSystemProxyIgnoreHosts()
+		if err != nil {
+			g.appendLog(fmt.Sprintf(i18n.T("sysproxy.err_get_ignore_hosts"), err))
+		} else {
+			ignoreHostsEntry.SetText(ignoreHosts)
+		}
+	} else {
+		ignoreHostsEntry.Disable()
+		ignoreHostsEntry.SetText(i18n.T("common.na"))
+	}
+
+	ignoreHostsBox := container.NewGridWithColumns(2,
+		widget.NewLabel(i18n.T("gui.settings.ignore_hosts")),
+		ignoreHostsEntry,
+	)
+
 	settingsContent := container.NewVBox(
 		widget.NewLabel(i18n.T("gui.settings.title")),
 		widget.NewSeparator(),
@@ -206,9 +228,18 @@ func (g *AppGUI) showSettingsScreen() {
 		widget.NewSeparator(),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.log_path")), logPathEntry),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.theme")), selectTheme),
+		ignoreHostsBox,
 	)
 
 	btnSave := widget.NewButton(i18n.T("gui.btn_save"), func() {
+		if g.systemProxySupported {
+			if err := SetSystemProxyIgnoreHosts(ignoreHostsEntry.Text); err != nil {
+				g.appendLog(fmt.Sprintf(i18n.T("sysproxy.err_set_ignore_hosts"), err))
+			} else {
+				g.appendLog(i18n.T("gui.settings.ignore_hosts_saved"))
+			}
+		}
+
 		if err := g.cfg.SaveToFile(); err != nil {
 			g.appendLog(fmt.Sprintf(i18n.T("gui.settings.save_error"), err))
 		} else {
