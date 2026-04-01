@@ -2,9 +2,9 @@ SHELL := /bin/bash
 PROJECT_DIR ?= $(CURDIR)
 TMPDIR ?= /tmp
 
-APP_VERSION ?= "dev"
-APP_NAME := proxy-checker
-BINARY_NAME := proxy-checker
+APP_VERSION ?= dev
+APP_NAME ?= proxy-checker
+BINARY_NAME := $(APP_NAME)
 CMD_PATH := cmd/proxy-checker/main.go
 BUILD_DIR := bin
 

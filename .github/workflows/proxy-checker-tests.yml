@@ -10,6 +10,18 @@ jobs:
   proxy-checker-test:
     runs-on: ubuntu-latest
     container: golang:1.26.1
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            artifact_name: proxy-checker-linux-amd64
+#          - goos: windows
+#            goarch: amd64
+#            artifact_name: proxy-checker-windows-amd64.exe
+#          - goos: darwin  # macOS
+#            goarch: arm64
+#            artifact_name: proxy-checker-macos-arm64
 
     steps:
 
@@ -38,4 +50,10 @@ jobs:
 
       - name: Build binary
         run: |
-          APP_VERSION=${{ github.ref_name }} make build
+          APP_VERSION=${{ github.ref_name }} APP_NAME=${{ matrix.artifact_name }} make build
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          files: ./bin/${{ matrix.artifact_name }}
