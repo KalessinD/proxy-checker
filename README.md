@@ -24,9 +24,9 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 
 ## Screenshots
 
-![alt text](https://github.com/KalessinD/proxy-checker/blob/main/docs/images//checker-in-scan-process.png?raw=true)
+![The main screen while scanning](docs/images/checker-in-scan-process.png)
 
-![alt text](https://github.com/KalessinD/proxy-checker/blob/main/docs/images//checker-scan-is-finished.png?raw=true)
+![The main screen after scan process is finished](docs/images/checker-scan-is-finished.png)
 
 ## Installation & Building
 
