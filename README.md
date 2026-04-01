@@ -2,9 +2,6 @@
 
 A fast, concurrent proxy parser and checker with a native cross-platform GUI and a powerful CLI. Written in Go.
 
-
-![Go Version](https://img.googleapis.com/favicon?domain=golang.org&size=16) ![Go Report Card](https://goreportcard.bidge/github.com/yourusername/proxy-checker)](https://goreportcard.com/report/github.com/yourusername/proxy-checker)
-
 ## Features
 
 - **Multi-protocol Support:** Check HTTP, HTTPS, SOCK4, and SOCK5 proxies.
