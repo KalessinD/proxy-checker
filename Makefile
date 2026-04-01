@@ -132,7 +132,7 @@ install-linux-shortcuts: # The app desktop shortcut installation on Linux
 	$(NOECHO) $(ECHO) "Icon=$(LINUX_ICON_INSTALL_PATH)" >> $(LINUX_TMP_DESKTOP_FILE)
 	$(NOECHO) $(ECHO) "Terminal=false" >> $(LINUX_TMP_DESKTOP_FILE)
 	$(NOECHO) $(ECHO) "Categories=Network;Utility;" >> $(LINUX_TMP_DESKTOP_FILE)
-	$(NOECHO) $(ECHO) "StartupWMClass=Proxy Checker" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "StartupWMClass=$(APP_NAME)" >> $(LINUX_TMP_DESKTOP_FILE)
 	$(NOECHO) $(SUDO) $(INSTALL) -m 644  $(LINUX_TMP_DESKTOP_FILE) $(LINUX_SYSTEM_DESKTOP_FILE)
 	$(NOECHO) $(call print_success,Shortcut created: $(LINUX_TMP_DESKTOP_FILE))
 	$(NOECHO) if [ -d "$(HOME)/Desktop" ]; then \
