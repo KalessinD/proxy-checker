@@ -2,9 +2,6 @@
 
 A fast, concurrent proxy parser and checker with a native cross-platform GUI and a powerful CLI. Written in Go.
 
-
-![Go Version](https://img.googleapis.com/favicon?domain=golang.org&size=16) ![Go Report Card](https://goreportcard.bidge/github.com/yourusername/proxy-checker)](https://goreportcard.com/report/github.com/yourusername/proxy-checker)
-
 ## Features
 
 - **Multi-protocol Support:** Check HTTP, HTTPS, SOCK4, and SOCK5 proxies.
@@ -24,12 +21,14 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 
 ## Screenshots
 
-*(Add your screenshots here)*
+![The main screen while scanning](docs/images/checker-in-scan-process.png)
+
+![The main screen after scan process is finished](docs/images/checker-scan-is-finished.png)
 
 ## Installation & Building
 
 ### Prerequisites
-- Go 1.21 or higher
+- Go 1.25 or higher
 - Make (optional, for using the Makefile)
 - C compiler (GCC/Clang) and development libraries (required by Fyne for GUI compilation)
 
@@ -125,15 +124,19 @@ If the file does not exist, it is automatically created with default values on t
 **Example `proxy-checker.conf`:**
 ```toml
 type = "socks5"
-timeout = "10s"
-workers = 256
-dest_addr = "https://google.com"
+timeout = "3s"
+workers = 512
+dest_addr = "youtube.com"
 source = "proxymania"
 rtt = 150
-pages = 4
-theme = "system"
+pages = 5
+theme = "light"
 min_height = 300
 min_width = 600
+check_http2 = false
+log_path = "/tmp/proxy-checker.log"
+cache_ttl = 3600
+lang = "en"
 ```
 *Note: CLI flags override the values defined in the configuration file.*
 

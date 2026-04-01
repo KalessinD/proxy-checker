@@ -1,0 +1,86 @@
+name: autotests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  autotests:
+    runs-on: ubuntu-latest
+    container: golang:1.26.1
+
+    steps:
+
+      - name: Install dependencies
+        run: |
+          apt-get update && \
+          DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends --no-install-suggests \
+          gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev \
+          xvfb xauth
+
+      - name: Installing Golang tools
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Run Lint
+        run: |
+          make lint
+
+      - name: Run Tests
+        # Runs tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
+        run: |
+          xvfb-run --auto-servernum make test
+
+  release:
+    needs: autotests
+    if: startsWith(github.ref, 'refs/tags/v') # starts only on tags with leading "v"
+    
+    runs-on: ubuntu-latest
+    container: golang:1.26.1
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            artifact_name: proxy-checker-linux-amd64
+#          - goos: windows
+#            goarch: amd64
+#            artifact_name: proxy-checker-windows-amd64.exe
+#          - goos: darwin  # macOS
+#            goarch: arm64
+#            artifact_name: proxy-checker-macos-arm64
+
+    steps:
+
+      - name: Install dependencies
+        run: |
+          apt-get update && \
+          DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends --no-install-suggests \
+          gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build binary
+        run: |
+          APP_VERSION=${{ github.ref_name }} APP_NAME=${{ matrix.artifact_name }} make build
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          fetch-depth: 0
+          name: Release ${{ github.ref_name }}
+          files: ./bin/${{ matrix.artifact_name }}
