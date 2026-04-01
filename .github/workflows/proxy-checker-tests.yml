@@ -26,6 +26,7 @@ jobs:
         # RUns tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           make clean lint
           xvfb-run --auto-servernum make test
 
