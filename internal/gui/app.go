@@ -192,10 +192,8 @@ func (g *AppGUI) applyTheme(themeName string) {
 func (g *AppGUI) Run() {
 	g.showMainScreen()
 
-	cachedItems, err := loadCache(g.cfg)
-	if err != nil {
-		g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_error"), err))
-	} else if cachedItems != nil {
+	cachedItems := loadCache(g.cfg)
+	if cachedItems != nil {
 		guiItems := make([]interface{}, len(cachedItems))
 		for i, item := range cachedItems {
 			guiItems[i] = item

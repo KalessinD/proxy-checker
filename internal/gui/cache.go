@@ -13,30 +13,30 @@ func getCacheFilePath() string {
 	return filepath.Join(os.TempDir(), common.AppName+"-cache.data")
 }
 
-func loadCache(cfg *config.Config) ([]ProxyItemWrapper, error) {
+func loadCache(cfg *config.Config) []ProxyItemWrapper {
 	cacheFilePath := getCacheFilePath()
 
 	fileInfo, err := os.Stat(cacheFilePath)
-	if err != nil {
-		return nil, err
+	if err != nil { // it's not an error if there is no cache file yet
+		return nil
 	}
 
 	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
 	if time.Since(fileInfo.ModTime()) > cacheTTL {
-		return nil, nil
+		return nil
 	}
 
 	fileData, err := os.ReadFile(cacheFilePath)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	var cachedItems []ProxyItemWrapper
 	if err := json.Unmarshal(fileData, &cachedItems); err != nil {
-		return nil, err
+		return nil
 	}
 
-	return cachedItems, nil
+	return cachedItems
 }
 
 func saveCache(items []ProxyItemWrapper) error {

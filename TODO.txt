@@ -13,7 +13,7 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 10. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
 11. поиск через "пуск"
 12. подсветка в таблице выбранного прокси
-13. ПрвверитьЮ, что без конфига все запускается в gUI
+13. Првверить, что без конфига все запускается в gUI
 
 Давай реализуем такую логику:
 
@@ -25,10 +25,3 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 6. Покажи правки в виде diff для применения командой git apply или patch
 7. Проверь заголовки в diff, что там нет дублей и они синтаксически удовлетворяю утилитам их применяющих
 
-2026-04-01T15:17:33.751+0300    error   gui/app.go:159  Ошибка кэша: unexpected end of JSON input
-proxy-checker/internal/gui.(*AppGUI).appendLog
-        /home/dchernenko/github/proxy-checker/internal/gui/app.go:159
-
-2026-04-01T15:17:21.470+0300    error   gui/app.go:159  Ошибка кэша: unexpected end of JSON input
-proxy-checker/internal/gui.(*AppGUI).appendLog
-        /home/dchernenko/github/proxy-checker/internal/gui/app.go:159
