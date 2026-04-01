@@ -34,8 +34,8 @@ func NewFetcher(source common.Source) Fetcher { // ИСПОЛЬЗУЕМ ТИП
 	case common.SourceTheSpeedX:
 		return &TheSpeedXFetcher{}
 	case common.SourceProxyMania:
-		return &ProxyManiaFetcher{}
+		return &ProxyManiaFetcher{BaseURL: TheSpeedXBaseURL}
 	default:
-		return &ProxyManiaFetcher{}
+		return &ProxyManiaFetcher{BaseURL: ProxyManiaBaseURL}
 	}
 }
