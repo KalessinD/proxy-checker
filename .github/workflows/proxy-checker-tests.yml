@@ -7,18 +7,26 @@ on:
       - main
 
 jobs:
-
   proxy-checker-test:
     runs-on: ubuntu-latest
     container: golang:1.26.1
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
+        uses: actions/checkout@v1
 
       - name: Install dependencies
-        run: apt-get install gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev
-
-      - name: Build server binary
         run: |
-          make clean lint test build
+          apt-get update && \
+          DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends --no-install-suggests \
+          gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev \
+          xvfb
+
+      - name: Run Lint and Tests
+        # RUns tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
+        run: |
+          make clean lint
+          xvfb-run --auto-servernum make test
+
+      - name: Build binary
+        run: make build
