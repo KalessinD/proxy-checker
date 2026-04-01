@@ -32,10 +32,13 @@ jobs:
       - name: Configure Git safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Run Lint and Tests
-        # RUns tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
+      - name: Run Lint
         run: |
-          make clean lint
+          make lint
+
+      - name: Run Tests
+        # Runs tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
+        run: |
           xvfb-run --auto-servernum make test
 
   release:
