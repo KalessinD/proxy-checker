@@ -38,4 +38,4 @@ jobs:
 
       - name: Build binary
         run: |
-          make build
+          APP_VERSION=${{ github.ref_name }} make build

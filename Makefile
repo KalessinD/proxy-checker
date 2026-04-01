@@ -2,6 +2,7 @@ SHELL := /bin/bash
 PROJECT_DIR ?= $(CURDIR)
 TMPDIR ?= /tmp
 
+APP_VERSION ?= "dev"
 APP_NAME := proxy-checker
 BINARY_NAME := proxy-checker
 CMD_PATH := cmd/proxy-checker/main.go
@@ -96,7 +97,7 @@ build: # Builds app binary
 	$(NOECHO) $(call print_info,Downloading dependencies...)
 	$(NOECHO) $(GO) mod tidy
 	$(NOECHO) $(MKDIR) -p $(BUILD_DIR)
-	$(NOECHO) $(GO) build -o $(BINARY_FULL) $(CMD_PATH)
+	$(NOECHO) $(GO) build -ldflags="-X main.Version=$(APP_VERSION)" -o $(BINARY_FULL) $(CMD_PATH)
 	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
 
 install: install-$(OSTYPE) # Installs the app
