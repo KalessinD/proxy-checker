@@ -103,9 +103,9 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 
 		var mode string
 		if checked {
-			mode = "manual"
+			mode = ProxyModeManual
 		} else {
-			mode = "none"
+			mode = ProxyModeNone
 		}
 
 		if err := setSystemProxyMode(mode); err != nil {
@@ -141,7 +141,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		currentMode, err := getSystemProxyMode()
 		if err != nil {
 			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_status_error"), err))
-		} else if currentMode == "manual" {
+		} else if currentMode == ProxyModeManual {
 			gui.switchProxy.SetChecked(true)
 		}
 	}

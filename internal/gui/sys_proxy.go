@@ -12,6 +12,11 @@ import (
 	"strings"
 )
 
+const (
+	ProxyModeManual = "manual"
+	ProxyModeNone   = "none"
+)
+
 // isSystemProxySupported проверяет, является ли ОС Debian-совместимой
 // и запущен ли GNOME-совместимый десктоп.
 func isSystemProxySupported() bool {
@@ -100,7 +105,7 @@ func setSystemProxy(host, port, proxyType string) error {
 	pType := strings.ToLower(proxyType)
 
 	// Включаем ручной режим
-	if err := setSystemProxyMode("manual"); err != nil {
+	if err := setSystemProxyMode(ProxyModeManual); err != nil {
 		return err
 	}
 
