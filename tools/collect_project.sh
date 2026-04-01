@@ -43,6 +43,7 @@ find . -type f \
     -not -name "*.mod" \
     -not -name "*.sum" \
     -not -name "*.exe" \
+    -not -name "TODO.txt" \
     -print0 | while IFS= read -r -d '' file; do
 
     # Проверка на текстовый файл через MIME-тип (самый надежный способ)
