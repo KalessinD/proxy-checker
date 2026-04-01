@@ -26,4 +26,8 @@ vendor/
 # environments
 .env
 
+# IP databases and modules
+*.mmdb
+geoip_embed.go
+
 TODO.txt

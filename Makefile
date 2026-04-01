@@ -8,7 +8,12 @@ BINARY_NAME := $(APP_NAME)
 CMD_PATH := cmd/proxy-checker/main.go
 BUILD_DIR := bin
 
-ICON_SOURCE := assets/proxy-checker.png
+ICON_FILE := assets/images/proxy-checker.png
+MMDB_FILE ?= assets/mmdb/GeoLite2-Country.mmdb
+GO_MMDB_EMBED_FILE := internal/common/geoip_embed.go
+
+MMDB_BASENAME := $(shell basename $(MMDB_FILE))
+MMDB_EMBED_DIR := $(shell dirname $(GO_MMDB_EMBED_FILE))
 
 LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
 LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
@@ -18,6 +23,7 @@ LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
 
 GOLANGCI_LINT ?= golangci-lint
 
+CP := cp
 CHMOD := chmod
 INSTALL := install
 SUDO := sudo
@@ -30,7 +36,7 @@ CD := cd
 ECHO := echo -e
 NOECHO := @
 
-GO_PACKAGES := $(shell go list ./... | grep -v '/mocks')
+GO_PACKAGES := $(shell go list ./... 2>/dev/null | grep -v '/mocks')
 GO_COVERAGE_REPORT := $(TMPDIR)/$(APP_NAME)-coverage.out
 
 OS := $(shell uname -s)
@@ -64,7 +70,8 @@ endif
         install-windows install-macos install-freebsd install-unknown \
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
         lint lint-vet lint-golangci lint-golangci-fix \
-		test coverage coverage-html
+		test coverage coverage-html \
+		generate-embed
 
 all: clean lint test build
 
@@ -92,13 +99,28 @@ coverage-html: # Generates HTML coverage report and opens it
 	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
 	$(NOECHO) $(GO) tool cover -html=$(GO_COVERAGE_REPORT)
 
-build: # Builds app binary
+build: generate-embed # Builds app binary
 	$(NOECHO) $(call print_info,Building project for $(OSTYPE)...)
 	$(NOECHO) $(call print_info,Downloading dependencies...)
 	$(NOECHO) $(GO) mod tidy
 	$(NOECHO) $(MKDIR) -p $(BUILD_DIR)
 	$(NOECHO) $(GO) build -ldflags="-X main.Version=$(APP_VERSION)" -o $(BINARY_FULL) $(CMD_PATH)
 	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
+	$(NOECHO) $(RM) $(MMDB_EMBED_DIR)/$(MMDB_BASENAME);
+
+generate-embed:
+	@if [ -n "$(MMDB_FILE)" ] && [ -f "$(MMDB_FILE)" ]; then \
+		$(call print_info,Embedding GeoIP DB from $(MMDB_FILE)...); \
+		$(CP) $(MMDB_FILE) $(MMDB_EMBED_DIR)/$(MMDB_BASENAME); \
+		$(ECHO) "package common" > $(GO_MMDB_EMBED_FILE); \
+		$(ECHO) 'import _ "embed"' >> $(GO_MMDB_EMBED_FILE); \
+		$(ECHO) '//go:embed "$(MMDB_BASENAME)"' >> $(GO_MMDB_EMBED_FILE); \
+		$(ECHO) 'var GeoIPData []byte' >> $(GO_MMDB_EMBED_FILE); \
+	else \
+		$(call print_warn,GeoIP DB not provided via DB_IP_PATH. Using empty embed.); \
+		$(ECHO) "package common" > $(GO_MMDB_EMBED_FILE); \
+		$(ECHO) "var GeoIPData []byte" >> $(GO_MMDB_EMBED_FILE); \
+	fi
 
 install: install-$(OSTYPE) # Installs the app
 
@@ -116,11 +138,11 @@ install-linux-bin: # The app binary installation on Linux
 	$(NOECHO) $(SUDO) $(INSTALL) -m 755 $(BINARY_FULL) $(LINUX_BIN_INSTALL_PATH)
 
 install-linux-shortcuts: # The app desktop shortcut installation on Linux
-	$(NOECHO) if [ -f "$(ICON_SOURCE)" ]; then \
+	$(NOECHO) if [ -f "$(ICON_FILE)" ]; then \
 		$(call print_info,Installing application icon...); \
-		$(SUDO) $(INSTALL) -m 644 $(ICON_SOURCE) $(LINUX_ICON_INSTALL_PATH); \
+		$(SUDO) $(INSTALL) -m 644 $(ICON_FILE) $(LINUX_ICON_INSTALL_PATH); \
 	else \
-		$(call print_warn,Warning: Icon $(ICON_SOURCE) not found, skipping shortcut creation); \
+		$(call print_warn,Warning: Icon $(ICON_FILE) not found, skipping shortcut creation); \
 		exit 0; \
 	fi
 	$(NOECHO) $(call print_info,Creating desktop shortcut...)
@@ -178,6 +200,8 @@ run: build # Runs the built app
 clean: # Removes binaries and logs
 	$(NOECHO) $(call print_info,Cleaning build artifacts...)
 	$(NOECHO) $(RMDIR) $(BUILD_DIR)
+	$(NOECHO) $(RM) $(GO_MMDB_EMBED_FILE)
+	$(NOECHO) $(RM) $(MMDB_EMBED_DIR)/$(MMDB_BASENAME)
 	$(NOECHO) $(call print_success,Clean completed.)
 
 lint: lint-vet lint-golangci # Runs linters
