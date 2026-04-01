@@ -2,8 +2,7 @@
 
 curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 
-2. тесты
-3. Правки в README.md
+2. Правки в README.md
 
 Следующие версии:
 1. раздел About с нашей иконкой
