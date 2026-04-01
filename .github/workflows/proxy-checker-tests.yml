@@ -16,6 +16,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@main
 
+      - name: Install dependencies
+        run: apt-get install gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev
+
       - name: Build server binary
         run: |
           make clean lint test build
