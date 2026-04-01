@@ -4,8 +4,7 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 
 2. проблема с темой, не берётся системная
 3. тесты
-4. whois страны для тех источников, где её нет
-5. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
+4. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
 
 Следующие версии:
 1. раздел About с нашей иконкой
@@ -13,6 +12,7 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 3. подсветка в таблице выбранного прокси
 4. Добавить источник https://github.com/proxifly/free-proxy-list/tree/main/proxies/protocols/socks5
 5. Добавить источник https://proxyverity.com/free-proxy-list/
+6. whois страны для тех источников, где её нет
 
 Давай реализуем такую логику:
 
@@ -23,4 +23,3 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 5. Подсветка не должна быть токсчиной ("вырви глаЗ"), но при  этом должна быть контрастной и читаемоей
 6. Покажи правки в виде diff для применения командой git apply или patch
 7. Проверь заголовки в diff, что там нет дублей и они синтаксически удовлетворяю утилитам их применяющих
-
