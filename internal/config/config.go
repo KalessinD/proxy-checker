@@ -60,7 +60,7 @@ func getConfigPath() (string, error) {
 			return "", err
 		}
 	}
-	return filepath.Join(configDir, "proxy-checker.conf"), nil
+	return filepath.Join(configDir, common.AppName+".conf"), nil
 }
 
 func Load() (*Config, error) {
