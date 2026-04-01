@@ -7,10 +7,13 @@ BINARY_NAME := proxy-checker
 CMD_PATH := cmd/proxy-checker/main.go
 BUILD_DIR := bin
 
-INSTALL_PATH := /usr/bin/$(BINARY_NAME)
 ICON_SOURCE := assets/proxy-checker.png
-ICON_INSTALL_PATH := /usr/share/pixmaps/proxy-checker.png
-DESKTOP_FILE := $(HOME)/Desktop/$(APP_NAME).desktop
+
+LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
+LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
+LINUX_SYSTEM_DESKTOP_FILE := /usr/share/applications/$(APP_NAME).desktop
+LINUX_USER_DESKTOP_FILE := $(HOME)/Desktop/$(APP_NAME).desktop
+LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
 
 GOLANGCI_LINT ?= golangci-lint
 
@@ -56,7 +59,7 @@ else
 endif
 
 .PHONY: all build install uninstall run clean help \
-        install-linux install-linux-bin install-linux-desktop-shortcut \
+        install-linux install-linux-bin install-linux-shortcuts \
         install-windows install-macos install-freebsd install-unknown \
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
         lint lint-vet lint-golangci lint-golangci-fix \
@@ -100,48 +103,52 @@ install: install-$(OSTYPE) # Installs the app
 
 uninstall: uninstall-$(OSTYPE) # Uninstall the app
 
-install-linux: install-linux-bin install-linux-desktop-shortcut # The app installation on Linux
+install-linux: install-linux-bin install-linux-shortcuts # The app installation on Linux
 	$(NOECHO) $(call print_info,Linux installation completed successfully.)
 
 install-linux-bin: # The app binary installation on Linux
-	$(NOECHO) $(call print_info,Installing binary to $(INSTALL_PATH)...)
-	$(NOECHO) if [ -f "$(INSTALL_PATH)" ]; then \
-		$(call print_info,File $(INSTALL_PATH) already exists. It will be overwritten.); \
+	$(NOECHO) $(call print_info,Installing binary to $(LINUX_BIN_INSTALL_PATH)...)
+	$(NOECHO) if [ -f "$(LINUX_BIN_INSTALL_PATH)" ]; then \
+		$(call print_info,File $(LINUX_BIN_INSTALL_PATH) already exists. It will be overwritten.); \
 	fi
 	$(NOECHO) $(SUDO) $(MKDIR) -p /usr/bin
-	$(NOECHO) $(SUDO) $(INSTALL) -m 755 $(BINARY_FULL) $(INSTALL_PATH)
+	$(NOECHO) $(SUDO) $(INSTALL) -m 755 $(BINARY_FULL) $(LINUX_BIN_INSTALL_PATH)
 
-install-linux-desktop-shortcut: # The app desktop shortcut installation on Linux
+install-linux-shortcuts: # The app desktop shortcut installation on Linux
 	$(NOECHO) if [ -f "$(ICON_SOURCE)" ]; then \
 		$(call print_info,Installing application icon...); \
-		$(SUDO) $(INSTALL) -m 644 $(ICON_SOURCE) $(ICON_INSTALL_PATH); \
+		$(SUDO) $(INSTALL) -m 644 $(ICON_SOURCE) $(LINUX_ICON_INSTALL_PATH); \
 	else \
 		$(call print_warn,Warning: Icon $(ICON_SOURCE) not found, skipping shortcut creation); \
 		exit 0; \
 	fi
+	$(NOECHO) $(call print_info,Creating desktop shortcut...)
+	$(NOECHO) $(ECHO) "[Desktop Entry]" > $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Version=1.0" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Type=Application" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Name=Proxy Checker" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Comment=Proxy Checker Application" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Exec=$(LINUX_BIN_INSTALL_PATH) -gui" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Icon=$(LINUX_ICON_INSTALL_PATH)" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Terminal=false" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Categories=Network;Utility;" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "StartupWMClass=Proxy Checker" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(SUDO) $(INSTALL) -m 644  $(LINUX_TMP_DESKTOP_FILE) $(LINUX_SYSTEM_DESKTOP_FILE)
+	$(NOECHO) $(call print_success,Shortcut created: $(LINUX_TMP_DESKTOP_FILE))
 	$(NOECHO) if [ -d "$(HOME)/Desktop" ]; then \
-		$(call print_info,Creating desktop shortcut...); \
-		$(ECHO) "[Desktop Entry]" > $(DESKTOP_FILE); \
-		$(ECHO) "Version=1.0" >> $(DESKTOP_FILE); \
-		$(ECHO) "Type=Application" >> $(DESKTOP_FILE); \
-		$(ECHO) "Name=Proxy Checker" >> $(DESKTOP_FILE); \
-		$(ECHO) "Comment=Proxy Checker Application" >> $(DESKTOP_FILE); \
-		$(ECHO) "Exec=$(INSTALL_PATH) -gui" >> $(DESKTOP_FILE); \
-		$(ECHO) "Icon=$(ICON_INSTALL_PATH)" >> $(DESKTOP_FILE); \
-		$(ECHO) "Terminal=false" >> $(DESKTOP_FILE); \
-		$(ECHO) "Categories=Network;Utility;" >> $(DESKTOP_FILE); \
-		$(ECHO) "StartupWMClass=Proxy Checker" >> $(DESKTOP_FILE); \
-		$(CHMOD) +x $(DESKTOP_FILE); \
-		$(call print_success,Shortcut created: $(DESKTOP_FILE)); \
+		$(INSTALL) -m 644  $(LINUX_TMP_DESKTOP_FILE) $(LINUX_USER_DESKTOP_FILE); \
+		$(CHMOD) +x $(LINUX_USER_DESKTOP_FILE); \
 	else \
 		$(call print_warn,Desktop folder not found, skipping shortcut creation.); \
 	fi
+	$(NOECHO) $(RM) $(LINUX_TMP_DESKTOP_FILE)
 
 uninstall-linux: # The app uninstallation on Linux
 	$(NOECHO) $(call print_info,Uninstalling application...)
-	$(NOECHO) $(SUDO) $(RM) $(INSTALL_PATH)
-	$(NOECHO) $(SUDO) $(RM) $(ICON_INSTALL_PATH)
-	$(NOECHO) $(RM) $(DESKTOP_FILE)
+	$(NOECHO) $(SUDO) $(RM) $(LINUX_BIN_INSTALL_PATH)
+	$(NOECHO) $(SUDO) $(RM) $(LINUX_ICON_INSTALL_PATH)
+	$(NOECHO) $(SUDO) $(RM) $(LINUX_SYSTEM_INSTALL_PATH)
+	$(NOECHO) $(RM) $(LINUX_USER_DESKTOP_FILE)
 	$(NOECHO) $(call print_success,Application uninstalled.)
 
 install-windows: # The app installation on Windows

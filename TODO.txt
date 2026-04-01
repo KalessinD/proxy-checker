@@ -4,15 +4,16 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 
 2. проблема с темой, не берётся системная
 3. тесты
-4. раздел About с нашей иконкой
-5. иконка на панели запущенных приложений
-6. whois страны для тех источников, где её нет
-7. запуск и останов по кнопке некоей горутины для мониторинга доступности раз в минуту выбранного прокси
-8. Добавить источник https://github.com/proxifly/free-proxy-list/tree/main/proxies/protocols/socks5
-9. Добавить источник https://proxyverity.com/free-proxy-list/
-10. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
-11. поиск через "пуск"
-12. подсветка в таблице выбранного прокси
+4. иконка на панели запущенных приложений
+5. whois страны для тех источников, где её нет
+6. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
+
+Следующие версии:
+1. раздел About с нашей иконкой
+2. запуск и останов по кнопке некоей горутины для мониторинга доступности раз в минуту выбранного прокси
+3. подсветка в таблице выбранного прокси
+4. Добавить источник https://github.com/proxifly/free-proxy-list/tree/main/proxies/protocols/socks5
+5. Добавить источник https://proxyverity.com/free-proxy-list/
 
 Давай реализуем такую логику:
 
