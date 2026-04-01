@@ -18,20 +18,22 @@ jobs:
           apt-get update && \
           DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends --no-install-suggests \
           gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev \
-          xvfb
+          xvfb xauth
 
       - name: Checkout code
         uses: actions/checkout@v1
 
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Run Lint and Tests
         # RUns tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           make clean lint
+          make test
           xvfb-run --auto-servernum make test
 
       - name: Build binary
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           make build
