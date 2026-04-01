@@ -38,6 +38,7 @@ echo "=========================================="
 find . -type f \
     -not -path '*/\.*' \
     -not -path '*/vendor/*' \
+    -not -path '*/images/*' \
     -not -path '*/tools/*' \
     -not -name "*.mod" \
     -not -name "*.sum" \
