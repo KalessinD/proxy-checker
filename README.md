@@ -124,15 +124,19 @@ If the file does not exist, it is automatically created with default values on t
 **Example `proxy-checker.conf`:**
 ```toml
 type = "socks5"
-timeout = "10s"
-workers = 256
-dest_addr = "https://google.com"
+timeout = "3s"
+workers = 512
+dest_addr = "youtube.com"
 source = "proxymania"
 rtt = 150
-pages = 4
-theme = "system"
+pages = 5
+theme = "light"
 min_height = 300
 min_width = 600
+check_http2 = false
+log_path = "/tmp/proxy-checker.log"
+cache_ttl = 3600
+lang = "en"
 ```
 *Note: CLI flags override the values defined in the configuration file.*
 
