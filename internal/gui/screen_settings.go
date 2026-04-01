@@ -174,6 +174,12 @@ func (g *AppGUI) showSettingsScreen() {
 	langBox := container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.lang")), selectLang)
 	rttBox := container.NewGridWithColumns(2, rttLabel, selectRTT)
 	pagesBox := container.NewGridWithColumns(2, pagesLabel, selectPages)
+
+	geoipEntry := widget.NewEntry()
+	geoipEntry.SetPlaceHolder("/path/to/GeoLite2-Country.mmdb")
+	geoipEntry.SetText(g.cfg.GeoIPDBPath)
+
+	geoipBox := container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.geoip_db")), geoipEntry)
 	dynamicBox := container.NewVBox(rttBox, pagesBox)
 
 	toggleDynamicFields := func(source string) {
@@ -228,10 +234,20 @@ func (g *AppGUI) showSettingsScreen() {
 		widget.NewSeparator(),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.log_path")), logPathEntry),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.theme")), selectTheme),
+		geoipBox,
 		ignoreHostsBox,
 	)
 
 	btnSave := widget.NewButton(i18n.T("gui.btn_save"), func() {
+		g.cfg.GeoIPDBPath = geoipEntry.Text
+
+		g.initGeoIP(g.cfg.GeoIPDBPath)
+		if g.isGeoIPAvailable {
+			g.appendLog(i18n.T("gui.settings.geoip_loaded"))
+		} else if g.cfg.GeoIPDBPath != "" {
+			g.appendLog(fmt.Sprintf(i18n.T("gui.settings.geoip_error"), "file not found or invalid format"))
+		}
+
 		if g.systemProxySupported {
 			if err := SetSystemProxyIgnoreHosts(ignoreHostsEntry.Text); err != nil {
 				g.appendLog(fmt.Sprintf(i18n.T("sysproxy.err_set_ignore_hosts"), err))

@@ -140,6 +140,27 @@ lang = "en"
 ```
 *Note: CLI flags override the values defined in the configuration file.*
 
+### GeoIP Database Setup
+By default, the app displays `N/A` for the country if the proxy source does not provide it (e.g., `thespeedx`). To resolve countries automatically by P, you need a local `.mmdb` database file.
+
+The application supports the standard MaxMind DB format. You can use either of the following free databases (both are fully compatible):
+*   **MaxMind GeoLite2** (Free, requires [registration](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data))
+*   **DB-IP Lite** (Free, requires [registration](https://db-ip.com/db/lite.php))
+
+You can provide the database in two ways:
+
+1.  **At build time (Embedded):**
+    Use the `DB_IP_PATH` variable during compilation. The database becomes a part of the binary. No extra files are needed to distribute the app, but the file size increases.
+2.  **At runtime (External file):**
+    Specify the path to the `.mmdb` file via:
+    *   The GUI settings screen.
+    *   The `geoip_db_path` parameter in `~/.config/proxy-checker.conf`.
+    *   The `-geoip-db` CLI flag.
+    
+*Note: If you load the database via settings or CLI, it is applied immediately without restarting the application.*
+
+If no database is provided, the GUI will display a persistent informational warning at the top of the main screen, reminding you that GeoIP is not connected.
+
 ## Project Structure
 
 The project follows standard Go layout principles with clean separation between interfaces and business logic:

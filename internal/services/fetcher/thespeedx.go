@@ -90,11 +90,16 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 				proxyType = common.ProxyType(strings.ToLower(strings.Split(fileName, ".")[0]))
 			}
 
+			countryCode := i18n.T("common.na")
+			if settings.Resolver != nil {
+				countryCode = settings.Resolver.ResolveCountry(host)
+			}
+
 			items = append(items, ProxyItem{
 				Host:    host,
 				Port:    port,
 				Type:    proxyType,
-				Country: i18n.T("common.na"),
+				Country: countryCode,
 				RTT:     i18n.T("common.na"),
 				RTTms:   0,
 			})

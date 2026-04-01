@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
@@ -61,9 +62,24 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 
 	fmt.Printf(i18n.T("cli.starting_workers")+"\n", cfg.Workers)
 
+	var resolver common.GeoIPResolver
+
+	if len(common.GeoIPData) > 0 {
+		if r, err := common.NewMaxMindDBResolverFromBytes(common.GeoIPData); err == nil {
+			resolver = r
+		}
+	}
+
+	if resolver == nil && cfg.GeoIPDBPath != "" {
+		if r, err := common.NewMaxMindDBResolverFromFile(cfg.GeoIPDBPath); err == nil {
+			resolver = r
+		}
+	}
+
 	validProxies, err := services.RunPipeline(
 		context.Background(),
 		cfg,
+		resolver,
 		services.PipelineCallbacks{
 			OnFetched: func(total int) {
 				fmt.Printf(i18n.T("cli.total_found")+"\n", total)
@@ -76,6 +92,10 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, i18n.T("cli.pipeline_error")+"\n", err)
 		return
+	}
+
+	if resolver != nil {
+		defer resolver.Close()
 	}
 
 	if len(validProxies) == 0 {

@@ -6,6 +6,7 @@ require (
 	fyne.io/fyne/v2 v2.7.3
 	github.com/BurntSushi/toml v1.6.0
 	github.com/PuerkitoBio/goquery v1.12.0
+	github.com/oschwald/maxminddb-golang v1.13.1
 	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.52.0
 )

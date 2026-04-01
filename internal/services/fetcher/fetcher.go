@@ -15,10 +15,11 @@ type ProxyItem struct {
 }
 
 type Settings struct {
-	Type    common.ProxyType
-	MaxRTT  int
-	Pages   int
-	Timeout int
+	Type     common.ProxyType
+	MaxRTT   int
+	Pages    int
+	Timeout  int
+	Resolver common.GeoIPResolver
 }
 
 type Fetcher interface {

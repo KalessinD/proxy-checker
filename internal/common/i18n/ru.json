@@ -123,5 +123,12 @@
   "gui.settings.ignore_hosts": "Proxy exceptions",
   "gui.settings.ignore_hosts_saved": "Proxy exceptions saved to system.\n",
   "sysproxy.err_get_ignore_hosts": "failed to get proxy exceptions: %w",
-  "sysproxy.err_set_ignore_hosts": "failed to set proxy exceptions: %w"  
+  "sysproxy.err_set_ignore_hosts": "failed to set proxy exceptions: %w",
+  "gui.warn_no_geoip": "База GeoIP не подключена. Страны для некоторых источников будут N/A. Укажите путь к файлу в настройках.",
+  "gui.settings.geoip_db": "Файл GeoIP (MMDB):",
+  "gui.settings.geoip_loaded": "База GeoIP успешно загружена.\n",
+  "gui.settings.geoip_error": "Ошибка загрузки GeoIP: %v\n",
+  "geoip.err_open": "ошибка открытия базы GeoIP: %w",
+  "geoip.err_lookup": "ошибка поиска IP %s в GeoIP: %w",
+  "cli.help_geoip_db": "Путь к файлу базы GeoIP (.mmdb)"
 }

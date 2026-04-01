@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services/fetcher"
 )
@@ -13,14 +14,14 @@ type PipelineCallbacks struct {
 }
 
 // RunPipeline запускает полный цикл: Fetch -> Check
-// Возвращает слайс валидных прокси или ошибку.
-func RunPipeline(ctx context.Context, cfg *config.Config, cb PipelineCallbacks) ([]ProxyItemFull, error) {
+func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPResolver, cb PipelineCallbacks) ([]ProxyItemFull, error) {
 	f := NewFetcher(cfg.Source)
 	settings := fetcher.Settings{
-		Type:    cfg.Type,
-		MaxRTT:  cfg.RTT,
-		Pages:   cfg.Pages,
-		Timeout: int(cfg.Timeout),
+		Type:     cfg.Type,
+		MaxRTT:   cfg.RTT,
+		Pages:    cfg.Pages,
+		Timeout:  int(cfg.Timeout),
+		Resolver: resolver,
 	}
 
 	allProxies, err := f.Fetch(ctx, settings)

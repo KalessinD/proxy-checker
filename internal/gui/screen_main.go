@@ -237,12 +237,19 @@ func (g *AppGUI) showMainScreen() {
 	progressBar := widget.NewProgressBarWithData(g.progress)
 	g.progressBar = progressBar
 
-	topBox := container.NewVBox(
-		widget.NewLabel(i18n.T("gui.label_logs")),
-		logArea,
-		widget.NewLabel(i18n.T("gui.label_progress")),
-		progressBar,
-	)
+	topBox := container.NewVBox()
+
+	if !g.isGeoIPAvailable {
+		warnLabel := widget.NewLabel(i18n.T("gui.warn_no_geoip"))
+		warnLabel.Wrapping = fyne.TextWrapWord
+		topBox.Add(warnLabel)
+		topBox.Add(widget.NewSeparator())
+	}
+
+	topBox.Add(widget.NewLabel(i18n.T("gui.label_logs")))
+	topBox.Add(logArea)
+	topBox.Add(widget.NewLabel(i18n.T("gui.label_progress")))
+	topBox.Add(progressBar)
 
 	g.table = g.createResultTable()
 
@@ -310,7 +317,7 @@ func (g *AppGUI) runBatchCheck() {
 
 	g.appendLog(fmt.Sprintf(i18n.T("gui.log_fetching"), g.cfg.Source))
 
-	validProxies, err := services.RunPipeline(ctx, g.cfg, services.PipelineCallbacks{
+	validProxies, err := services.RunPipeline(ctx, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
 		OnFetched: func(total int) {
 			g.appendLog(fmt.Sprintf(i18n.T("gui.log_found"), total))
 		},

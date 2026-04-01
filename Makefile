@@ -106,14 +106,15 @@ build: generate-embed # Builds app binary
 	$(NOECHO) $(MKDIR) -p $(BUILD_DIR)
 	$(NOECHO) $(GO) build -ldflags="-X main.Version=$(APP_VERSION)" -o $(BINARY_FULL) $(CMD_PATH)
 	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
-	$(NOECHO) $(RM) $(MMDB_EMBED_DIR)/$(MMDB_BASENAME);
 
 generate-embed:
 	@if [ -n "$(MMDB_FILE)" ] && [ -f "$(MMDB_FILE)" ]; then \
 		$(call print_info,Embedding GeoIP DB from $(MMDB_FILE)...); \
 		$(CP) $(MMDB_FILE) $(MMDB_EMBED_DIR)/$(MMDB_BASENAME); \
 		$(ECHO) "package common" > $(GO_MMDB_EMBED_FILE); \
+		$(ECHO) >> $(GO_MMDB_EMBED_FILE); \
 		$(ECHO) 'import _ "embed"' >> $(GO_MMDB_EMBED_FILE); \
+		$(ECHO) >> $(GO_MMDB_EMBED_FILE); \
 		$(ECHO) '//go:embed "$(MMDB_BASENAME)"' >> $(GO_MMDB_EMBED_FILE); \
 		$(ECHO) 'var GeoIPData []byte' >> $(GO_MMDB_EMBED_FILE); \
 	else \

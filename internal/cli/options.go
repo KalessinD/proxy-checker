@@ -35,6 +35,7 @@ func ParseFlags(cfg *config.Config, args []string) (*Options, error) {
 	fs.IntVar(&cfg.Pages, "pages", cfg.Pages, i18n.T("cli.help_pages"))
 	fs.BoolVar(&cfg.CheckHTTP2, "http2", cfg.CheckHTTP2, i18n.T("cli.help_http2"))
 	fs.StringVar(&cfg.Lang, "lang", cfg.Lang, i18n.T("cli.help_lang"))
+	fs.StringVar(&cfg.GeoIPDBPath, "geoip-db", cfg.GeoIPDBPath, i18n.T("cli.help_geoip_db"))
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

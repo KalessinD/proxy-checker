@@ -50,6 +50,9 @@ type (
 
 		systemProxySupported bool
 
+		isGeoIPAvailable bool
+		geoIPResolver    common.GeoIPResolver
+
 		customTargetURL string
 		isCustomTarget  bool
 
@@ -75,6 +78,34 @@ func (t *forcedVariantTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant
 	return t.Theme.Color(name, t.variant)
 }
 
+func (g *AppGUI) initGeoIP(customPath string) {
+	if g.geoIPResolver != nil {
+		_ = g.geoIPResolver.Close()
+		g.geoIPResolver = nil
+		g.isGeoIPAvailable = false
+	}
+
+	if len(common.GeoIPData) > 0 {
+		resolver, err := common.NewMaxMindDBResolverFromBytes(common.GeoIPData)
+		if err == nil {
+			g.geoIPResolver = resolver
+			g.isGeoIPAvailable = true
+			return
+		}
+		g.appendLog(fmt.Sprintf(i18n.T("gui.settings.geoip_error"), err))
+	}
+
+	if customPath != "" {
+		resolver, err := common.NewMaxMindDBResolverFromFile(customPath)
+		if err == nil {
+			g.geoIPResolver = resolver
+			g.isGeoIPAvailable = true
+			return
+		}
+		g.appendLog(fmt.Sprintf(i18n.T("gui.settings.geoip_error"), err))
+	}
+}
+
 func NewAppGUI(cfg *config.Config) *AppGUI {
 	a := app.NewWithID(common.AppName)
 
@@ -89,6 +120,8 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	gui.window.Resize(fyne.NewSize(800, 600))
 	gui.applyTheme(cfg.Theme)
 	gui.systemProxySupported = isSystemProxySupported()
+
+	gui.initGeoIP(cfg.GeoIPDBPath)
 
 	gui.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() {
 		gui.showSettingsScreen()

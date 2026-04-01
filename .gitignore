@@ -30,4 +30,6 @@ vendor/
 *.mmdb
 geoip_embed.go
 
+# Others
+.log
 TODO.txt
