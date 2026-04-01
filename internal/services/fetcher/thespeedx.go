@@ -24,6 +24,12 @@ const (
 	socks5FileName = "socks5.txt"
 )
 
+func NewTheSpeedXFetcher() *TheSpeedXFetcher {
+	return &TheSpeedXFetcher{
+		BaseURL: TheSpeedXBaseURL,
+	}
+}
+
 func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
 	var fileNames []string
 	haveToGetTypeFromFileName := false

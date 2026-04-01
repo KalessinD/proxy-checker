@@ -25,6 +25,12 @@ const (
 	fetcherClientTimeout = 20 * time.Second
 )
 
+func NewProxyManiaFetcher() *ProxyManiaFetcher {
+	return &ProxyManiaFetcher{
+		BaseURL: ProxyManiaBaseURL,
+	}
+}
+
 func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
 	u, err := url.Parse(f.BaseURL)
 	if err != nil {
