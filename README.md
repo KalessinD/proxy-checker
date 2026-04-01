@@ -24,12 +24,14 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 
 ## Screenshots
 
-*(Add your screenshots here)*
+![alt text](https://github.com/KalessinD/proxy-checker/blob/main/docs/images//checker-in-scan-process.png?raw=true)
+
+![alt text](https://github.com/KalessinD/proxy-checker/blob/main/docs/images//checker-scan-is-finished.png?raw=true)
 
 ## Installation & Building
 
 ### Prerequisites
-- Go 1.21 or higher
+- Go 1.25 or higher
 - Make (optional, for using the Makefile)
 - C compiler (GCC/Clang) and development libraries (required by Fyne for GUI compilation)
 

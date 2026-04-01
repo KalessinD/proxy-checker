@@ -34,7 +34,6 @@ jobs:
         # RUns tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
         run: |
           make clean lint
-          make test
           xvfb-run --auto-servernum make test
 
       - name: Build binary
