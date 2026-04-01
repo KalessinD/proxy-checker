@@ -1,0 +1,195 @@
+SHELL := /bin/bash
+PROJECT_DIR ?= $(CURDIR)
+TMPDIR ?= /tmp
+
+APP_VERSION ?= dev
+APP_NAME ?= proxy-checker
+BINARY_NAME := $(APP_NAME)
+CMD_PATH := cmd/proxy-checker/main.go
+BUILD_DIR := bin
+
+ICON_SOURCE := assets/proxy-checker.png
+
+LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
+LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
+LINUX_SYSTEM_DESKTOP_FILE := /usr/share/applications/$(APP_NAME).desktop
+LINUX_USER_DESKTOP_FILE := $(HOME)/Desktop/$(APP_NAME).desktop
+LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
+
+GOLANGCI_LINT ?= golangci-lint
+
+CHMOD := chmod
+INSTALL := install
+SUDO := sudo
+GO ?= go
+GREP := grep
+RM := rm -f
+RMDIR := rm -rf
+MKDIR := mkdir
+CD := cd
+ECHO := echo -e
+NOECHO := @
+
+GO_PACKAGES := $(shell go list ./... | grep -v '/mocks')
+GO_COVERAGE_REPORT := $(TMPDIR)/$(APP_NAME)-coverage.out
+
+OS := $(shell uname -s)
+
+# print_title = $(ECHO) "\033[1;34m$1\033[0m"
+print_info = $(ECHO) "\033[1;36m$1\033[0m"
+print_warn = $(ECHO) "\033[1;33m$1\033[0m"
+print_error = $(ECHO) "\033[1;31m$1\033[0m"
+print_success = $(ECHO) "\033[1;32m$1\033[0m"
+
+ifeq ($(OS),Linux)
+    OSTYPE := linux
+else ifeq ($(OS),Darwin)
+    OSTYPE := macos
+else ifeq ($(OS),FreeBSD)
+    OSTYPE := freebsd
+else ifneq (,$(findstring MINGW,$(OS))$(findstring MSYS,$(OS))$(findstring CYGWIN,$(OS)))
+    OSTYPE := windows
+else
+    OSTYPE := unknown
+endif
+
+ifeq ($(OSTYPE),windows)
+    BINARY_FULL := $(BUILD_DIR)/$(BINARY_NAME).exe
+else
+    BINARY_FULL := $(BUILD_DIR)/$(BINARY_NAME)
+endif
+
+.PHONY: all build install uninstall run clean help \
+        install-linux install-linux-bin install-linux-shortcuts \
+        install-windows install-macos install-freebsd install-unknown \
+        uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
+        lint lint-vet lint-golangci lint-golangci-fix \
+		test coverage coverage-html
+
+all: clean lint test build
+
+help: # Shows help message
+	$(NOECHO) $(GREP) -E '^[a-zA-Z0-9 -]+:.*#' Makefile | \
+	sort | \
+	while read -r l; do \
+		printf "\033[1;36m$$(echo $$l | cut -f 1 -d':')\033[00m:$$(echo $$l | cut -f 2- -d'#')\n"; \
+	done
+
+test: # Runs golang tests
+	$(NOECHO) $(call print_info,"Running tests: golang")
+	$(NOECHO) $(GO) clean -testcache
+	$(NOECHO) $(GO) test -v -cover ./... # -race
+
+coverage: # Runs tests and shows total coverage
+	$(NOECHO) $(call print_info,"Running tests with coverage")
+	$(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
+	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
+	$(NOECHO) $(GO) tool cover -func=$(GO_COVERAGE_REPORT)
+
+coverage-html: # Generates HTML coverage report and opens it
+	$(NOECHO) $(call print_info,"Generating HTML coverage report")
+	$(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) $(GO_PACKAGES)
+	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
+	$(NOECHO) $(GO) tool cover -html=$(GO_COVERAGE_REPORT)
+
+build: # Builds app binary
+	$(NOECHO) $(call print_info,Building project for $(OSTYPE)...)
+	$(NOECHO) $(call print_info,Downloading dependencies...)
+	$(NOECHO) $(GO) mod tidy
+	$(NOECHO) $(MKDIR) -p $(BUILD_DIR)
+	$(NOECHO) $(GO) build -ldflags="-X main.Version=$(APP_VERSION)" -o $(BINARY_FULL) $(CMD_PATH)
+	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
+
+install: install-$(OSTYPE) # Installs the app
+
+uninstall: uninstall-$(OSTYPE) # Uninstall the app
+
+install-linux: install-linux-bin install-linux-shortcuts # The app installation on Linux
+	$(NOECHO) $(call print_info,Linux installation completed successfully.)
+
+install-linux-bin: # The app binary installation on Linux
+	$(NOECHO) $(call print_info,Installing binary to $(LINUX_BIN_INSTALL_PATH)...)
+	$(NOECHO) if [ -f "$(LINUX_BIN_INSTALL_PATH)" ]; then \
+		$(call print_info,File $(LINUX_BIN_INSTALL_PATH) already exists. It will be overwritten.); \
+	fi
+	$(NOECHO) $(SUDO) $(MKDIR) -p /usr/bin
+	$(NOECHO) $(SUDO) $(INSTALL) -m 755 $(BINARY_FULL) $(LINUX_BIN_INSTALL_PATH)
+
+install-linux-shortcuts: # The app desktop shortcut installation on Linux
+	$(NOECHO) if [ -f "$(ICON_SOURCE)" ]; then \
+		$(call print_info,Installing application icon...); \
+		$(SUDO) $(INSTALL) -m 644 $(ICON_SOURCE) $(LINUX_ICON_INSTALL_PATH); \
+	else \
+		$(call print_warn,Warning: Icon $(ICON_SOURCE) not found, skipping shortcut creation); \
+		exit 0; \
+	fi
+	$(NOECHO) $(call print_info,Creating desktop shortcut...)
+	$(NOECHO) $(ECHO) "[Desktop Entry]" > $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Version=1.0" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Type=Application" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Name=Proxy Checker" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Comment=Proxy Checker Application" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Exec=$(LINUX_BIN_INSTALL_PATH) -gui" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Icon=$(LINUX_ICON_INSTALL_PATH)" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Terminal=false" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "Categories=Network;Utility;" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(ECHO) "StartupWMClass=$(APP_NAME)" >> $(LINUX_TMP_DESKTOP_FILE)
+	$(NOECHO) $(SUDO) $(INSTALL) -m 644  $(LINUX_TMP_DESKTOP_FILE) $(LINUX_SYSTEM_DESKTOP_FILE)
+	$(NOECHO) $(call print_success,Shortcut created: $(LINUX_TMP_DESKTOP_FILE))
+	$(NOECHO) if [ -d "$(HOME)/Desktop" ]; then \
+		$(INSTALL) -m 644  $(LINUX_TMP_DESKTOP_FILE) $(LINUX_USER_DESKTOP_FILE); \
+		$(CHMOD) +x $(LINUX_USER_DESKTOP_FILE); \
+	else \
+		$(call print_warn,Desktop folder not found, skipping shortcut creation.); \
+	fi
+	$(NOECHO) $(RM) $(LINUX_TMP_DESKTOP_FILE)
+
+uninstall-linux: # The app uninstallation on Linux
+	$(NOECHO) $(call print_info,Uninstalling application...)
+	$(NOECHO) $(SUDO) $(RM) $(LINUX_BIN_INSTALL_PATH)
+	$(NOECHO) $(SUDO) $(RM) $(LINUX_ICON_INSTALL_PATH)
+	$(NOECHO) $(SUDO) $(RM) $(LINUX_SYSTEM_INSTALL_PATH)
+	$(NOECHO) $(RM) $(LINUX_USER_DESKTOP_FILE)
+	$(NOECHO) $(call print_success,Application uninstalled.)
+
+install-windows: # The app installation on Windows
+	$(NOECHO) $(call print_error,Error: Automated installation is not supported for Windows.)
+	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
+
+install-macos: # The app installation on MacOS
+	$(NOECHO) $(call print_error,Error: Automated installation is not supported for macOS.)
+	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
+
+install-freebsd: # The app installation on FreeBSD
+	$(NOECHO) $(call print_error,Error: Automated installation is not supported for FreeBSD.)
+	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
+
+install-unknown: # The app installation on other OS
+	$(NOECHO) $(call print_error,Error: Cannot detect your operating system.)
+	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
+
+uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown: # The app uninstallation on different OS
+	$(NOECHO) $(call print_error,Error: Automated uninstallation is not supported for $(OSTYPE))
+
+run: build # Runs the built app
+	$(NOECHO) $(call print_info,Running application...)
+	@$(BINARY_FULL) -gui
+
+clean: # Removes binaries and logs
+	$(NOECHO) $(call print_info,Cleaning build artifacts...)
+	$(NOECHO) $(RMDIR) $(BUILD_DIR)
+	$(NOECHO) $(call print_success,Clean completed.)
+
+lint: lint-vet lint-golangci # Runs linters
+
+lint-vet: # Runs go vet
+	$(NOECHO) $(call print_info,Running go vet with structtag check)
+	$(NOECHO) $(GO) vet -structtag ./...
+
+lint-golangci: # Runs golangci-lint
+	$(NOECHO) $(call print_info,Running golangci linters)
+	$(NOECHO) $(GOLANGCI_LINT) run
+
+lint-golangci-fix: # Runs golangci-lint with auto-fix
+	$(NOECHO) $(call print_info,Running golangci linters in fix mode)
+	$(NOECHO) $(GOLANGCI_LINT) run --fix
