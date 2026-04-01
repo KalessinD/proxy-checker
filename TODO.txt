@@ -13,7 +13,6 @@ curl -L -I --http2  -x socks5://5.75.202.83:10000 https://chat.openai.com
 10. Добавить строку NO_PROXY (gsettings get org.gnome.system.proxy ignore-hosts)
 11. поиск через "пуск"
 12. подсветка в таблице выбранного прокси
-13. Првверить, что без конфига все запускается в gUI
 
 Давай реализуем такую логику:
 
