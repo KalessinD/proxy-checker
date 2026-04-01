@@ -11,8 +11,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// InitLogger инициализирует глобальный логгер.
-// Если disableConsole == true, вывод в stdout/stderr подавляется (полезно для чистого CLI вывода).
 func InitLogger(logPath string, disableConsole bool) error {
 	pe := zap.NewProductionEncoderConfig()
 	pe.TimeKey = "time"
@@ -67,7 +65,7 @@ func InitLogger(logPath string, disableConsole bool) error {
 
 func DefaultLogPath() string {
 	if runtime.GOOS == "linux" {
-		return "/var/log/" + AppName + ".log"
+		return "/tmp/" + AppName + ".log"
 	}
 
 	home, err := os.UserHomeDir()
