@@ -25,8 +25,11 @@ jobs:
       - name: Run Lint and Tests
         # RUns tests via xvfb-run to exclude Fyne crashes with errors about unknown Display
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           make clean lint
           xvfb-run --auto-servernum make test
 
       - name: Build binary
-        run: make build
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          make build
