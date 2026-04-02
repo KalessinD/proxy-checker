@@ -1,0 +1,197 @@
+package common_test
+
+import (
+	"io"
+	"net"
+	"os"
+	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
+	"testing"
+
+	"github.com/maxmind/mmdbwriter"
+	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMain(m *testing.M) {
+	_ = i18n.Init("en")
+	os.Exit(m.Run())
+}
+
+func createTestDB(t *testing.T) []byte {
+	t.Helper()
+
+	db, err := mmdbwriter.New(
+		mmdbwriter.Options{
+			DatabaseType: "GeoIP2-Country",
+			Languages:    []string{"en", "ru"},
+		},
+	)
+	require.NoError(t, err)
+
+	fullRecord := mmdbtype.Map{
+		"country": mmdbtype.Map{
+			"iso_code": mmdbtype.String("US"),
+			"names": mmdbtype.Map{
+				"en": mmdbtype.String("United States"),
+				"ru": mmdbtype.String("Соединенные Штаты"),
+			},
+		},
+	}
+	_, netIp, _ := net.ParseCIDR("1.2.3.4")
+	require.NoError(t, db.Insert(netIp, fullRecord))
+
+	enOnlyRecord := mmdbtype.Map{
+		"country": mmdbtype.Map{
+			"iso_code": mmdbtype.String("DE"),
+			"names": mmdbtype.Map{
+				"en": mmdbtype.String("Germany"),
+				// "ru" отсутствует
+			},
+		},
+	}
+	_, netIp, _ = net.ParseCIDR("5.6.7.8")
+	require.NoError(t, db.Insert(netIp, enOnlyRecord))
+
+	isoOnlyRecord := mmdbtype.Map{
+		"country": mmdbtype.Map{
+			"iso_code": mmdbtype.String("FR"),
+		},
+	}
+	_, netIp, _ = net.ParseCIDR("9.8.7.6")
+	require.NoError(t, db.Insert(netIp, isoOnlyRecord))
+
+	var writer io.Writer
+	var buf []byte
+
+	_, err = db.WriteTo(writer)
+	require.NoError(t, err)
+
+	_, err = writer.Write(buf)
+	require.NoError(t, err)
+
+	return buf
+}
+
+func TestNewMaxMindDBResolverFromBytes_Success(t *testing.T) {
+	testDBBytes := createTestDB(t)
+
+	resolver, err := common.NewMaxMindDBResolverFromBytes(testDBBytes)
+	require.NoError(t, err)
+	require.NotNil(t, resolver)
+	defer resolver.Close()
+}
+
+func TestNewMaxMindDBResolverFromBytes_InvalidData(t *testing.T) {
+	invalidData := []byte("this is not a valid mmdb file")
+
+	resolver, err := common.NewMaxMindDBResolverFromBytes(invalidData)
+	require.Error(t, err)
+	assert.Nil(t, resolver)
+	assert.Contains(t, err.Error(), i18n.T("geoip.err_open"))
+}
+
+func TestNewMaxMindDBResolverFromFile_Success(t *testing.T) {
+	testDBBytes := createTestDB(t)
+
+	tempFile, err := os.CreateTemp("", "test_geoip_*.mmdb")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	_, err = tempFile.Write(testDBBytes)
+	require.NoError(t, err)
+	tempFile.Close()
+
+	resolver, err := common.NewMaxMindDBResolverFromFile(tempFile.Name())
+	require.NoError(t, err)
+	require.NotNil(t, resolver)
+	defer resolver.Close()
+}
+
+func TestNewMaxMindDBResolverFromFile_NotFound(t *testing.T) {
+	resolver, err := common.NewMaxMindDBResolverFromFile("/nonexistent/path/to/file.mmdb")
+	require.Error(t, err)
+	assert.Nil(t, resolver)
+	assert.Contains(t, err.Error(), i18n.T("geoip.err_open"))
+}
+
+func TestMaxMindDBResolver_ResolveCountry(t *testing.T) {
+	testDBBytes := createTestDB(t)
+	resolver, err := common.NewMaxMindDBResolverFromBytes(testDBBytes)
+	require.NoError(t, err)
+	require.NotNil(t, resolver)
+	defer resolver.Close()
+
+	tests := []struct {
+		name                string
+		ipAddress           string
+		language            string
+		expectedCountryName string
+	}{
+		{
+			name:                "Exact Russian match",
+			ipAddress:           "1.2.3.4",
+			language:            "ru",
+			expectedCountryName: "Соединенные Штаты",
+		},
+		{
+			name:                "Exact English match",
+			ipAddress:           "1.2.3.4",
+			language:            "en",
+			expectedCountryName: "United States",
+		},
+		{
+			name:                "Missing language fallback to English",
+			ipAddress:           "5.6.7.8",
+			language:            "ru", // В базе для DE нет русского
+			expectedCountryName: "Germany",
+		},
+		{
+			name:                "Missing language fallback to English (unknown lang)",
+			ipAddress:           "5.6.7.8",
+			language:            "es",
+			expectedCountryName: "Germany",
+		},
+		{
+			name:                "Missing names map fallback to ISO code",
+			ipAddress:           "9.8.7.6",
+			language:            "en",
+			expectedCountryName: "FR",
+		},
+		{
+			name:                "IP not found in database",
+			ipAddress:           "192.168.1.1",
+			language:            "en",
+			expectedCountryName: i18n.T("common.na"),
+		},
+		{
+			name:                "Invalid IP address format",
+			ipAddress:           "not-an-ip",
+			language:            "en",
+			expectedCountryName: i18n.T("common.na"),
+		},
+		{
+			name:                "Empty IP address string",
+			ipAddress:           "",
+			language:            "en",
+			expectedCountryName: i18n.T("common.na"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := resolver.ResolveCountry(tt.ipAddress)
+			assert.Equal(t, tt.expectedCountryName, result)
+		})
+	}
+}
+
+func TestMaxMindDBResolver_Close_Idempotent(t *testing.T) {
+	testDBBytes := createTestDB(t)
+	resolver, err := common.NewMaxMindDBResolverFromBytes(testDBBytes)
+	require.NoError(t, err)
+
+	assert.NoError(t, resolver.Close())
+	assert.NoError(t, resolver.Close())
+}

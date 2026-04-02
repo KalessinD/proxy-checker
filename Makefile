@@ -9,11 +9,8 @@ CMD_PATH := cmd/proxy-checker/main.go
 BUILD_DIR := bin
 
 ICON_FILE := assets/images/proxy-checker.png
-MMDB_FILE ?= assets/mmdb/GeoLite2-Country.mmdb
-GO_MMDB_EMBED_FILE := internal/common/geoip_embed.go
-
-MMDB_BASENAME := $(shell basename $(MMDB_FILE))
-MMDB_EMBED_DIR := $(shell dirname $(GO_MMDB_EMBED_FILE))
+MMDB_SOURCE_FILE ?= assets/mmdb/GeoLite2-Country.mmdb
+MMDB_DEST_FILE := internal/common/assets/geoip.mmdb
 
 LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
 LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
@@ -33,6 +30,7 @@ RM := rm -f
 RMDIR := rm -rf
 MKDIR := mkdir
 CD := cd
+TRUNCATE := truncate
 ECHO := echo -e
 NOECHO := @
 
@@ -108,19 +106,11 @@ build: generate-embed # Builds app binary
 	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
 
 generate-embed:
-	@if [ -n "$(MMDB_FILE)" ] && [ -f "$(MMDB_FILE)" ]; then \
-		$(call print_info,Embedding GeoIP DB from $(MMDB_FILE)...); \
-		$(CP) $(MMDB_FILE) $(MMDB_EMBED_DIR)/$(MMDB_BASENAME); \
-		$(ECHO) "package common" > $(GO_MMDB_EMBED_FILE); \
-		$(ECHO) >> $(GO_MMDB_EMBED_FILE); \
-		$(ECHO) 'import _ "embed"' >> $(GO_MMDB_EMBED_FILE); \
-		$(ECHO) >> $(GO_MMDB_EMBED_FILE); \
-		$(ECHO) '//go:embed "$(MMDB_BASENAME)"' >> $(GO_MMDB_EMBED_FILE); \
-		$(ECHO) 'var GeoIPData []byte' >> $(GO_MMDB_EMBED_FILE); \
+	@if [ -n "$(MMDB_SOURCE_FILE)" ] && [ -f "$(MMDB_SOURCE_FILE)" ]; then \
+		$(call print_info,Embedding GeoIP DB from $(MMDB_SOURCE_FILE)...); \
+		$(CP) $(MMDB_SOURCE_FILE) $(MMDB_DEST_FILE); \
 	else \
 		$(call print_warn,GeoIP DB not provided via DB_IP_PATH. Using empty embed.); \
-		$(ECHO) "package common" > $(GO_MMDB_EMBED_FILE); \
-		$(ECHO) "var GeoIPData []byte" >> $(GO_MMDB_EMBED_FILE); \
 	fi
 
 install: install-$(OSTYPE) # Installs the app
@@ -201,8 +191,7 @@ run: build # Runs the built app
 clean: # Removes binaries and logs
 	$(NOECHO) $(call print_info,Cleaning build artifacts...)
 	$(NOECHO) $(RMDIR) $(BUILD_DIR)
-	$(NOECHO) $(RM) $(GO_MMDB_EMBED_FILE)
-	$(NOECHO) $(RM) $(MMDB_EMBED_DIR)/$(MMDB_BASENAME)
+	$(NOECHO) $(TRUNCATE) --size=0 $(MMDB_DEST_FILE)
 	$(NOECHO) $(call print_success,Clean completed.)
 
 lint: lint-vet lint-golangci # Runs linters
