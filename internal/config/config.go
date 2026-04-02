@@ -30,8 +30,8 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Theme:      "system",
-		MinWidth:   800,
-		MinHeight:  600,
+		MinWidth:   900,
+		MinHeight:  400,
 		Source:     common.SourceProxyMania,
 		Type:       common.ProxySOCKS5,
 		Timeout:    10 * time.Second,

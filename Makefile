@@ -1,3 +1,8 @@
+ifneq (,$(wildcard .env))
+include .env
+export MMDB_SOURCE_FILE
+endif
+
 SHELL := /bin/bash
 PROJECT_DIR ?= $(CURDIR)
 TMPDIR ?= /tmp
@@ -9,7 +14,7 @@ CMD_PATH := cmd/proxy-checker/main.go
 BUILD_DIR := bin
 
 ICON_FILE := assets/images/proxy-checker.png
-MMDB_SOURCE_FILE ?= assets/mmdb/GeoLite2-Country.mmdb
+MMDB_SOURCE_FILE ?= "" # assets/mmdb/GeoLite2-Country.mmdb
 MMDB_DEST_FILE := internal/common/assets/geoip.mmdb
 
 LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
