@@ -1,6 +1,6 @@
 ifneq (,$(wildcard .env))
 include .env
-export MMDB_SOURCE_FILE
+# export MMDB_SOURCE_FILE
 endif
 
 SHELL := /bin/bash
@@ -14,8 +14,6 @@ CMD_PATH := cmd/proxy-checker/main.go
 BUILD_DIR := bin
 
 ICON_FILE := assets/images/proxy-checker.png
-MMDB_SOURCE_FILE ?= "" # assets/mmdb/GeoLite2-Country.mmdb
-MMDB_DEST_FILE := internal/common/assets/geoip.mmdb
 
 LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
 LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
@@ -35,7 +33,6 @@ RM := rm -f
 RMDIR := rm -rf
 MKDIR := mkdir
 CD := cd
-TRUNCATE := truncate
 ECHO := echo -e
 NOECHO := @
 
@@ -73,8 +70,7 @@ endif
         install-windows install-macos install-freebsd install-unknown \
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
         lint lint-vet lint-golangci lint-golangci-fix \
-		test coverage coverage-html \
-		generate-embed
+		test coverage coverage-html
 
 all: clean lint test build
 
@@ -102,21 +98,13 @@ coverage-html: # Generates HTML coverage report and opens it
 	# $(NOECHO) $(GO) test -v -coverprofile=$(GO_COVERAGE_REPORT) ./...
 	$(NOECHO) $(GO) tool cover -html=$(GO_COVERAGE_REPORT)
 
-build: generate-embed # Builds app binary
+build: # Builds app binary
 	$(NOECHO) $(call print_info,Building project for $(OSTYPE)...)
 	$(NOECHO) $(call print_info,Downloading dependencies...)
 	$(NOECHO) $(GO) mod tidy
 	$(NOECHO) $(MKDIR) -p $(BUILD_DIR)
 	$(NOECHO) $(GO) build -ldflags="-X main.Version=$(APP_VERSION)" -o $(BINARY_FULL) $(CMD_PATH)
 	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
-
-generate-embed:
-	@if [ -n "$(MMDB_SOURCE_FILE)" ] && [ -f "$(MMDB_SOURCE_FILE)" ]; then \
-		$(call print_info,Embedding GeoIP DB from $(MMDB_SOURCE_FILE)...); \
-		$(CP) $(MMDB_SOURCE_FILE) $(MMDB_DEST_FILE); \
-	else \
-		$(call print_warn,GeoIP DB not provided via DB_IP_PATH. Using empty embed.); \
-	fi
 
 install: install-$(OSTYPE) # Installs the app
 
@@ -196,7 +184,6 @@ run: build # Runs the built app
 clean: # Removes binaries and logs
 	$(NOECHO) $(call print_info,Cleaning build artifacts...)
 	$(NOECHO) $(RMDIR) $(BUILD_DIR)
-	$(NOECHO) $(TRUNCATE) --size=0 $(MMDB_DEST_FILE)
 	$(NOECHO) $(call print_success,Clean completed.)
 
 lint: lint-vet lint-golangci # Runs linters

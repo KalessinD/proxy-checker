@@ -10,6 +10,8 @@ import (
 
 const DefaultLanguage = "en"
 
+var GeoIPData []byte
+
 type (
 	GeoIPResolver interface {
 		ResolveCountry(ip, lang string) string
