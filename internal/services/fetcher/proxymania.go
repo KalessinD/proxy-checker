@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"go.uber.org/zap"
 )
 
 type ProxyManiaFetcher struct {
@@ -83,6 +84,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*Pr
 
 		proxies, pageLinks, err := f.fetchSinglePage(ctx, client, currentURL, baseParsedURL)
 		if err != nil {
+			zap.S().Warnf("failed to fetch page %s: %v", strings.TrimSpace(currentURL), err)
 			continue
 		}
 
