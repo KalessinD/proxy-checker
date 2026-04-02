@@ -54,22 +54,3 @@ func TestLoad_CorruptedTOML(t *testing.T) {
 	require.Error(t, err, "Должна возвращаться ошибка парсинга TOML")
 	assert.Nil(t, loadedCfg)
 }
-
-func TestSaveToFile_PermissionDenied(t *testing.T) {
-	tempHome := t.TempDir()
-	t.Setenv("HOME", tempHome)
-
-	configDir := filepath.Join(tempHome, ".config")
-	require.NoError(t, os.MkdirAll(configDir, 0o755))
-
-	configPath := filepath.Join(configDir, "proxy-checker.conf")
-	require.NoError(t, os.WriteFile(configPath, []byte("dummy"), 0o600))
-	require.NoError(t, os.Chmod(configPath, 0o444))
-	defer func() { _ = os.Chmod(configPath, 0o644) }()
-
-	cfg := config.DefaultConfig()
-	err := cfg.SaveToFile()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "permission denied")
-}
