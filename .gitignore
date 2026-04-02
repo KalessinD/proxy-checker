@@ -28,7 +28,6 @@ vendor/
 
 # IP databases and modules
 *.mmdb
-geoip_embed.go
 
 # Others
 .log
