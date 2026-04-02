@@ -37,6 +37,7 @@ type (
 		app    fyne.App
 		window fyne.Window
 		cfg    *config.Config
+		cache  CacheInterface
 
 		progress binding.Float
 		listData binding.UntypedList
@@ -115,6 +116,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		cfg:      cfg,
 		progress: binding.NewFloat(),
 		listData: binding.NewUntypedList(),
+		cache:    NewCacheFile(),
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
@@ -225,7 +227,7 @@ func (g *AppGUI) applyTheme(themeName string) {
 func (g *AppGUI) Run() {
 	g.showMainScreen()
 
-	cachedItems := loadCache(g.cfg)
+	cachedItems := g.cache.Load(g.cfg)
 	if cachedItems != nil {
 		guiItems := make([]interface{}, len(cachedItems))
 		for i, item := range cachedItems {

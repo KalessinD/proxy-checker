@@ -116,7 +116,7 @@
   "fetcher.err_status": "статус %d",
   "common.na": "N/A",
   "sysproxy.err_gsettings": "ошибка gsettings: %v, %s",
-  "fetcher.err_fetch_list_status": "ошибка получения списка прокси: статус %d" ,
+  "fetcher.err_fetch_list_status": "ошибка получения списка прокси: статус" ,
   "gui.log_cache_loaded": "Загружено %d прокси из кэша\n",
   "gui.log_cache_saved": "Результаты сохранены в кэш\n",
   "gui.log_cache_error": "Ошибка кэша: %v\n",
@@ -128,7 +128,7 @@
   "gui.settings.geoip_db": "Файл GeoIP (MMDB):",
   "gui.settings.geoip_loaded": "База GeoIP успешно загружена.\n",
   "gui.settings.geoip_error": "Ошибка загрузки GeoIP: %v\n",
-  "geoip.err_open": "ошибка открытия базы GeoIP: %w",
+  "geoip.err_open": "ошибка открытия базы GeoIP",
   "geoip.err_lookup": "ошибка поиска IP %s в GeoIP: %w",
   "cli.help_geoip_db": "Путь к файлу базы GeoIP (.mmdb)"
 }

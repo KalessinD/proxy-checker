@@ -116,7 +116,7 @@
   "fetcher.err_status": "status %d",
   "common.na": "N/A",
   "sysproxy.err_gsettings": "gsettings error: %v, %s",
-  "fetcher.err_fetch_list_status": "failed to fetch proxy list: status %d",
+  "fetcher.err_fetch_list_status": "failed to fetch proxy list: status",
   "gui.log_cache_loaded": "Loaded %d proxies from cache\n",
   "gui.log_cache_saved": "Results saved to cache\n",
   "gui.log_cache_error": "Cache error: %v\n",
@@ -128,7 +128,7 @@
   "gui.settings.geoip_db": "GeoIP DB file (MMDB):",
   "gui.settings.geoip_loaded": "GeoIP database loaded successfully.\n",
   "gui.settings.geoip_error": "Failed to load GeoIP: %v\n",
-  "geoip.err_open": "failed to open GeoIP database: %w",
+  "geoip.err_open": "failed to open GeoIP database",
   "geoip.err_lookup": "failed to lookup IP %s in GeoIP: %w",
   "cli.help_geoip_db": "Path to GeoIP database file (.mmdb)"
 }

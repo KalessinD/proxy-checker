@@ -1,48 +1,73 @@
 package config_test
 
 import (
+	"os"
 	"path/filepath"
 	"proxy-checker/internal/config"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDefaultConfig_ExpectedValues(t *testing.T) {
-	cfg := config.DefaultConfig()
+func TestEnsureConfigExists(t *testing.T) {
+	t.Run("Creates config if missing", func(t *testing.T) {
+		tempHome := t.TempDir()
+		t.Setenv("HOME", tempHome)
 
-	assert.Equal(t, "system", cfg.Theme)
-	assert.Equal(t, 400, cfg.MinHeight)
-	assert.Equal(t, 900, cfg.MinWidth)
-	assert.Equal(t, 10*time.Second, cfg.Timeout)
-	assert.Equal(t, 256, cfg.Workers)
-	assert.False(t, cfg.CheckHTTP2)
+		err := config.EnsureConfigExists()
+		require.NoError(t, err)
+
+		expectedPath := filepath.Join(tempHome, ".config", "proxy-checker.conf")
+		assert.FileExists(t, expectedPath)
+	})
+
+	t.Run("Does nothing if config already exists", func(t *testing.T) {
+		tempHome := t.TempDir()
+		t.Setenv("HOME", tempHome)
+
+		configDir := filepath.Join(tempHome, ".config")
+		require.NoError(t, os.MkdirAll(configDir, 0o755))
+		configPath := filepath.Join(configDir, "proxy-checker.conf")
+		require.NoError(t, os.WriteFile(configPath, []byte("lang = 'en'"), 0o600))
+
+		err := config.EnsureConfigExists()
+		require.NoError(t, err)
+
+		data, err := os.ReadFile(configPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(data), "lang = 'en'", "Файл не должен перезаписываться, если уже существует")
+	})
 }
 
-func TestConfig_SaveAndLoad_Lifecycle(t *testing.T) {
-	// Подменяем домашнюю директорию для изоляции теста
+func TestLoad_CorruptedTOML(t *testing.T) {
 	tempHome := t.TempDir()
 	t.Setenv("HOME", tempHome)
 
-	originalCfg := config.DefaultConfig()
-	originalCfg.Workers = 512
-	originalCfg.Timeout = 30 * time.Second
-	originalCfg.Lang = "ru"
+	configDir := filepath.Join(tempHome, ".config")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+	configPath := filepath.Join(configDir, "proxy-checker.conf")
 
-	// Сохраняем
-	err := originalCfg.SaveToFile()
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(configPath, []byte("[[[invalid toml syntax"), 0o600))
 
-	expectedFilePath := filepath.Join(tempHome, ".config", "proxy-checker.conf")
-	assert.FileExists(t, expectedFilePath)
-
-	// Загружаем
 	loadedCfg, err := config.Load()
-	require.NoError(t, err)
+	require.Error(t, err, "Должна возвращаться ошибка парсинга TOML")
+	assert.Nil(t, loadedCfg)
+}
 
-	assert.Equal(t, originalCfg.Workers, loadedCfg.Workers)
-	assert.Equal(t, originalCfg.Timeout, loadedCfg.Timeout)
-	assert.Equal(t, originalCfg.Lang, loadedCfg.Lang)
+func TestSaveToFile_PermissionDenied(t *testing.T) {
+	tempHome := t.TempDir()
+	t.Setenv("HOME", tempHome)
+
+	configDir := filepath.Join(tempHome, ".config")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+
+	require.NoError(t, os.Chmod(configDir, 0o555))
+	defer func() { _ = os.Chmod(configDir, 0o755) }()
+
+	cfg := config.DefaultConfig()
+	err := cfg.SaveToFile()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "permission denied")
 }

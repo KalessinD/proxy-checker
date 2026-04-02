@@ -1,7 +1,7 @@
 package common_test
 
 import (
-	"io"
+	"bytes"
 	"net"
 	"os"
 	"proxy-checker/internal/common"
@@ -39,8 +39,9 @@ func createTestDB(t *testing.T) []byte {
 			},
 		},
 	}
-	_, netIp, _ := net.ParseCIDR("1.2.3.4")
-	require.NoError(t, db.Insert(netIp, fullRecord))
+	_, netIP, err := net.ParseCIDR("1.2.3.4/32")
+	require.NoError(t, err)
+	require.NoError(t, db.Insert(netIP, fullRecord))
 
 	enOnlyRecord := mmdbtype.Map{
 		"country": mmdbtype.Map{
@@ -51,32 +52,28 @@ func createTestDB(t *testing.T) []byte {
 			},
 		},
 	}
-	_, netIp, _ = net.ParseCIDR("5.6.7.8")
-	require.NoError(t, db.Insert(netIp, enOnlyRecord))
+	_, netIP, err = net.ParseCIDR("5.6.7.8/32")
+	require.NoError(t, err)
+	require.NoError(t, db.Insert(netIP, enOnlyRecord))
 
 	isoOnlyRecord := mmdbtype.Map{
 		"country": mmdbtype.Map{
 			"iso_code": mmdbtype.String("FR"),
 		},
 	}
-	_, netIp, _ = net.ParseCIDR("9.8.7.6")
-	require.NoError(t, db.Insert(netIp, isoOnlyRecord))
+	_, netIP, err = net.ParseCIDR("9.8.7.6/32")
+	require.NoError(t, err)
+	require.NoError(t, db.Insert(netIP, isoOnlyRecord))
 
-	var writer io.Writer
-	var buf []byte
-
-	_, err = db.WriteTo(writer)
+	var buf bytes.Buffer
+	_, err = db.WriteTo(&buf)
 	require.NoError(t, err)
 
-	_, err = writer.Write(buf)
-	require.NoError(t, err)
-
-	return buf
+	return buf.Bytes()
 }
 
 func TestNewMaxMindDBResolverFromBytes_Success(t *testing.T) {
 	testDBBytes := createTestDB(t)
-
 	resolver, err := common.NewMaxMindDBResolverFromBytes(testDBBytes)
 	require.NoError(t, err)
 	require.NotNil(t, resolver)
@@ -85,7 +82,6 @@ func TestNewMaxMindDBResolverFromBytes_Success(t *testing.T) {
 
 func TestNewMaxMindDBResolverFromBytes_InvalidData(t *testing.T) {
 	invalidData := []byte("this is not a valid mmdb file")
-
 	resolver, err := common.NewMaxMindDBResolverFromBytes(invalidData)
 	require.Error(t, err)
 	assert.Nil(t, resolver)
@@ -94,8 +90,7 @@ func TestNewMaxMindDBResolverFromBytes_InvalidData(t *testing.T) {
 
 func TestNewMaxMindDBResolverFromFile_Success(t *testing.T) {
 	testDBBytes := createTestDB(t)
-
-	tempFile, err := os.CreateTemp("", "test_geoip_*.mmdb")
+	tempFile, err := os.CreateTemp(t.TempDir(), "test_geoip_*.mmdb")
 	require.NoError(t, err)
 	defer os.Remove(tempFile.Name())
 
@@ -181,7 +176,8 @@ func TestMaxMindDBResolver_ResolveCountry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := resolver.ResolveCountry(tt.ipAddress)
+			// ВАЖНО: Передаем язык вторым аргументом
+			result := resolver.ResolveCountry(tt.ipAddress, tt.language)
 			assert.Equal(t, tt.expectedCountryName, result)
 		})
 	}
@@ -194,4 +190,9 @@ func TestMaxMindDBResolver_Close_Idempotent(t *testing.T) {
 
 	assert.NoError(t, resolver.Close())
 	assert.NoError(t, resolver.Close())
+}
+
+func TestMaxMindDBResolver_Close_NilDB(t *testing.T) {
+	resolver := &common.MaxMindDBResolver{DB: nil}
+	assert.NoError(t, resolver.Close(), "Must be without panic")
 }

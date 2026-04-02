@@ -107,7 +107,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 	printFullTable(validProxies)
 }
 
-func printTable(proxies []fetcher.ProxyItem) {
+func printTable(proxies []*fetcher.ProxyItem) {
 	sep := strings.Repeat("-", 70)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-10s\n",
@@ -123,7 +123,7 @@ func printTable(proxies []fetcher.ProxyItem) {
 	}
 }
 
-func printFullTable(proxies []services.ProxyItemFull) {
+func printFullTable(proxies []*services.ProxyItemFull) {
 	sep := strings.Repeat("-", 95)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-15s %-15s\n",

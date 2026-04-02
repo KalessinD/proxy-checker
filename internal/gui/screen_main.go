@@ -332,9 +332,9 @@ func (g *AppGUI) runBatchCheck() {
 		return
 	}
 
-	wrappers := make([]ProxyItemWrapper, len(validProxies))
+	wrappers := make([]*ProxyItemWrapper, len(validProxies))
 	for i, p := range validProxies {
-		wrappers[i] = ProxyItemWrapper{
+		wrappers[i] = &ProxyItemWrapper{
 			Host:    p.Host,
 			Port:    p.Port,
 			Type:    p.Type,
@@ -356,7 +356,7 @@ func (g *AppGUI) runBatchCheck() {
 	} else {
 		g.appendLog(fmt.Sprintf(i18n.T("gui.log_done"), len(validProxies)))
 
-		if err := saveCache(wrappers); err != nil {
+		if err := g.cache.Save(wrappers); err != nil {
 			g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_error"), err))
 		} else {
 			g.appendLog(i18n.T("gui.log_cache_saved"))

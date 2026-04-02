@@ -14,7 +14,7 @@ type PipelineCallbacks struct {
 }
 
 // RunPipeline запускает полный цикл: Fetch -> Check
-func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPResolver, cb PipelineCallbacks) ([]ProxyItemFull, error) {
+func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPResolver, cb PipelineCallbacks) ([]*ProxyItemFull, error) {
 	f := NewFetcher(cfg.Source)
 	settings := fetcher.Settings{
 		Type:     cfg.Type,
@@ -22,6 +22,7 @@ func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPR
 		Pages:    cfg.Pages,
 		Timeout:  int(cfg.Timeout),
 		Resolver: resolver,
+		Lang:     cfg.Lang,
 	}
 
 	allProxies, err := f.Fetch(ctx, settings)

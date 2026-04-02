@@ -3,13 +3,76 @@ package fetcher_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/services/fetcher"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(m *testing.M) {
+	_ = i18n.Init("en")
+	os.Exit(m.Run())
+}
+
+func TestProxyManiaFetcher_Fetch_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name           string
+		responseCode   int
+		responseBody   string
+		expectError    bool
+		expectedLength int
+	}{
+		{
+			name:           "Server returns 500 Internal Server Error",
+			responseCode:   http.StatusInternalServerError,
+			responseBody:   "Internal Error",
+			expectError:    false,
+			expectedLength: 0,
+		},
+		{
+			name:           "Valid HTML but missing proxy table",
+			responseCode:   http.StatusOK,
+			responseBody:   "<html><body><h1>No proxies here</h1></body></html>",
+			expectError:    false,
+			expectedLength: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.responseCode)
+				_, _ = w.Write([]byte(tt.responseBody))
+			}))
+			defer testServer.Close()
+
+			fetcherInstance := &fetcher.ProxyManiaFetcher{
+				BaseURL: testServer.URL,
+			}
+
+			settings := fetcher.Settings{
+				Type:   common.ProxySOCKS5,
+				MaxRTT: 150,
+				Pages:  1,
+				Lang:   "en",
+			}
+
+			items, err := fetcherInstance.Fetch(t.Context(), settings)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Len(t, items, tt.expectedLength)
+		})
+	}
+}
 
 func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
 	// Фейковый HTML-ответ, имитирующий структуру таблицы ProxyMania
@@ -48,6 +111,7 @@ func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
 		Type:   common.ProxySOCKS5,
 		MaxRTT: 150,
 		Pages:  1,
+		Lang:   "en",
 	}
 
 	items, err := fetcherInstance.Fetch(t.Context(), settings)

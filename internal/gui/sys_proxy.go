@@ -188,7 +188,7 @@ func GetSystemProxyIgnoreHosts() (string, error) {
 		return "", fmt.Errorf(i18n.T("sysproxy.err_get_ignore_hosts"), err)
 	}
 
-	rawList := parseGVariantStringArray(out.String())
+	rawList := ParseGVariantStringArray(out.String())
 	return strings.Join(rawList, "\n"), nil
 }
 
@@ -205,7 +205,7 @@ func SetSystemProxyIgnoreHosts(ignoreHostsText string) error {
 		}
 	}
 
-	gVariantArray := formatGVariantStringArray(cleanedHosts)
+	gVariantArray := FormatGVariantStringArray(cleanedHosts)
 
 	if err := gsettingsSet("org.gnome.system.proxy", "ignore-hosts", gVariantArray); err != nil {
 		return fmt.Errorf(i18n.T("sysproxy.err_set_ignore_hosts"), err)
@@ -214,8 +214,8 @@ func SetSystemProxyIgnoreHosts(ignoreHostsText string) error {
 	return nil
 }
 
-// parseGVariantStringArray парсит строку вида "['localhost', '127.0.0.0/8']" в слайс строк.
-func parseGVariantStringArray(raw string) []string {
+// ParseGVariantStringArray парсит строку вида "['localhost', '127.0.0.0/8']" в слайс строк.
+func ParseGVariantStringArray(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "[]" {
 		return nil
@@ -239,8 +239,8 @@ func parseGVariantStringArray(raw string) []string {
 	return result
 }
 
-// formatGVariantStringArray формирует из слайса строк валидную строку GVariant массива.
-func formatGVariantStringArray(hosts []string) string {
+// FormatGVariantStringArray формирует из слайса строк валидную строку GVariant массива.
+func FormatGVariantStringArray(hosts []string) string {
 	if len(hosts) == 0 {
 		return "[]"
 	}
