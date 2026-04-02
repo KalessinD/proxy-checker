@@ -92,10 +92,9 @@ func clearProxySubkey(proto string) error {
 
 // clearAllProxies очищает все настройки прокси в системе, чтобы избежать конфликтов
 func clearAllProxies() error {
-	// Сбрасываем все возможные типы прокси, которые использует GNOME
 	for _, proto := range []string{"http", "https", "socks", "ftp"} {
 		if err := clearProxySubkey(proto); err != nil {
-			return fmt.Errorf(i18n.T("sysproxy.err_clear"), proto, err)
+			return fmt.Errorf("%s %s: %w", i18n.T("sysproxy.err_clear"), proto, err)
 		}
 	}
 	return nil
@@ -105,21 +104,16 @@ func clearAllProxies() error {
 func setSystemProxy(host, port, proxyType string) error {
 	pType := strings.ToLower(proxyType)
 
-	// Включаем ручной режим
 	if err := setSystemProxyMode(ProxyModeManual); err != nil {
 		return err
 	}
 
-	// СНАЧАЛА ОЧИЩАЕМ ВСЕ ТИПЫ ПРОКСИ
-	// Это решает проблему, когда после SOCKS5 оставались включенными старые HTTP настройки
 	if err := clearAllProxies(); err != nil {
 		return err
 	}
 
-	// ПОТОМ УСТАНАВЛИВАЕМ НУЖНЫЙ
 	switch pType {
 	case "http", "https":
-		// Обычно для HTTP прокси его применяют и для HTTP, и для HTTPS трафика
 		if err := setProxySubkey("http", host, port); err != nil {
 			return err
 		}
@@ -159,7 +153,7 @@ func gsettingsSet(schema, key, value string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf(i18n.T("sysproxy.err_gsettings"), err, stderr.String())
+		return fmt.Errorf("%s: %v, %s", i18n.T("sysproxy.err_gsettings"), err, stderr.String())
 	}
 	return nil
 }
@@ -173,7 +167,7 @@ func getSystemProxyMode() (string, error) {
 		return "", err
 	}
 
-	// gsettings возвращает значение в одинарных кавычках, например 'manual' или 'none'
+	// gsettings returns value in single quotes, example: 'manual' or 'none'
 	mode := strings.TrimSpace(out.String())
 	mode = strings.Trim(mode, "'")
 	return mode, nil
@@ -185,7 +179,7 @@ func GetSystemProxyIgnoreHosts() (string, error) {
 	cmd.Stdout = &out
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf(i18n.T("sysproxy.err_get_ignore_hosts"), err)
+		return "", fmt.Errorf("%s: %w", i18n.T("sysproxy.err_get_ignore_hosts"), err)
 	}
 
 	rawList := ParseGVariantStringArray(out.String())
@@ -208,7 +202,7 @@ func SetSystemProxyIgnoreHosts(ignoreHostsText string) error {
 	gVariantArray := FormatGVariantStringArray(cleanedHosts)
 
 	if err := gsettingsSet("org.gnome.system.proxy", "ignore-hosts", gVariantArray); err != nil {
-		return fmt.Errorf(i18n.T("sysproxy.err_set_ignore_hosts"), err)
+		return fmt.Errorf("%s: %w", i18n.T("sysproxy.err_set_ignore_hosts"), err)
 	}
 
 	return nil

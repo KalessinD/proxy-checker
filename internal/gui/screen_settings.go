@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"errors"
 	"fmt"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
@@ -79,7 +80,7 @@ func (g *AppGUI) showSettingsScreen() {
 	selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
 	rttLabel := widget.NewLabel(i18n.T("gui.settings.max_rtt"))
 
-	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256", "512", "1024"}
+	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256", "512"}
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, _ := strconv.Atoi(s)
 		g.cfg.Workers = val
@@ -205,7 +206,7 @@ func (g *AppGUI) showSettingsScreen() {
 	if g.systemProxySupported {
 		ignoreHosts, err := GetSystemProxyIgnoreHosts()
 		if err != nil {
-			g.appendLog(fmt.Sprintf(i18n.T("sysproxy.err_get_ignore_hosts"), err))
+			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_get_ignore_hosts"), err))
 		} else {
 			ignoreHostsEntry.SetText(ignoreHosts)
 		}
@@ -243,23 +244,23 @@ func (g *AppGUI) showSettingsScreen() {
 
 		g.initGeoIP(g.cfg.GeoIPDBPath)
 		if g.isGeoIPAvailable {
-			g.appendLog(i18n.T("gui.settings.geoip_loaded"))
+			g.appendLog(i18n.T("gui.settings.geoip_loaded") + "\n")
 		} else if g.cfg.GeoIPDBPath != "" {
-			g.appendLog(fmt.Sprintf(i18n.T("gui.settings.geoip_error"), "file not found or invalid format"))
+			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), errors.New("file not found or invalid format")))
 		}
 
 		if g.systemProxySupported {
 			if err := SetSystemProxyIgnoreHosts(ignoreHostsEntry.Text); err != nil {
-				g.appendLog(fmt.Sprintf(i18n.T("sysproxy.err_set_ignore_hosts"), err))
+				g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_set_ignore_hosts"), err))
 			} else {
-				g.appendLog(i18n.T("gui.settings.ignore_hosts_saved"))
+				g.appendLog(i18n.T("gui.settings.ignore_hosts_saved") + "\n")
 			}
 		}
 
 		if err := g.cfg.SaveToFile(); err != nil {
-			g.appendLog(fmt.Sprintf(i18n.T("gui.settings.save_error"), err))
+			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.save_error"), err))
 		} else {
-			g.appendLog(i18n.T("gui.settings.saved"))
+			g.appendLog(i18n.T("gui.settings.saved") + "\n")
 		}
 		g.showMainScreen()
 	})

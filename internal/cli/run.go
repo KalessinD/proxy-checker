@@ -30,11 +30,11 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 
 	res := services.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
 	if res.Error != nil {
-		fmt.Fprintf(os.Stderr, i18n.T("cli.fail")+"\n", res.Error)
+		fmt.Fprintf(os.Stderr, "%s %v\n", i18n.T("cli.fail"), res.Error)
 		return
 	}
 
-	fmt.Printf(i18n.T("cli.ok")+"\n", res.ProxyLatency, res.ReqLatency, res.StatusCode)
+	fmt.Printf("%s: TCP: %s, HTTP: %s, Статус: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, res.StatusCode)
 }
 
 func handleProxiesList(cfg *config.Config, opts *Options) {
@@ -51,16 +51,16 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		ctxParse := context.Background()
 		allProxies, err := f.Fetch(ctxParse, settings)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.T("cli.parse_error")+"\n", err)
+			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
 			return
 		}
 
-		fmt.Printf(i18n.T("cli.total_found")+"\n", len(allProxies))
+		fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
 		printTable(allProxies)
 		return
 	}
 
-	fmt.Printf(i18n.T("cli.starting_workers")+"\n", cfg.Workers)
+	fmt.Printf("%s (Workers: %d)...\n", i18n.T("cli.starting_workers"), cfg.Workers)
 
 	var resolver common.GeoIPResolver
 
@@ -82,15 +82,15 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		resolver,
 		services.PipelineCallbacks{
 			OnFetched: func(total int) {
-				fmt.Printf(i18n.T("cli.total_found")+"\n", total)
+				fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), total)
 			},
 			OnProgress: func(current, total int) {
-				fmt.Printf(i18n.T("cli.progress")+"\n", current, total)
+				fmt.Printf("%s: %d/%d\n", i18n.T("cli.progress"), current, total)
 			},
 		},
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, i18n.T("cli.pipeline_error")+"\n", err)
+		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.pipeline_error"), err)
 		return
 	}
 
@@ -103,7 +103,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		return
 	}
 
-	fmt.Printf(i18n.T("cli.valid_found")+"\n", len(validProxies))
+	fmt.Printf("%s: %d\n", i18n.T("cli.valid_found"), len(validProxies))
 	printFullTable(validProxies)
 }
 

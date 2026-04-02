@@ -47,7 +47,7 @@ func ParseFlags(cfg *config.Config, args []string) (*Options, error) {
 
 	if opts.ProxyAddr != "" {
 		if _, _, err := net.SplitHostPort(opts.ProxyAddr); err != nil {
-			return nil, fmt.Errorf(i18n.T("cli.err_invalid_addr"), err)
+			return nil, fmt.Errorf("%s: %w", i18n.T("cli.err_invalid_addr"), err)
 		}
 	}
 
@@ -57,8 +57,8 @@ func ParseFlags(cfg *config.Config, args []string) (*Options, error) {
 		}
 		if cfg.Workers < 1 {
 			return nil, errors.New(i18n.T("cli.err_workers_min"))
-		} else if cfg.Workers > 256 {
-			return nil, errors.New(i18n.T("cli.err_workers_max"))
+		} else if cfg.Workers > common.MaxWorkers {
+			return nil, fmt.Errorf("%s %d", i18n.T("cli.err_workers_max"), common.MaxWorkers)
 		}
 	}
 
@@ -67,11 +67,11 @@ func ParseFlags(cfg *config.Config, args []string) (*Options, error) {
 		common.ProxyHTTP: true, common.ProxyHTTPS: true, common.ProxyAll: true,
 	}
 	if !validTypes[cfg.Type] {
-		return nil, fmt.Errorf(i18n.T("cli.err_invalid_type"), cfg.Type)
+		return nil, fmt.Errorf("%s: %s", i18n.T("cli.err_invalid_type"), cfg.Type)
 	}
 
 	if cfg.Source != common.SourceProxyMania && cfg.Source != common.SourceTheSpeedX {
-		return nil, fmt.Errorf(i18n.T("cli.err_invalid_source"), cfg.Source)
+		return nil, fmt.Errorf("%s: %s", i18n.T("cli.err_invalid_source"), cfg.Source)
 	}
 
 	return &opts, nil

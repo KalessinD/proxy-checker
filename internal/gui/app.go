@@ -8,6 +8,7 @@ import (
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -48,6 +49,7 @@ type (
 		logLabel  *widget.Label
 		logScroll *container.Scroll
 		logBuffer string
+		logMutex  sync.Mutex
 
 		systemProxySupported bool
 
@@ -93,7 +95,7 @@ func (g *AppGUI) initGeoIP(customPath string) {
 			g.isGeoIPAvailable = true
 			return
 		}
-		g.appendLog(fmt.Sprintf(i18n.T("gui.settings.geoip_error"), err))
+		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), err))
 	}
 
 	if customPath != "" {
@@ -103,7 +105,7 @@ func (g *AppGUI) initGeoIP(customPath string) {
 			g.isGeoIPAvailable = true
 			return
 		}
-		g.appendLog(fmt.Sprintf(i18n.T("gui.settings.geoip_error"), err))
+		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), err))
 	}
 }
 
@@ -131,7 +133,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 
 	gui.switchProxy = widget.NewCheck("", func(checked bool) {
 		if !gui.systemProxySupported {
-			gui.appendLog(i18n.T("gui.sys_proxy_unsupported"))
+			gui.appendLog(i18n.T("gui.sys_proxy_unsupported") + "\n")
 			gui.switchProxy.SetChecked(false)
 			return
 		}
@@ -144,10 +146,10 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		}
 
 		if err := setSystemProxyMode(mode); err != nil {
-			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_error"), err))
+			gui.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_error"), err))
 			gui.switchProxy.SetChecked(!checked)
 		} else {
-			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_mode_changed"), mode))
+			gui.appendLog(fmt.Sprintf("%s: %s\n", i18n.T("gui.sys_proxy_mode_changed"), mode))
 		}
 	})
 
@@ -166,7 +168,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	gui.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
 		if gui.cancelFunc != nil {
 			gui.cancelFunc()
-			gui.appendLog(i18n.T("gui.log_stopped"))
+			gui.appendLog(i18n.T("gui.log_stopped") + "\n")
 		}
 	})
 	gui.btnCancel.Importance = widget.DangerImportance
@@ -175,7 +177,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	if gui.systemProxySupported {
 		currentMode, err := getSystemProxyMode()
 		if err != nil {
-			gui.appendLog(fmt.Sprintf(i18n.T("gui.sys_proxy_status_error"), err))
+			gui.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
 		} else if currentMode == ProxyModeManual {
 			gui.switchProxy.SetChecked(true)
 		}
@@ -186,9 +188,11 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 
 // appendLog безопасно добавляет текст в логи из любого потока
 func (g *AppGUI) appendLog(text string) {
+	g.logMutex.Lock()
 	g.logBuffer += text
-
 	cleanText := strings.TrimSpace(text)
+	g.logMutex.Unlock()
+
 	if cleanText != "" {
 		if strings.Contains(strings.ToLower(cleanText), "ошибка") || strings.Contains(strings.ToLower(cleanText), "error") {
 			zap.S().Error(cleanText)
@@ -227,14 +231,16 @@ func (g *AppGUI) applyTheme(themeName string) {
 func (g *AppGUI) Run() {
 	g.showMainScreen()
 
-	cachedItems := g.cache.Load(g.cfg)
-	if cachedItems != nil {
+	cachedItems, err := g.cache.Load(g.cfg)
+	if err != nil {
+		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+	} else if len(cachedItems) > 0 {
 		guiItems := make([]interface{}, len(cachedItems))
 		for i, item := range cachedItems {
 			guiItems[i] = item
 		}
 		_ = g.listData.Set(guiItems)
-		g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
 	}
 
 	g.window.ShowAndRun()

@@ -47,7 +47,8 @@ func TestCacheFile_SaveAndLoad_ValidData(t *testing.T) {
 	assert.FileExists(t, tempCacheFile)
 
 	cfg := &config.Config{CacheTTL: 3600}
-	loadedItems := cache.Load(cfg)
+	loadedItems, err := cache.Load(cfg)
+	require.NoError(t, err)
 
 	require.Len(t, loadedItems, 2, "Должно быть загружено 2 элемента")
 	assert.Equal(t, "1.1.1.1", loadedItems[0].Host)
@@ -70,16 +71,20 @@ func TestCacheFile_Save_EmptySlice(t *testing.T) {
 
 func TestCacheFile_Load_EdgeCases(t *testing.T) {
 	tests := []struct {
-		name         string
-		setupFile    func(t *testing.T, path string)
-		expectedSize int
+		name           string
+		setupFile      func(t *testing.T, path string)
+		expectedSize   int
+		expectedLength int
+		expectError    bool
 	}{
 		{
 			name: "File does not exist",
 			setupFile: func(_ *testing.T, _ string) {
 				// do nothing
 			},
-			expectedSize: 0,
+			expectedSize:   0,
+			expectError:    false,
+			expectedLength: 0,
 		},
 		{
 			name: "File contains corrupted JSON",
@@ -87,7 +92,9 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 				err := os.WriteFile(path, []byte("this is definitely not json {"), 0o600)
 				require.NoError(t, err)
 			},
-			expectedSize: 0,
+			expectedSize:   0,
+			expectError:    true,
+			expectedLength: 0,
 		},
 		{
 			name: "Cache TTL is expired",
@@ -99,7 +106,9 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 				pastTime := time.Now().Add(-time.Hour * 2)
 				require.NoError(t, os.Chtimes(path, pastTime, pastTime))
 			},
-			expectedSize: 0,
+			expectedSize:   0,
+			expectError:    false,
+			expectedLength: 0,
 		},
 	}
 
@@ -112,9 +121,14 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 
 			cfg := &config.Config{CacheTTL: 3600}
 
-			loadedItems := cache.Load(cfg)
+			loadedItems, err := cache.Load(cfg)
 
-			assert.Len(t, loadedItems, tt.expectedSize, "Ожидается пустой результат для кейса: "+tt.name)
+			if tt.expectError {
+				require.Error(t, err, "Ожидается ошибка для кейса: "+tt.name)
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, loadedItems, tt.expectedLength, "Ожидается пустой результат для кейса: "+tt.name)
+			}
 		})
 	}
 }

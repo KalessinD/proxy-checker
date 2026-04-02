@@ -24,7 +24,7 @@ type (
 func NewMaxMindDBResolverFromBytes(data []byte) (GeoIPResolver, error) {
 	db, err := maxminddb.FromBytes(data)
 	if err != nil {
-		return nil, fmt.Errorf(i18n.T("geoip.err_open"), err)
+		return nil, fmt.Errorf("%s: %w", i18n.T("geoip.err_open"), err)
 	}
 	return &MaxMindDBResolver{DB: db}, nil
 }

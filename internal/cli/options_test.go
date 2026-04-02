@@ -24,7 +24,7 @@ func TestParseFlags(t *testing.T) {
 			Type:       common.ProxySOCKS5,
 			Source:     common.SourceProxyMania,
 			Timeout:    10 * time.Second,
-			Workers:    256,
+			Workers:    512,
 			RTT:        150,
 			DestAddr:   "google.com",
 			CheckHTTP2: false,
@@ -87,10 +87,10 @@ func TestParseFlags(t *testing.T) {
 			expectedErrText: "Workers must be at least 1",
 		},
 		{
-			name:            "Error on workers greater than 256",
-			args:            []string{"-proxies-stat", "-workers", "300"},
+			name:            "Error on workers greater than 512",
+			args:            []string{"-proxies-stat", "-workers", "520"},
 			wantErr:         true,
-			expectedErrText: "Workers must be no more than 256",
+			expectedErrText: "Workers must be no more than 512",
 		},
 		{
 			name:            "Error on invalid proxy type",
@@ -120,7 +120,7 @@ func TestParseFlags(t *testing.T) {
 			wantErr: false,
 			assertOptions: func(t *testing.T, _ *cli.Options, cfg *config.Config) {
 				assert.Equal(t, 10*time.Second, cfg.Timeout)
-				assert.Equal(t, 256, cfg.Workers)
+				assert.Equal(t, 512, cfg.Workers)
 				assert.Equal(t, common.ProxySOCKS5, cfg.Type)
 			},
 		},

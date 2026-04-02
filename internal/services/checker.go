@@ -169,7 +169,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	conn, err := dialer.DialContext(ctx, "tcp", proxyAddr)
 	if err != nil {
-		res.Error = fmt.Errorf(i18n.T("checker.err_tcp"), err)
+		res.Error = fmt.Errorf("%s: %w", i18n.T("checker.err_tcp"), err)
 		return res
 	}
 	conn.Close()
@@ -202,7 +202,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		res.Error = fmt.Errorf(i18n.T("checker.err_create_req"), err)
+		res.Error = fmt.Errorf("%s: %w", i18n.T("checker.err_create_req"), err)
 		return res
 	}
 
@@ -224,7 +224,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 	res.SupportsHTTP2 = resp.ProtoMajor == 2
 
 	if checkHTTP2 && !res.SupportsHTTP2 {
-		res.Error = fmt.Errorf(i18n.T("checker.err_http2_failed"), resp.Proto)
+		res.Error = fmt.Errorf("%s: %s", i18n.T("checker.err_http2_failed"), resp.Proto)
 	}
 
 	return res

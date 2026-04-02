@@ -2,6 +2,7 @@ package gui
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"proxy-checker/internal/common"
@@ -17,7 +18,7 @@ type (
 
 	CacheInterface interface {
 		GetFilePath() string
-		Load(cfg *config.Config) []*ProxyItemWrapper
+		Load(cfg *config.Config) ([]*ProxyItemWrapper, error)
 		Save(items []*ProxyItemWrapper) error
 	}
 )
@@ -32,30 +33,37 @@ func (c *CacheFile) GetFilePath() string {
 	return c.FilePath
 }
 
-func (c *CacheFile) Load(cfg *config.Config) []*ProxyItemWrapper {
+func (c *CacheFile) Load(cfg *config.Config) ([]*ProxyItemWrapper, error) {
 	cacheFilePath := c.GetFilePath()
 
 	fileInfo, err := os.Stat(cacheFilePath)
 	if err != nil { // it's not an error if there is no cache file yet
-		return nil
+		if os.IsNotExist(err) {
+			return []*ProxyItemWrapper{}, nil
+		}
+		return nil, fmt.Errorf("failed to stat cache file: %w", err)
 	}
 
 	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
 	if time.Since(fileInfo.ModTime()) > cacheTTL {
-		return nil
+		return []*ProxyItemWrapper{}, nil
 	}
 
 	fileData, err := os.ReadFile(cacheFilePath)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to read cache file: %w", err)
 	}
 
 	var cachedItems []*ProxyItemWrapper
 	if err := json.Unmarshal(fileData, &cachedItems); err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to unmarshal cache: %w", err)
 	}
 
-	return cachedItems
+	if cachedItems == nil {
+		return []*ProxyItemWrapper{}, nil
+	}
+
+	return cachedItems, nil
 }
 
 func (c *CacheFile) Save(items []*ProxyItemWrapper) error {

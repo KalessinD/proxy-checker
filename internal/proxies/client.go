@@ -55,7 +55,7 @@ func NewClient(proxyAddr, mode string, forceHTTP2 bool) (*http.Client, error) {
 	case "socks5":
 		dialer, err := proxy.SOCKS5("tcp", proxyAddr, nil, proxy.Direct)
 		if err != nil {
-			return nil, fmt.Errorf(i18n.T("proxy.err_socks5_init"), err)
+			return nil, fmt.Errorf("%s: %w", i18n.T("proxy.err_socks5_init"), err)
 		}
 
 		contextDialer := &contextDialerWrapper{Dialer: dialer}
@@ -129,7 +129,7 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 		ips, err := net.LookupIP(host)
 		if err != nil {
 			conn.Close()
-			return nil, fmt.Errorf(i18n.T("proxy.err_socks4_resolve"), host)
+			return nil, fmt.Errorf("%s %s", i18n.T("proxy.err_socks4_resolve"), host)
 		}
 		ip = ips[0]
 	}
@@ -160,7 +160,7 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 
 	if resp[1] != 90 {
 		conn.Close()
-		return nil, fmt.Errorf(i18n.T("proxy.err_socks4_code"), resp[1])
+		return nil, fmt.Errorf("%s %d", i18n.T("proxy.err_socks4_code"), resp[1])
 	}
 
 	_ = conn.SetDeadline(time.Time{})

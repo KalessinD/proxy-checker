@@ -1,0 +1,10 @@
+package common
+
+import _ "embed"
+
+//go:embed "GeoLite2-Country.mmdb"
+var geoIPData []byte
+
+func init() {
+	GeoIPData = geoIPData
+}
