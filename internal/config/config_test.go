@@ -14,8 +14,8 @@ func TestDefaultConfig_ExpectedValues(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	assert.Equal(t, "system", cfg.Theme)
-	assert.Equal(t, 300, cfg.MinHeight)
-	assert.Equal(t, 600, cfg.MinWidth)
+	assert.Equal(t, 600, cfg.MinHeight)
+	assert.Equal(t, 800, cfg.MinWidth)
 	assert.Equal(t, 10*time.Second, cfg.Timeout)
 	assert.Equal(t, 256, cfg.Workers)
 	assert.False(t, cfg.CheckHTTP2)
