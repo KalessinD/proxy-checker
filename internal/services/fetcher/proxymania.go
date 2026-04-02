@@ -123,7 +123,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf(i18n.T("fetcher.err_status"), res.StatusCode)
+		return nil, nil, fmt.Errorf("%s %d", i18n.T("fetcher.err_status"), res.StatusCode)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
