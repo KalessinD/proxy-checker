@@ -62,8 +62,10 @@ func TestSaveToFile_PermissionDenied(t *testing.T) {
 	configDir := filepath.Join(tempHome, ".config")
 	require.NoError(t, os.MkdirAll(configDir, 0o755))
 
-	require.NoError(t, os.Chmod(configDir, 0o555))
-	defer func() { _ = os.Chmod(configDir, 0o755) }()
+	configPath := filepath.Join(configDir, "proxy-checker.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte("dummy"), 0o600))
+	require.NoError(t, os.Chmod(configPath, 0o444))
+	defer func() { _ = os.Chmod(configPath, 0o644) }()
 
 	cfg := config.DefaultConfig()
 	err := cfg.SaveToFile()
