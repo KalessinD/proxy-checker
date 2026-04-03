@@ -9,3 +9,6 @@ Revision history for Golang Tool to search for a working proxies
     - minor refactoring
     - adding some tests
     - updating rules in AGENTS.md
+
+0.0.10  2026 Apr 03
+    - minor refactoring
