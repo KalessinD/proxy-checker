@@ -136,3 +136,13 @@ func TestResolveSchema_DefaultBehavior(t *testing.T) {
 		})
 	}
 }
+
+func TestProxyChecker_CheckProxy_Timeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	checker := services.NewProxyChecker()
+	res := checker.CheckProxy(ctx, "127.0.0.1:9999", "google.com", "http", false)
+
+	assert.Error(t, res.Error)
+}

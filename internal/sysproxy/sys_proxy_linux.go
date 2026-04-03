@@ -19,7 +19,7 @@ func newLinuxProxyManager() SystemProxyManager {
 }
 
 func (m *linuxProxyManager) IsSupported() bool {
-	return isDebianBased() && isGnomeDesktop() && isGsettingsAvailable()
+	return isDebianBased() && IsGnomeDesktop() && isGsettingsAvailable()
 }
 
 func (m *linuxProxyManager) GetMode() (string, error) {
@@ -129,7 +129,7 @@ func isDebianBased() bool {
 	return false
 }
 
-func isGnomeDesktop() bool {
+func IsGnomeDesktop() bool {
 	desktop := strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP"))
 	session := strings.ToLower(os.Getenv("DESKTOP_SESSION"))
 
