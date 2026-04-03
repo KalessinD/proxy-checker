@@ -15,14 +15,16 @@ type ProxyItem struct {
 }
 
 type Settings struct {
-	Type    common.ProxyType
-	MaxRTT  int
-	Pages   int
-	Timeout int
+	Type     common.ProxyType
+	MaxRTT   int
+	Pages    int
+	Timeout  int
+	Resolver common.GeoIPResolver
+	Lang     string
 }
 
 type Fetcher interface {
-	Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error)
+	Fetch(ctx context.Context, settings Settings) ([]*ProxyItem, error)
 }
 
 func NewFetcher(source common.Source) Fetcher {

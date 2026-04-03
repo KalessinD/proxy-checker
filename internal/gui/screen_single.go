@@ -72,12 +72,12 @@ func (g *AppGUI) showSingleCheckScreen() {
 		}
 
 		if addr == "" {
-			g.appendLog(i18n.T("gui.single.err_empty_addr"))
+			g.appendLog(i18n.T("gui.single.err_empty_addr") + "\n")
 			return
 		}
 
 		g.showMainScreen()
-		g.appendLog(fmt.Sprintf(i18n.T("gui.single.log_checking"), addr, target, checkType))
+		g.appendLog(fmt.Sprintf("%s: %s -> %s (%s)...\n", i18n.T("gui.single.log_checking"), addr, target, checkType))
 		_ = g.progress.Set(0)
 
 		go func() {
@@ -93,7 +93,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 
 			res := services.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
 			if res.Error != nil {
-				g.appendLog(fmt.Sprintf(i18n.T("cli.fail"), res.Error))
+				g.appendLog(fmt.Sprintf("%s %v\n", i18n.T("cli.fail"), res.Error))
 				return
 			}
 
@@ -107,7 +107,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			}
 
 			_ = g.listData.Set([]interface{}{item})
-			g.appendLog(fmt.Sprintf(i18n.T("gui.single.log_done"), res.StatusCode))
+			g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.single.log_done"), res.StatusCode))
 			_ = g.progress.Set(1.0)
 		}()
 	})

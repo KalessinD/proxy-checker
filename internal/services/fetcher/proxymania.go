@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"go.uber.org/zap"
 )
 
 type ProxyManiaFetcher struct {
@@ -31,31 +32,31 @@ func NewProxyManiaFetcher() *ProxyManiaFetcher {
 	}
 }
 
-func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
-	u, err := url.Parse(f.BaseURL)
+func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*ProxyItem, error) {
+	parsedURL, err := url.Parse(f.BaseURL)
 	if err != nil {
 		return nil, err
 	}
-	q := u.Query()
+	query := parsedURL.Query()
 
 	if settings.Type == common.ProxyAll {
-		q.Del("type")
+		query.Del("type")
 	} else {
 		typeMap := map[common.ProxyType]string{
 			common.ProxySOCKS5: "SOCKS5", common.ProxySOCKS4: "SOCKS4",
 			common.ProxyHTTP: "HTTP", common.ProxyHTTPS: "HTTPS",
 		}
 		if t, ok := typeMap[settings.Type]; ok {
-			q.Set("type", t)
+			query.Set("type", t)
 		}
 	}
 
-	q.Set("speed", strconv.Itoa(settings.MaxRTT))
-	u.RawQuery = q.Encode()
-	startURL := u.String()
+	query.Set("speed", strconv.Itoa(settings.MaxRTT))
+	parsedURL.RawQuery = query.Encode()
+	startURL := parsedURL.String()
 
 	visitedURLs := make(map[string]bool)
-	var allProxies []ProxyItem
+	var allProxies []*ProxyItem
 
 	queue := []string{startURL}
 	pagesFetched := 0
@@ -83,6 +84,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]Pro
 
 		proxies, pageLinks, err := f.fetchSinglePage(ctx, client, currentURL, baseParsedURL)
 		if err != nil {
+			zap.S().Warnf("failed to fetch page %s: %v", strings.TrimSpace(currentURL), err)
 			continue
 		}
 
@@ -108,7 +110,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]Pro
 	return allProxies, nil
 }
 
-func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Client, urlStr string, _ *url.URL) ([]ProxyItem, []string, error) {
+func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Client, urlStr string, _ *url.URL) ([]*ProxyItem, []string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, nil, err
@@ -123,7 +125,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf(i18n.T("fetcher.err_status"), res.StatusCode)
+		return nil, nil, fmt.Errorf("%s %d", i18n.T("fetcher.err_status"), res.StatusCode)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
@@ -131,7 +133,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		return nil, nil, err
 	}
 
-	var proxies []ProxyItem
+	var proxies []*ProxyItem
 	var pageLinks []string
 
 	siteToInternalType := map[string]common.ProxyType{
@@ -171,7 +173,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 			}
 		}
 
-		proxies = append(proxies, ProxyItem{
+		proxies = append(proxies, &ProxyItem{
 			Host: host, Port: port, Country: country, Type: proxyType, RTT: rttText, RTTms: rttMs,
 		})
 	})

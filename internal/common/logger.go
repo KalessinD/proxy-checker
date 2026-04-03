@@ -33,7 +33,7 @@ func InitLogger(logPath string, disableConsole bool) error {
 
 		_, err := os.Stat(dir)
 		if err != nil {
-			return fmt.Errorf("%s: %s", i18n.T("log.warn_dir_access"), dir)
+			return fmt.Errorf("%s %s", i18n.T("log.warn_dir_access"), dir)
 		}
 
 		file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)

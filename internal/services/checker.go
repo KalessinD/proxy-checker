@@ -48,16 +48,16 @@ type (
 
 func CheckBatch(
 	ctx context.Context,
-	proxiesList []ProxyItem,
+	proxiesList []*ProxyItem,
 	dest string,
 	mode common.ProxyType,
 	timeout time.Duration,
 	workers int,
 	checkHTTP2 bool,
 	progressCallback func(current, total int),
-) []ProxyItemFull {
-	jobs := make(chan ProxyItem, len(proxiesList))
-	results := make(chan ProxyItemFull, len(proxiesList))
+) []*ProxyItemFull {
+	jobs := make(chan *ProxyItem, len(proxiesList))
+	results := make(chan *ProxyItemFull, len(proxiesList))
 
 	var wg sync.WaitGroup
 	var processedCount int32
@@ -65,7 +65,7 @@ func CheckBatch(
 
 	worker := func() {
 		defer wg.Done()
-		for p := range jobs {
+		for proxy := range jobs {
 			select {
 			case <-ctx.Done():
 				return
@@ -74,10 +74,10 @@ func CheckBatch(
 
 			currentMode := mode
 			if mode == common.ProxyAll {
-				currentMode = p.Type
+				currentMode = proxy.Type
 			}
 
-			addr := fmt.Sprintf("%s:%s", p.Host, p.Port)
+			addr := fmt.Sprintf("%s:%s", proxy.Host, proxy.Port)
 			ctxCheck, cancel := context.WithTimeout(ctx, timeout)
 
 			// ПЕРЕДАЕМ НОВЫЙ ФЛАГ
@@ -88,7 +88,7 @@ func CheckBatch(
 				return
 			}
 
-			results <- ProxyItemFull{ProxyItem: p, CheckResult: res}
+			results <- &ProxyItemFull{ProxyItem: *proxy, CheckResult: res}
 
 			if progressCallback != nil {
 				current := int(atomic.AddInt32(&processedCount, 1))
@@ -118,7 +118,7 @@ func CheckBatch(
 		close(results)
 	}()
 
-	var validProxies []ProxyItemFull
+	var validProxies []*ProxyItemFull
 	for res := range results {
 		if res.CheckResult.Error == nil {
 			validProxies = append(validProxies, res)
@@ -169,7 +169,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	conn, err := dialer.DialContext(ctx, "tcp", proxyAddr)
 	if err != nil {
-		res.Error = fmt.Errorf(i18n.T("checker.err_tcp"), err)
+		res.Error = fmt.Errorf("%s: %w", i18n.T("checker.err_tcp"), err)
 		return res
 	}
 	conn.Close()
@@ -202,7 +202,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		res.Error = fmt.Errorf(i18n.T("checker.err_create_req"), err)
+		res.Error = fmt.Errorf("%s: %w", i18n.T("checker.err_create_req"), err)
 		return res
 	}
 
@@ -224,7 +224,7 @@ func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 	res.SupportsHTTP2 = resp.ProtoMajor == 2
 
 	if checkHTTP2 && !res.SupportsHTTP2 {
-		res.Error = fmt.Errorf(i18n.T("checker.err_http2_failed"), resp.Proto)
+		res.Error = fmt.Errorf("%s: %s", i18n.T("checker.err_http2_failed"), resp.Proto)
 	}
 
 	return res

@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"errors"
 	"fmt"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
@@ -79,7 +80,7 @@ func (g *AppGUI) showSettingsScreen() {
 	selectRTT.SetSelected(strconv.Itoa(g.cfg.RTT))
 	rttLabel := widget.NewLabel(i18n.T("gui.settings.max_rtt"))
 
-	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256", "512", "1024"}
+	workerOptions := []string{"2", "8", "16", "32", "64", "128", "256", "512"}
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, _ := strconv.Atoi(s)
 		g.cfg.Workers = val
@@ -174,6 +175,12 @@ func (g *AppGUI) showSettingsScreen() {
 	langBox := container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.lang")), selectLang)
 	rttBox := container.NewGridWithColumns(2, rttLabel, selectRTT)
 	pagesBox := container.NewGridWithColumns(2, pagesLabel, selectPages)
+
+	geoipEntry := widget.NewEntry()
+	geoipEntry.SetPlaceHolder("/path/to/GeoLite2-Country.mmdb")
+	geoipEntry.SetText(g.cfg.GeoIPDBPath)
+
+	geoipBox := container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.geoip_db")), geoipEntry)
 	dynamicBox := container.NewVBox(rttBox, pagesBox)
 
 	toggleDynamicFields := func(source string) {
@@ -191,6 +198,28 @@ func (g *AppGUI) showSettingsScreen() {
 		toggleDynamicFields(s)
 	}
 
+	ignoreHostsEntry := widget.NewEntry()
+	ignoreHostsEntry.MultiLine = true
+	ignoreHostsEntry.SetPlaceHolder("localhost\n127.0.0.0/8")
+	ignoreHostsEntry.SetMinRowsVisible(5)
+
+	if g.systemProxySupported {
+		ignoreHosts, err := GetSystemProxyIgnoreHosts()
+		if err != nil {
+			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_get_ignore_hosts"), err))
+		} else {
+			ignoreHostsEntry.SetText(ignoreHosts)
+		}
+	} else {
+		ignoreHostsEntry.Disable()
+		ignoreHostsEntry.SetText(i18n.T("common.na"))
+	}
+
+	ignoreHostsBox := container.NewGridWithColumns(2,
+		widget.NewLabel(i18n.T("gui.settings.ignore_hosts")),
+		ignoreHostsEntry,
+	)
+
 	settingsContent := container.NewVBox(
 		widget.NewLabel(i18n.T("gui.settings.title")),
 		widget.NewSeparator(),
@@ -206,13 +235,32 @@ func (g *AppGUI) showSettingsScreen() {
 		widget.NewSeparator(),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.log_path")), logPathEntry),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.theme")), selectTheme),
+		geoipBox,
+		ignoreHostsBox,
 	)
 
 	btnSave := widget.NewButton(i18n.T("gui.btn_save"), func() {
+		g.cfg.GeoIPDBPath = geoipEntry.Text
+
+		g.initGeoIP(g.cfg.GeoIPDBPath)
+		if g.isGeoIPAvailable {
+			g.appendLog(i18n.T("gui.settings.geoip_loaded") + "\n")
+		} else if g.cfg.GeoIPDBPath != "" {
+			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), errors.New("file not found or invalid format")))
+		}
+
+		if g.systemProxySupported {
+			if err := SetSystemProxyIgnoreHosts(ignoreHostsEntry.Text); err != nil {
+				g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_set_ignore_hosts"), err))
+			} else {
+				g.appendLog(i18n.T("gui.settings.ignore_hosts_saved") + "\n")
+			}
+		}
+
 		if err := g.cfg.SaveToFile(); err != nil {
-			g.appendLog(fmt.Sprintf(i18n.T("gui.settings.save_error"), err))
+			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.save_error"), err))
 		} else {
-			g.appendLog(i18n.T("gui.settings.saved"))
+			g.appendLog(i18n.T("gui.settings.saved") + "\n")
 		}
 		g.showMainScreen()
 	})

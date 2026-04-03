@@ -6,8 +6,15 @@ require (
 	fyne.io/fyne/v2 v2.7.3
 	github.com/BurntSushi/toml v1.6.0
 	github.com/PuerkitoBio/goquery v1.12.0
+	github.com/maxmind/mmdbwriter v1.2.0
+	github.com/oschwald/maxminddb-golang v1.13.1
 	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.52.0
+)
+
+require (
+	github.com/oschwald/maxminddb-golang/v2 v2.1.1 // indirect
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 )
 
 require (

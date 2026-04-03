@@ -1,3 +1,8 @@
+ifneq (,$(wildcard .env))
+include .env
+# export MMDB_SOURCE_FILE
+endif
+
 SHELL := /bin/bash
 PROJECT_DIR ?= $(CURDIR)
 TMPDIR ?= /tmp
@@ -8,7 +13,7 @@ BINARY_NAME := $(APP_NAME)
 CMD_PATH := cmd/proxy-checker/main.go
 BUILD_DIR := bin
 
-ICON_SOURCE := assets/proxy-checker.png
+ICON_FILE := assets/images/proxy-checker.png
 
 LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
 LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
@@ -18,6 +23,7 @@ LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
 
 GOLANGCI_LINT ?= golangci-lint
 
+CP := cp
 CHMOD := chmod
 INSTALL := install
 SUDO := sudo
@@ -30,7 +36,7 @@ CD := cd
 ECHO := echo -e
 NOECHO := @
 
-GO_PACKAGES := $(shell go list ./... | grep -v '/mocks')
+GO_PACKAGES := $(shell go list ./... 2>/dev/null | grep -v '/mocks')
 GO_COVERAGE_REPORT := $(TMPDIR)/$(APP_NAME)-coverage.out
 
 OS := $(shell uname -s)
@@ -116,11 +122,11 @@ install-linux-bin: # The app binary installation on Linux
 	$(NOECHO) $(SUDO) $(INSTALL) -m 755 $(BINARY_FULL) $(LINUX_BIN_INSTALL_PATH)
 
 install-linux-shortcuts: # The app desktop shortcut installation on Linux
-	$(NOECHO) if [ -f "$(ICON_SOURCE)" ]; then \
+	$(NOECHO) if [ -f "$(ICON_FILE)" ]; then \
 		$(call print_info,Installing application icon...); \
-		$(SUDO) $(INSTALL) -m 644 $(ICON_SOURCE) $(LINUX_ICON_INSTALL_PATH); \
+		$(SUDO) $(INSTALL) -m 644 $(ICON_FILE) $(LINUX_ICON_INSTALL_PATH); \
 	else \
-		$(call print_warn,Warning: Icon $(ICON_SOURCE) not found, skipping shortcut creation); \
+		$(call print_warn,Warning: Icon $(ICON_FILE) not found, skipping shortcut creation); \
 		exit 0; \
 	fi
 	$(NOECHO) $(call print_info,Creating desktop shortcut...)

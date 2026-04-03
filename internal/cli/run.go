@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
@@ -29,11 +30,11 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 
 	res := services.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
 	if res.Error != nil {
-		fmt.Fprintf(os.Stderr, i18n.T("cli.fail")+"\n", res.Error)
+		fmt.Fprintf(os.Stderr, "%s %v\n", i18n.T("cli.fail"), res.Error)
 		return
 	}
 
-	fmt.Printf(i18n.T("cli.ok")+"\n", res.ProxyLatency, res.ReqLatency, res.StatusCode)
+	fmt.Printf("%s: TCP: %s, HTTP: %s, Статус: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, res.StatusCode)
 }
 
 func handleProxiesList(cfg *config.Config, opts *Options) {
@@ -50,32 +51,51 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		ctxParse := context.Background()
 		allProxies, err := f.Fetch(ctxParse, settings)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.T("cli.parse_error")+"\n", err)
+			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
 			return
 		}
 
-		fmt.Printf(i18n.T("cli.total_found")+"\n", len(allProxies))
+		fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
 		printTable(allProxies)
 		return
 	}
 
-	fmt.Printf(i18n.T("cli.starting_workers")+"\n", cfg.Workers)
+	fmt.Printf("%s (Workers: %d)...\n", i18n.T("cli.starting_workers"), cfg.Workers)
+
+	var resolver common.GeoIPResolver
+
+	if len(common.GeoIPData) > 0 {
+		if r, err := common.NewMaxMindDBResolverFromBytes(common.GeoIPData); err == nil {
+			resolver = r
+		}
+	}
+
+	if resolver == nil && cfg.GeoIPDBPath != "" {
+		if r, err := common.NewMaxMindDBResolverFromFile(cfg.GeoIPDBPath); err == nil {
+			resolver = r
+		}
+	}
 
 	validProxies, err := services.RunPipeline(
 		context.Background(),
 		cfg,
+		resolver,
 		services.PipelineCallbacks{
 			OnFetched: func(total int) {
-				fmt.Printf(i18n.T("cli.total_found")+"\n", total)
+				fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), total)
 			},
 			OnProgress: func(current, total int) {
-				fmt.Printf(i18n.T("cli.progress")+"\n", current, total)
+				fmt.Printf("%s: %d/%d\n", i18n.T("cli.progress"), current, total)
 			},
 		},
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, i18n.T("cli.pipeline_error")+"\n", err)
+		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.pipeline_error"), err)
 		return
+	}
+
+	if resolver != nil {
+		defer resolver.Close()
 	}
 
 	if len(validProxies) == 0 {
@@ -83,11 +103,11 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		return
 	}
 
-	fmt.Printf(i18n.T("cli.valid_found")+"\n", len(validProxies))
+	fmt.Printf("%s: %d\n", i18n.T("cli.valid_found"), len(validProxies))
 	printFullTable(validProxies)
 }
 
-func printTable(proxies []fetcher.ProxyItem) {
+func printTable(proxies []*fetcher.ProxyItem) {
 	sep := strings.Repeat("-", 70)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-10s\n",
@@ -103,7 +123,7 @@ func printTable(proxies []fetcher.ProxyItem) {
 	}
 }
 
-func printFullTable(proxies []services.ProxyItemFull) {
+func printFullTable(proxies []*services.ProxyItemFull) {
 	sep := strings.Repeat("-", 95)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-15s %-15s\n",

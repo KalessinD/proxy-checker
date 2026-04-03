@@ -10,27 +10,28 @@ import (
 )
 
 type Config struct {
-	Type       common.ProxyType `toml:"type"`
-	Timeout    time.Duration    `toml:"timeout"`
-	Workers    int              `toml:"workers"`
-	DestAddr   string           `toml:"dest_addr"`
-	Source     common.Source    `toml:"source"`
-	RTT        int              `toml:"rtt"`
-	Pages      int              `toml:"pages"`
-	Theme      string           `toml:"theme"`
-	MinHeight  int              `toml:"min_height"`
-	MinWidth   int              `toml:"min_width"`
-	CheckHTTP2 bool             `toml:"check_http2"`
-	LogPath    string           `toml:"log_path"`
-	CacheTTL   int              `toml:"cache_ttl"`
-	Lang       string           `toml:"lang"`
+	Type        common.ProxyType `toml:"type"`
+	Timeout     time.Duration    `toml:"timeout"`
+	Workers     int              `toml:"workers"`
+	DestAddr    string           `toml:"dest_addr"`
+	Source      common.Source    `toml:"source"`
+	RTT         int              `toml:"rtt"`
+	Pages       int              `toml:"pages"`
+	Theme       string           `toml:"theme"`
+	MinHeight   int              `toml:"min_height"`
+	MinWidth    int              `toml:"min_width"`
+	CheckHTTP2  bool             `toml:"check_http2"`
+	LogPath     string           `toml:"log_path"`
+	CacheTTL    int              `toml:"cache_ttl"`
+	Lang        string           `toml:"lang"`
+	GeoIPDBPath string           `toml:"geoip_db_path"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		Theme:      "system",
-		MinHeight:  300,
-		MinWidth:   600,
+		MinWidth:   900,
+		MinHeight:  400,
 		Source:     common.SourceProxyMania,
 		Type:       common.ProxySOCKS5,
 		Timeout:    10 * time.Second,

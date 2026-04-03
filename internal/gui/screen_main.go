@@ -187,7 +187,7 @@ func (g *AppGUI) showMainScreen() {
 	g.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
 		if g.cancelFunc != nil {
 			g.cancelFunc()
-			g.appendLog(i18n.T("gui.log_stopped"))
+			g.appendLog(i18n.T("gui.log_stopped") + "\n")
 		}
 	})
 	g.btnCancel.Importance = widget.DangerImportance
@@ -237,12 +237,19 @@ func (g *AppGUI) showMainScreen() {
 	progressBar := widget.NewProgressBarWithData(g.progress)
 	g.progressBar = progressBar
 
-	topBox := container.NewVBox(
-		widget.NewLabel(i18n.T("gui.label_logs")),
-		logArea,
-		widget.NewLabel(i18n.T("gui.label_progress")),
-		progressBar,
-	)
+	topBox := container.NewVBox()
+
+	if !g.isGeoIPAvailable {
+		warnLabel := widget.NewLabel(i18n.T("gui.warn_no_geoip"))
+		warnLabel.Wrapping = fyne.TextWrapWord
+		topBox.Add(warnLabel)
+		topBox.Add(widget.NewSeparator())
+	}
+
+	topBox.Add(widget.NewLabel(i18n.T("gui.label_logs")))
+	topBox.Add(logArea)
+	topBox.Add(widget.NewLabel(i18n.T("gui.label_progress")))
+	topBox.Add(progressBar)
 
 	g.table = g.createResultTable()
 
@@ -291,7 +298,7 @@ func (g *AppGUI) setUIState(running bool) {
 
 func (g *AppGUI) runBatchCheck() {
 	g.logBuffer = ""
-	g.appendLog(i18n.T("gui.log_preparing"))
+	g.appendLog(i18n.T("gui.log_preparing") + "\n")
 	_ = g.progress.Set(0)
 	_ = g.listData.Set([]interface{}{})
 
@@ -308,11 +315,11 @@ func (g *AppGUI) runBatchCheck() {
 		g.progressBar.Hide()
 	})
 
-	g.appendLog(fmt.Sprintf(i18n.T("gui.log_fetching"), g.cfg.Source))
+	g.appendLog(fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
 
-	validProxies, err := services.RunPipeline(ctx, g.cfg, services.PipelineCallbacks{
+	validProxies, err := services.RunPipeline(ctx, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
 		OnFetched: func(total int) {
-			g.appendLog(fmt.Sprintf(i18n.T("gui.log_found"), total))
+			g.appendLog(fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
 		},
 		OnProgress: func(current, total int) {
 			if ctx.Err() == nil {
@@ -325,9 +332,9 @@ func (g *AppGUI) runBatchCheck() {
 		return
 	}
 
-	wrappers := make([]ProxyItemWrapper, len(validProxies))
+	wrappers := make([]*ProxyItemWrapper, len(validProxies))
 	for i, p := range validProxies {
-		wrappers[i] = ProxyItemWrapper{
+		wrappers[i] = &ProxyItemWrapper{
 			Host:    p.Host,
 			Port:    p.Port,
 			Type:    p.Type,
@@ -345,14 +352,14 @@ func (g *AppGUI) runBatchCheck() {
 	_ = g.listData.Set(items)
 
 	if ctx.Err() != nil {
-		g.appendLog(i18n.T("gui.log_stopped"))
+		g.appendLog(i18n.T("gui.log_stopped") + "\n")
 	} else {
-		g.appendLog(fmt.Sprintf(i18n.T("gui.log_done"), len(validProxies)))
+		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
-		if err := saveCache(wrappers); err != nil {
-			g.appendLog(fmt.Sprintf(i18n.T("gui.log_cache_error"), err))
+		if err := g.cache.Save(wrappers); err != nil {
+			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		} else {
-			g.appendLog(i18n.T("gui.log_cache_saved"))
+			g.appendLog(i18n.T("gui.log_cache_saved") + "\n")
 		}
 	}
 	_ = g.progress.Set(1.0)
@@ -430,9 +437,9 @@ func (g *AppGUI) createResultTable() *widget.Table {
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	err := setSystemProxy(host, port, proxyType)
 	if err != nil {
-		g.appendLog(fmt.Sprintf(i18n.T("gui.log_apply_error"), host, port, proxyType, err))
+		g.appendLog(fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
 	} else {
-		g.appendLog(fmt.Sprintf(i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
+		g.appendLog(fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 		g.switchProxy.SetChecked(true)
 	}
 }

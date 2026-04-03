@@ -30,7 +30,7 @@ func NewTheSpeedXFetcher() *TheSpeedXFetcher {
 	}
 }
 
-func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]ProxyItem, error) {
+func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]*ProxyItem, error) {
 	var fileNames []string
 	haveToGetTypeFromFileName := false
 
@@ -49,7 +49,7 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 		fileNames = append(fileNames, socks5FileName)
 	}
 
-	var items []ProxyItem
+	var items []*ProxyItem
 
 	for _, fileName := range fileNames {
 		targetURL := f.BaseURL + fileName
@@ -67,7 +67,7 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf(i18n.T("fetcher.err_fetch_list_status"), resp.StatusCode)
+			return nil, fmt.Errorf("%s %d", i18n.T("fetcher.err_fetch_list_status"), resp.StatusCode)
 		}
 
 		scanner := bufio.NewScanner(resp.Body)
@@ -90,11 +90,16 @@ func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]Prox
 				proxyType = common.ProxyType(strings.ToLower(strings.Split(fileName, ".")[0]))
 			}
 
-			items = append(items, ProxyItem{
+			countryCode := i18n.T("common.na")
+			if settings.Resolver != nil {
+				countryCode = settings.Resolver.ResolveCountry(host, settings.Lang)
+			}
+
+			items = append(items, &ProxyItem{
 				Host:    host,
 				Port:    port,
 				Type:    proxyType,
-				Country: i18n.T("common.na"),
+				Country: countryCode,
 				RTT:     i18n.T("common.na"),
 				RTTms:   0,
 			})

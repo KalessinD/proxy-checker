@@ -43,6 +43,7 @@ invalid_line_without_port
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,
+		Lang: "en",
 	}
 
 	items, err := fetcherInstance.Fetch(t.Context(), settings)
@@ -57,4 +58,27 @@ invalid_line_without_port
 
 	assert.Equal(t, "3.3.3.3", items[2].Host)
 	assert.Equal(t, "1080", items[2].Port)
+}
+
+func TestTheSpeedXFetcher_Fetch_HttpError(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer testServer.Close()
+
+	fetcherInstance := &fetcher.TheSpeedXFetcher{
+		BaseURL: testServer.URL + "/",
+	}
+
+	settings := fetcher.Settings{
+		Type: common.ProxySOCKS5,
+		Lang: "en",
+	}
+
+	items, err := fetcherInstance.Fetch(t.Context(), settings)
+
+	require.Error(t, err)
+	assert.Nil(t, items)
+	assert.Contains(t, err.Error(), i18n.T("fetcher.err_fetch_list_status"))
+	assert.Contains(t, err.Error(), "403")
 }
