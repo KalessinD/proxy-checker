@@ -4,7 +4,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 
 ## Badges
 
-[![Coverage Status](https://coveralls.io/github/KalessinD/proxy-checker/badge.svg?branch=main)](https://coveralls.io/r/KalessinD/proxy-checker?branch=mainr)
+[![Coverage Status](https://coveralls.io/github/KalessinD/proxy-checker/badge.svg?branch=main)](https://coveralls.io/github/KalessinD/proxy-checker?branch=main)
 
 ## Features
 
