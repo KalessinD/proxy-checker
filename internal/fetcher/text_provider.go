@@ -9,7 +9,6 @@ import (
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"strings"
-	"time"
 )
 
 type (
@@ -37,10 +36,11 @@ func (f *TextListFetcher) Fetch(ctx context.Context, settings Settings) ([]*Prox
 
 	var items []*ProxyItem
 
+	client := &http.Client{Timeout: fetcherClientTimeout}
+
 	for _, fileName := range fileNames {
 		targetURL := f.BaseURL + fileName
 
-		client := &http.Client{Timeout: 30 * time.Second}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 		if err != nil {
 			return nil, err
