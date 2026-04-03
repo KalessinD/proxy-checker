@@ -4,7 +4,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 
 ## Badges
 
-[![Coverage Status](https://coveralls.io/github/KalessinD/proxy-checker/badge.svg?branch=main)](https://coveralls.io/github/KalessinD/proxy-checker?branch=main)
+[![Coverage](https://img.shields.io/codecov/c/github/KalessinD/proxy-checker?style=flat-square)](https://codecov.io/gh/KalessinD/proxy-checker)
 
 ## Features
 
@@ -151,16 +151,14 @@ The application supports the standard MaxMind DB format. You can use either of t
 *   **MaxMind GeoLite2** (Free, requires [registration](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data))
 *   **DB-IP Lite** (Free, requires [registration](https://db-ip.com/db/lite.php))
 
-You can provide the database in two ways:
+You can provide the database in the following ways:
 
-1.  **At build time (Embedded):**
-    Use the `DB_IP_PATH` variable during compilation. The database becomes a part of the binary. No extra files are needed to distribute the app, but the file size increases.
-2.  **At runtime (External file):**
+1.  **At runtime (External file):**
     Specify the path to the `.mmdb` file via:
     *   The GUI settings screen.
     *   The `geoip_db_path` parameter in `~/.config/proxy-checker.conf`.
     *   The `-geoip-db` CLI flag.
-    
+
 *Note: If you load the database via settings or CLI, it is applied immediately without restarting the application.*
 
 If no database is provided, the GUI will display a persistent informational warning at the top of the main screen, reminding you that GeoIP is not connected.
