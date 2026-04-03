@@ -41,7 +41,6 @@ func (g *AppGUI) showMainScreen() {
 	if g.sysProxyManager.IsSupported() {
 		proxyLabel := widget.NewLabelWithStyle(i18n.T("gui.label_sys_proxy"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
-		// ИЗМЕНЕНИЕ: Оборачиваем лейбл и чекбокс в vPad со сдвигом 3 пикселя вниз
 		alignedLabel := newVPad(proxyLabel, 3)
 		borderedSwitch := newBorderedBox(g.switchProxy)
 		alignedSwitch := newVPad(borderedSwitch, 3)
@@ -61,12 +60,6 @@ func (g *AppGUI) showMainScreen() {
 		container.NewPadded(buttonsBar),
 	)
 
-	g.logLabel = widget.NewLabel("")
-	g.logLabel.Wrapping = fyne.TextWrapWord
-	g.logScroll = container.NewScroll(g.logLabel)
-
-	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
-
 	progressBar := widget.NewProgressBarWithData(g.progress)
 	g.progressBar = progressBar
 
@@ -80,6 +73,9 @@ func (g *AppGUI) showMainScreen() {
 	}
 
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_logs")))
+	// ИСПОЛЬЗУЕМ УЖЕ СОЗДАННЫЕ В initUIComponents ВИДЖЕТЫ
+	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
+
 	topBox.Add(logArea)
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_progress")))
 	topBox.Add(progressBar)
