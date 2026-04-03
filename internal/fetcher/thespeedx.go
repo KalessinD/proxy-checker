@@ -8,10 +8,10 @@ import (
 const (
 	TheSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
 
-	thespeedxHTTPFileName   = "http.txt"
-	thespeedxHTTPSFileName  = "http.txt"
-	thespeedxSocks4FileName = "socks4.txt"
-	thespeedxSocks5FileName = "socks5.txt"
+	ThespeedxHTTPFileName   = "http.txt"
+	ThespeedxHTTPSFileName  = "http.txt"
+	ThespeedxSocks4FileName = "socks4.txt"
+	ThespeedxSocks5FileName = "socks5.txt"
 )
 
 type (
@@ -39,17 +39,17 @@ func (p *TheSpeedXProvider) GetFilesByType(proxyType common.ProxyType) []string 
 
 	switch proxyType {
 	case common.ProxySOCKS5:
-		fileNames = append(fileNames, thespeedxSocks5FileName)
+		fileNames = append(fileNames, ThespeedxSocks5FileName)
 	case common.ProxySOCKS4:
-		fileNames = append(fileNames, thespeedxSocks4FileName)
+		fileNames = append(fileNames, ThespeedxSocks4FileName)
 	case common.ProxyHTTPS:
-		fileNames = append(fileNames, thespeedxHTTPSFileName)
+		fileNames = append(fileNames, ThespeedxHTTPSFileName)
 	case common.ProxyHTTP:
-		fileNames = append(fileNames, thespeedxHTTPFileName)
+		fileNames = append(fileNames, ThespeedxHTTPFileName)
 	case common.ProxyAll:
-		fileNames = append(fileNames, thespeedxHTTPFileName, thespeedxHTTPSFileName, thespeedxSocks5FileName)
+		fileNames = append(fileNames, ThespeedxHTTPFileName, ThespeedxHTTPSFileName, ThespeedxSocks5FileName)
 	default:
-		fileNames = append(fileNames, thespeedxSocks5FileName)
+		fileNames = append(fileNames, ThespeedxSocks5FileName)
 	}
 
 	return fileNames

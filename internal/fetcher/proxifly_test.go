@@ -79,3 +79,37 @@ func TestProxiflyFetcher_Fetch_HttpError(t *testing.T) {
 	assert.Contains(t, err.Error(), i18n.T("fetcher.err_fetch_list_status"))
 	assert.Contains(t, err.Error(), "403")
 }
+
+func TestProxiflyProvider_GetFilesByType(t *testing.T) {
+	provider := fetcher.NewProxiflyProvider()
+
+	tests := []struct {
+		name      string
+		proxyType common.ProxyType
+		expected  []string
+	}{
+		{name: "SOCKS5", proxyType: common.ProxySOCKS5, expected: []string{fetcher.ProxiflyHSocks5FileName}},
+		{name: "HTTP", proxyType: common.ProxyHTTP, expected: []string{fetcher.ProxiflyHTTPFileName}},
+		{name: "All types", proxyType: common.ProxyAll, expected: []string{
+			fetcher.ProxiflyHTTPFileName,
+			fetcher.ProxiflyHTTPSFileName,
+			fetcher.ProxiflySsocks4FileName,
+			fetcher.ProxiflyHSocks5FileName,
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, provider.GetFilesByType(tt.proxyType))
+		})
+	}
+}
+
+func TestProxiflyProvider_GetTypeFromFilename(t *testing.T) {
+	provider := fetcher.NewProxiflyProvider()
+
+	assert.Equal(t, common.ProxySOCKS5, provider.GetTypeFromFilename("socks5/data.txt"))
+	assert.Equal(t, common.ProxyHTTP, provider.GetTypeFromFilename("http/data.txt"))
+	assert.Equal(t, common.ProxySOCKS4, provider.GetTypeFromFilename("socks4/data.txt"))
+	assert.Equal(t, common.ProxyType("invalid"), provider.GetTypeFromFilename("invalid/data.txt"))
+}

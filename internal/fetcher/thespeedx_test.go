@@ -78,3 +78,35 @@ func TestTheSpeedXFetcher_Fetch_HttpError(t *testing.T) {
 	assert.Contains(t, err.Error(), i18n.T("fetcher.err_fetch_list_status"))
 	assert.Contains(t, err.Error(), "403")
 }
+
+func TestTheSpeedXProvider_GetFilesByType(t *testing.T) {
+	provider := fetcher.NewTheSpeedXProvider()
+
+	tests := []struct {
+		name      string
+		proxyType common.ProxyType
+		expected  []string
+	}{
+		{name: "SOCKS5", proxyType: common.ProxySOCKS5, expected: []string{fetcher.ThespeedxSocks5FileName}},
+		{name: "HTTP", proxyType: common.ProxyHTTP, expected: []string{fetcher.ThespeedxHTTPFileName}},
+		{name: "All types", proxyType: common.ProxyAll, expected: []string{
+			fetcher.ThespeedxHTTPFileName,
+			fetcher.ThespeedxHTTPSFileName,
+			fetcher.ThespeedxSocks5FileName,
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, provider.GetFilesByType(tt.proxyType))
+		})
+	}
+}
+
+func TestTheSpeedXProvider_GetTypeFromFilename(t *testing.T) {
+	provider := fetcher.NewTheSpeedXProvider()
+
+	assert.Equal(t, common.ProxySOCKS5, provider.GetTypeFromFilename("socks5.txt"))
+	assert.Equal(t, common.ProxyHTTP, provider.GetTypeFromFilename("http.txt"))
+	assert.Equal(t, common.ProxyType("unknown"), provider.GetTypeFromFilename("unknown.txt"))
+}

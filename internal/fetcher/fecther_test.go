@@ -18,6 +18,11 @@ func TestNewFetcher_KnownSources(t *testing.T) {
 		fetcherInstance := fetcher.NewFetcher(common.SourceTheSpeedX)
 		assert.IsType(t, &fetcher.TextListFetcher{}, fetcherInstance)
 	})
+
+	t.Run("Proxifly source", func(t *testing.T) {
+		fetcherInstance := fetcher.NewFetcher(common.SourceProxifly)
+		assert.IsType(t, &fetcher.TextListFetcher{}, fetcherInstance)
+	})
 }
 
 func TestNewFetcher_UnknownSource(t *testing.T) {
