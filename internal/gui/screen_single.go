@@ -55,7 +55,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
 
 	if g.isCustomTarget {
-		targetSelect.SetSelected("Иной сайт")
+		targetSelect.SetSelected(i18n.T("gui.single.custom_site"))
 		customBox.Show()
 	} else if g.cfg.DestAddr != "" {
 		targetSelect.SetSelected(g.cfg.DestAddr)
