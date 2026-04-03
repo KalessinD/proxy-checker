@@ -42,8 +42,8 @@ type (
 		cfg    *config.Config
 		cache  cache.Storage
 
-		progress binding.Float
-		listData binding.UntypedList
+		progress   binding.Float
+		proxyItems []*ProxyItemWrapper
 
 		progressBar *widget.ProgressBar
 		table       *widget.Table
@@ -119,7 +119,7 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		window:          a.NewWindow(common.AppName),
 		cfg:             cfg,
 		progress:        binding.NewFloat(),
-		listData:        binding.NewUntypedList(),
+		proxyItems:      make([]*ProxyItemWrapper, 0),
 		cache:           cache.NewFileCache(),
 		sysProxyManager: sysproxy.NewSystemProxyManager(),
 	}
@@ -240,9 +240,9 @@ func (g *AppGUI) Run() {
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 	} else if len(cachedItems) > 0 {
-		guiItems := make([]interface{}, len(cachedItems))
+		items := make([]*ProxyItemWrapper, len(cachedItems))
 		for i, item := range cachedItems {
-			guiItems[i] = &ProxyItemWrapper{
+			items[i] = &ProxyItemWrapper{
 				Host:    item.Host,
 				Port:    item.Port,
 				Type:    item.Type,
@@ -251,7 +251,12 @@ func (g *AppGUI) Run() {
 				HTTP:    item.CheckResult.ReqLatencyStr,
 			}
 		}
-		_ = g.listData.Set(guiItems)
+		fyne.Do(func() {
+			g.proxyItems = items
+			if g.table != nil {
+				g.table.Refresh()
+			}
+		})
 		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
 	}
 
