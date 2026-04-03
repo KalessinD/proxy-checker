@@ -203,8 +203,8 @@ func (g *AppGUI) showSettingsScreen() {
 	ignoreHostsEntry.SetPlaceHolder("localhost\n127.0.0.0/8")
 	ignoreHostsEntry.SetMinRowsVisible(5)
 
-	if g.systemProxySupported {
-		ignoreHosts, err := GetSystemProxyIgnoreHosts()
+	if g.sysProxyManager.IsSupported() {
+		ignoreHosts, err := g.sysProxyManager.GetIgnoreHosts()
 		if err != nil {
 			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_get_ignore_hosts"), err))
 		} else {
@@ -249,8 +249,8 @@ func (g *AppGUI) showSettingsScreen() {
 			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), errors.New("file not found or invalid format")))
 		}
 
-		if g.systemProxySupported {
-			if err := SetSystemProxyIgnoreHosts(ignoreHostsEntry.Text); err != nil {
+		if g.sysProxyManager.IsSupported() {
+			if err := g.sysProxyManager.SetIgnoreHosts(ignoreHostsEntry.Text); err != nil {
 				g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_set_ignore_hosts"), err))
 			} else {
 				g.appendLog(i18n.T("gui.settings.ignore_hosts_saved") + "\n")

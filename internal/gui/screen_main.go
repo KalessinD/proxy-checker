@@ -205,7 +205,7 @@ func (g *AppGUI) showMainScreen() {
 	)
 
 	var leftSide fyne.CanvasObject
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		proxyLabel := widget.NewLabelWithStyle(i18n.T("gui.label_sys_proxy"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 		// ИЗМЕНЕНИЕ: Оборачиваем лейбл и чекбокс в vPad со сдвигом 3 пикселя вниз
@@ -257,7 +257,7 @@ func (g *AppGUI) showMainScreen() {
 		widget.NewLabel(i18n.T("gui.header_host")), widget.NewLabel(i18n.T("gui.header_port")), widget.NewLabel(i18n.T("gui.header_type")),
 		widget.NewLabel(i18n.T("gui.header_country")), widget.NewLabel(i18n.T("gui.header_tcp")), widget.NewLabel(i18n.T("gui.header_http")),
 	}
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		headerObjects = append(headerObjects, widget.NewLabel(""))
 	}
 	tableHeader := container.NewGridWithColumns(len(headerObjects), headerObjects...)
@@ -265,7 +265,7 @@ func (g *AppGUI) showMainScreen() {
 	scalableTable := newResizableTable(
 		g.table,
 		tableHeader,
-		g.systemProxySupported,
+		g.sysProxyManager.IsSupported(),
 		float32(g.cfg.MinWidth),
 		float32(g.cfg.MinHeight),
 	)
@@ -367,7 +367,7 @@ func (g *AppGUI) runBatchCheck() {
 
 func (g *AppGUI) createResultTable() *widget.Table {
 	cols := 6
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		cols = 7
 	}
 
@@ -407,7 +407,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 
 			tc, _ := cell.(*tableCell)
 
-			if g.systemProxySupported && id.Col == 6 {
+			if g.sysProxyManager.IsSupported() && id.Col == 6 {
 				h := p.Host
 				pt := p.Port
 				t := p.Type
@@ -440,7 +440,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 }
 
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
-	err := setSystemProxy(host, port, proxyType)
+	err := g.sysProxyManager.SetProxy(host, port, proxyType)
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
 	} else {
