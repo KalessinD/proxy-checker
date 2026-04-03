@@ -1,113 +1,56 @@
 package fetcher
 
 import (
-	"bufio"
-	"context"
-	"fmt"
-	"io"
-	"net/http"
 	"proxy-checker/internal/common"
-	"proxy-checker/internal/common/i18n"
 	"strings"
-	"time"
 )
-
-type TheSpeedXFetcher struct {
-	BaseURL string
-}
 
 const (
 	TheSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
 
-	httpFileName   = "http.txt"
-	socks4FileName = "socks4.txt"
-	socks5FileName = "socks5.txt"
+	thespeedxHTTPFileName   = "http.txt"
+	thespeedxHTTPSFileName  = "http.txt"
+	thespeedxSocks4FileName = "socks4.txt"
+	thespeedxSocks5FileName = "socks5.txt"
 )
 
-func NewTheSpeedXFetcher() *TheSpeedXFetcher {
-	return &TheSpeedXFetcher{
+type (
+	TheSpeedXProvider struct {
+		BaseURL string
+	}
+)
+
+func NewTheSpeedXProvider() TextProviderInterface {
+	return &TheSpeedXProvider{
 		BaseURL: TheSpeedXBaseURL,
 	}
 }
 
-func (f *TheSpeedXFetcher) Fetch(ctx context.Context, settings Settings) ([]*ProxyItem, error) {
+func (p *TheSpeedXProvider) ParseString(line string) []string {
+	return strings.Split(line, ":")
+}
+
+func (p *TheSpeedXProvider) GetTypeFromFilename(filename string) common.ProxyType {
+	return common.ProxyType(strings.ToLower(strings.Split(filename, ".")[0]))
+}
+
+func (p *TheSpeedXProvider) GetFilesByType(proxyType common.ProxyType) []string {
 	var fileNames []string
-	haveToGetTypeFromFileName := false
 
-	// Используем типизированные константы
-	switch settings.Type {
+	switch proxyType {
 	case common.ProxySOCKS5:
-		fileNames = append(fileNames, socks5FileName)
+		fileNames = append(fileNames, thespeedxSocks5FileName)
 	case common.ProxySOCKS4:
-		fileNames = append(fileNames, socks4FileName)
-	case common.ProxyHTTP, common.ProxyHTTPS:
-		fileNames = append(fileNames, httpFileName)
+		fileNames = append(fileNames, thespeedxSocks4FileName)
+	case common.ProxyHTTPS:
+		fileNames = append(fileNames, thespeedxHTTPSFileName)
+	case common.ProxyHTTP:
+		fileNames = append(fileNames, thespeedxHTTPFileName)
 	case common.ProxyAll:
-		fileNames = append(fileNames, httpFileName, socks4FileName, socks5FileName)
-		haveToGetTypeFromFileName = true
+		fileNames = append(fileNames, thespeedxHTTPFileName, thespeedxHTTPSFileName, thespeedxSocks5FileName)
 	default:
-		fileNames = append(fileNames, socks5FileName)
+		fileNames = append(fileNames, thespeedxSocks5FileName)
 	}
 
-	var items []*ProxyItem
-
-	for _, fileName := range fileNames {
-		targetURL := f.BaseURL + fileName
-
-		client := &http.Client{Timeout: 30 * time.Second}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("%s %d", i18n.T("fetcher.err_fetch_list_status"), resp.StatusCode)
-		}
-
-		scanner := bufio.NewScanner(resp.Body)
-		for scanner.Scan() {
-			line := scanner.Text()
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			parts := strings.Split(line, ":")
-			if len(parts) != 2 {
-				continue
-			}
-			host := parts[0]
-			port := parts[1]
-
-			proxyType := settings.Type
-			if haveToGetTypeFromFileName {
-				proxyType = common.ProxyType(strings.ToLower(strings.Split(fileName, ".")[0]))
-			}
-
-			countryCode := i18n.T("common.na")
-			if settings.Resolver != nil {
-				countryCode = settings.Resolver.ResolveCountry(host, settings.Lang)
-			}
-
-			items = append(items, &ProxyItem{
-				Host:    host,
-				Port:    port,
-				Type:    proxyType,
-				Country: countryCode,
-				RTT:     i18n.T("common.na"),
-				RTTms:   0,
-			})
-		}
-
-		if err := scanner.Err(); err != nil && err != io.EOF {
-			return nil, err
-		}
-	}
-	return items, nil
+	return fileNames
 }

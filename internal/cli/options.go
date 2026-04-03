@@ -70,7 +70,7 @@ func ParseFlags(cfg *config.Config, args []string) (*Options, error) {
 		return nil, fmt.Errorf("%s: %s", i18n.T("cli.err_invalid_type"), cfg.Type)
 	}
 
-	if cfg.Source != common.SourceProxyMania && cfg.Source != common.SourceTheSpeedX {
+	if !common.IsKnownSource(cfg.Source) {
 		return nil, fmt.Errorf("%s: %s", i18n.T("cli.err_invalid_source"), cfg.Source)
 	}
 

@@ -16,7 +16,7 @@ func TestNewFetcher_KnownSources(t *testing.T) {
 
 	t.Run("TheSpeedX source", func(t *testing.T) {
 		fetcherInstance := fetcher.NewFetcher(common.SourceTheSpeedX)
-		assert.IsType(t, &fetcher.TheSpeedXFetcher{}, fetcherInstance)
+		assert.IsType(t, &fetcher.TextListFetcher{}, fetcherInstance)
 	})
 }
 

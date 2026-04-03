@@ -15,6 +15,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 - **Multiple Parsing Sources:** 
   - `proxymania.su`: Parses interactive pages with filtering by response time (RTT) and protocol. Supports pagination.
   - `thespeedx: Fetches raw lists directly from GitHub repositories.
+  - `proxifly: Fetches raw lists directly from GitHub repositories.
 - **High Performance:** 
   - Highly concurrent checking using worker pools.
   - Strict `context.Context` timeout management (prevents goroutine leaks on cancellation, even with SOCK5).
