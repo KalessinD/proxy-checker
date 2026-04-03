@@ -92,7 +92,8 @@ func (g *AppGUI) showSingleCheckScreen() {
 			ctx, cancel := context.WithTimeout(context.Background(), g.cfg.Timeout)
 			defer cancel()
 
-			res := services.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
+			checker := services.NewProxyChecker()
+			res := checker.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
 			if res.Error != nil {
 				g.appendLog(fmt.Sprintf("%s %v\n", i18n.T("cli.fail"), res.Error))
 				return

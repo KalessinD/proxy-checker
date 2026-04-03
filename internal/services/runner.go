@@ -2,20 +2,33 @@ package services
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/fetcher"
 )
 
-// PipelineCallbacks позволяет клиентам (GUI, CLI) реагировать на этапы пайплайна
 type PipelineCallbacks struct {
 	OnFetched  func(total int)
 	OnProgress func(current, total int)
 }
 
-// RunPipeline запускает полный цикл: Fetch -> Check
-func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPResolver, cb PipelineCallbacks) ([]*ProxyItemFull, error) {
-	f := fetcher.NewFetcher(cfg.Source)
+func RunPipeline(
+	ctx context.Context,
+	fetcherInstance fetcher.Fetcher,
+	verifierInstance ProxyVerifier,
+	cfg *config.Config,
+	resolver common.GeoIPResolver,
+	cb PipelineCallbacks,
+) ([]*ProxyItemFull, error) {
+	if fetcherInstance == nil {
+		return nil, errors.New("pipeline initialization error: fetcher is nil")
+	}
+	if verifierInstance == nil {
+		return nil, errors.New("pipeline initialization error: verifier is nil")
+	}
+
 	settings := fetcher.Settings{
 		Type:     cfg.Type,
 		MaxRTT:   cfg.RTT,
@@ -25,16 +38,18 @@ func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPR
 		Lang:     cfg.Lang,
 	}
 
-	allProxies, err := f.Fetch(ctx, settings)
+	allProxies, err := fetcherInstance.Fetch(ctx, settings)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("pipeline fetch error: %w", err)
 	}
 
 	if cb.OnFetched != nil {
 		cb.OnFetched(len(allProxies))
 	}
 
-	validProxies := CheckBatch(
+	checker := NewProxyChecker()
+
+	validProxies := checker.CheckBatch(
 		ctx,
 		allProxies,
 		cfg.DestAddr,
@@ -43,7 +58,7 @@ func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPR
 		cfg.Workers,
 		cfg.CheckHTTP2,
 		cb.OnProgress,
-		&defaultVerifier{},
+		verifierInstance,
 	)
 
 	return validProxies, nil
