@@ -8,6 +8,7 @@ import (
 	"proxy-checker/internal/services"
 	"strings"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -55,7 +56,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
 
 	if g.isCustomTarget {
-		targetSelect.SetSelected("Иной сайт")
+		targetSelect.SetSelected(i18n.T("gui.single.custom_site"))
 		customBox.Show()
 	} else if g.cfg.DestAddr != "" {
 		targetSelect.SetSelected(g.cfg.DestAddr)
@@ -97,7 +98,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 				return
 			}
 
-			item := ProxyItemWrapper{
+			item := &ProxyItemWrapper{
 				Host:    host,
 				Port:    port,
 				Type:    common.ProxyType(checkType),
@@ -106,7 +107,12 @@ func (g *AppGUI) showSingleCheckScreen() {
 				HTTP:    res.ReqLatencyStr,
 			}
 
-			_ = g.listData.Set([]interface{}{item})
+			fyne.Do(func() {
+				g.proxyItems = []*ProxyItemWrapper{item}
+				if g.table != nil {
+					g.table.Refresh()
+				}
+			})
 			g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.single.log_done"), res.StatusCode))
 			_ = g.progress.Set(1.0)
 		}()

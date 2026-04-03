@@ -1,12 +1,13 @@
-package gui_test
+package cache_test
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"proxy-checker/internal/cache"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
-	"proxy-checker/internal/gui"
+	"proxy-checker/internal/services"
 	"testing"
 	"time"
 
@@ -15,18 +16,18 @@ import (
 )
 
 // Компиляторная проверка того, что структура реализует интерфейс
-var _ gui.CacheInterface = (*gui.CacheFile)(nil)
+var _ cache.Storage = (*cache.FileCache)(nil)
 
 func TestCacheFile_GetFilePath(t *testing.T) {
 	customPath := "/tmp/my_custom_cache.data"
-	cache := &gui.CacheFile{FilePath: customPath}
+	cache := &cache.FileCache{FilePath: customPath}
 
 	actualPath := cache.GetFilePath()
 	assert.Equal(t, customPath, actualPath, "GetFilePath должен возвращать установленный путь")
 }
 
-func TestCacheFile_NewCacheFile(t *testing.T) {
-	cache := gui.NewCacheFile()
+func TestCacheFile_NewFileCache(t *testing.T) {
+	cache := cache.NewFileCache()
 	require.NotNil(t, cache)
 
 	assert.Contains(t, cache.GetFilePath(), common.AppName+"-cache.data")
@@ -35,11 +36,30 @@ func TestCacheFile_NewCacheFile(t *testing.T) {
 
 func TestCacheFile_SaveAndLoad_ValidData(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "valid_cache.data")
-	cache := &gui.CacheFile{FilePath: tempCacheFile}
+	cache := &cache.FileCache{FilePath: tempCacheFile}
 
-	inputItems := []*gui.ProxyItemWrapper{
-		{Host: "1.1.1.1", Port: "8080", Type: common.ProxyHTTP},
-		{Host: "2.2.2.2", Port: "3128", Type: common.ProxySOCKS5, Country: "US"},
+	inputItems := []*services.ProxyItemFull{
+		{
+			ProxyItem: services.ProxyItem{
+				Host:  "1.1.1.1",
+				Port:  "8080",
+				Type:  common.ProxyHTTP,
+				RTT:   "",
+				RTTms: 0,
+			},
+			CheckResult: services.Result{},
+		},
+		{
+			ProxyItem: services.ProxyItem{
+				Host:    "2.2.2.2",
+				Port:    "3128",
+				Type:    common.ProxySOCKS5,
+				Country: "US",
+				RTT:     "",
+				RTTms:   0,
+			},
+			CheckResult: services.Result{},
+		},
 	}
 
 	err := cache.Save(inputItems)
@@ -58,9 +78,9 @@ func TestCacheFile_SaveAndLoad_ValidData(t *testing.T) {
 
 func TestCacheFile_Save_EmptySlice(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "empty_cache.data")
-	cache := &gui.CacheFile{FilePath: tempCacheFile}
+	cache := &cache.FileCache{FilePath: tempCacheFile}
 
-	err := cache.Save([]*gui.ProxyItemWrapper{})
+	err := cache.Save([]*services.ProxyItemFull{})
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(tempCacheFile)
@@ -99,7 +119,11 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 		{
 			name: "Cache TTL is expired",
 			setupFile: func(t *testing.T, path string) {
-				items := []*gui.ProxyItemWrapper{{Host: "3.3.3.3", Port: "80"}}
+				items := []*services.ProxyItemFull{
+					{
+						ProxyItem: services.ProxyItem{Host: "3.3.3.3", Port: "80"},
+					},
+				}
 				data, _ := json.Marshal(items)
 				require.NoError(t, os.WriteFile(path, data, 0o600))
 
@@ -115,7 +139,7 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempCacheFile := filepath.Join(t.TempDir(), "edge_cache.data")
-			cache := &gui.CacheFile{FilePath: tempCacheFile}
+			cache := &cache.FileCache{FilePath: tempCacheFile}
 
 			tt.setupFile(t, tempCacheFile)
 

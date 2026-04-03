@@ -3,182 +3,14 @@ package gui
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/services"
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
-
-// vPad добавляет фиксированный отступ сверху для точного выравнивания виджетов
-type vPad struct {
-	widget.BaseWidget
-	child  fyne.CanvasObject
-	topPad float32
-}
-
-func newVPad(child fyne.CanvasObject, topPad float32) *vPad {
-	w := &vPad{child: child, topPad: topPad}
-	w.ExtendBaseWidget(w)
-	return w
-}
-
-func (v *vPad) CreateRenderer() fyne.WidgetRenderer {
-	topSpacer := canvas.NewRectangle(color.Transparent)
-	topSpacer.SetMinSize(fyne.NewSize(0, v.topPad))
-
-	// Border layout прижмет child вниз, оставив topSpacer сверху
-	return widget.NewSimpleRenderer(container.NewBorder(topSpacer, nil, nil, nil, v.child))
-}
-
-// borderedBox обертка, которая рисует рамку вокруг любого виджета
-type borderedBox struct {
-	widget.BaseWidget
-	content fyne.CanvasObject
-}
-
-func newBorderedBox(content fyne.CanvasObject) *borderedBox {
-	w := &borderedBox{content: content}
-	w.ExtendBaseWidget(w)
-	return w
-}
-
-func (b *borderedBox) CreateRenderer() fyne.WidgetRenderer {
-	borderRect := canvas.NewRectangle(color.Transparent)
-	borderRect.StrokeColor = theme.Color(theme.ColorNameInputBorder)
-	borderRect.StrokeWidth = 1
-
-	box := container.NewPadded(container.NewStack(borderRect, b.content))
-	return widget.NewSimpleRenderer(box)
-}
-
-// minSizeWidget обертка для задания минимального размера любому контейнеру
-type minSizeWidget struct {
-	widget.BaseWidget
-	content fyne.CanvasObject
-	minSize fyne.Size
-}
-
-func newMinSizeWidget(content fyne.CanvasObject, minSize fyne.Size) *minSizeWidget {
-	w := &minSizeWidget{content: content, minSize: minSize}
-	w.ExtendBaseWidget(w)
-	return w
-}
-
-func (w *minSizeWidget) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(w.content)
-}
-
-func (w *minSizeWidget) MinSize() fyne.Size {
-	return w.minSize
-}
-
-// tableCell кастомный виджет для одной ячейки таблицы.
-type tableCell struct {
-	widget.BaseWidget
-	label *widget.Label
-	btn   *widget.Button
-}
-
-func newTableCell() *tableCell {
-	c := &tableCell{
-		label: widget.NewLabel(""),
-		btn:   widget.NewButton(i18n.T("gui.btn_apply"), nil),
-	}
-	c.label.Truncation = fyne.TextTruncateClip
-	c.btn.Hide()
-	c.ExtendBaseWidget(c)
-	return c
-}
-
-func (c *tableCell) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(container.NewStack(c.label, c.btn))
-}
-
-func (c *tableCell) updateText(text string) {
-	c.label.SetText(text)
-	c.label.Show()
-	c.btn.Hide()
-}
-
-func (c *tableCell) updateButton(onTapped func()) {
-	c.btn.OnTapped = onTapped
-	c.btn.Show()
-	c.label.Hide()
-}
-
-// resizableTable — кастомный виджет-обертка для автоматического ресайза колонок
-type resizableTable struct {
-	widget.BaseWidget
-	table        *widget.Table
-	header       *fyne.Container
-	hasButtonCol bool
-	minWidth     float32
-	minHeight    float32
-}
-
-func newResizableTable(table *widget.Table, header *fyne.Container, hasButtonCol bool, minW, minH float32) *resizableTable {
-	w := &resizableTable{
-		table:        table,
-		header:       header,
-		hasButtonCol: hasButtonCol,
-		minWidth:     minW,
-		minHeight:    minH,
-	}
-	w.ExtendBaseWidget(w)
-	return w
-}
-
-func (w *resizableTable) CreateRenderer() fyne.WidgetRenderer {
-	c := container.NewBorder(w.header, nil, nil, nil, w.table)
-	return widget.NewSimpleRenderer(c)
-}
-
-func (w *resizableTable) MinSize() fyne.Size {
-	return fyne.NewSize(w.minWidth, w.minHeight)
-}
-
-// Resize вызывается Fyne каждый раз при изменении размера окна
-func (w *resizableTable) Resize(size fyne.Size) {
-	w.BaseWidget.Resize(size)
-	w.updateColumnWidths(size.Width)
-}
-
-func (w *resizableTable) updateColumnWidths(availableWidth float32) {
-	if availableWidth < w.minWidth {
-		availableWidth = w.minWidth
-	}
-
-	buttonWidth := float32(0)
-	if w.hasButtonCol {
-		buttonWidth = 100
-	}
-
-	const rightMargin float32 = 25
-	totalTableWidth := availableWidth - rightMargin
-	usableWidth := totalTableWidth - buttonWidth
-
-	proportions := []float32{0.30, 0.08, 0.10, 0.15, 0.185, 0.185}
-
-	w.table.SetColumnWidth(0, usableWidth*proportions[0])
-	w.table.SetColumnWidth(1, usableWidth*proportions[1])
-	w.table.SetColumnWidth(2, usableWidth*proportions[2])
-	w.table.SetColumnWidth(3, usableWidth*proportions[3])
-	w.table.SetColumnWidth(4, usableWidth*proportions[4])
-	w.table.SetColumnWidth(5, usableWidth*proportions[5])
-
-	if w.hasButtonCol {
-		w.table.SetColumnWidth(6, buttonWidth)
-	}
-}
-
-// ================= Логика главного экрана =================
 
 func (g *AppGUI) showMainScreen() {
 	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() { g.showSettingsScreen() })
@@ -205,7 +37,7 @@ func (g *AppGUI) showMainScreen() {
 	)
 
 	var leftSide fyne.CanvasObject
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		proxyLabel := widget.NewLabelWithStyle(i18n.T("gui.label_sys_proxy"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 		// ИЗМЕНЕНИЕ: Оборачиваем лейбл и чекбокс в vPad со сдвигом 3 пикселя вниз
@@ -257,7 +89,7 @@ func (g *AppGUI) showMainScreen() {
 		widget.NewLabel(i18n.T("gui.header_host")), widget.NewLabel(i18n.T("gui.header_port")), widget.NewLabel(i18n.T("gui.header_type")),
 		widget.NewLabel(i18n.T("gui.header_country")), widget.NewLabel(i18n.T("gui.header_tcp")), widget.NewLabel(i18n.T("gui.header_http")),
 	}
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		headerObjects = append(headerObjects, widget.NewLabel(""))
 	}
 	tableHeader := container.NewGridWithColumns(len(headerObjects), headerObjects...)
@@ -265,7 +97,7 @@ func (g *AppGUI) showMainScreen() {
 	scalableTable := newResizableTable(
 		g.table,
 		tableHeader,
-		g.systemProxySupported,
+		g.sysProxyManager.IsSupported(),
 		float32(g.cfg.MinWidth),
 		float32(g.cfg.MinHeight),
 	)
@@ -300,7 +132,6 @@ func (g *AppGUI) runBatchCheck() {
 	g.logBuffer = ""
 	g.appendLog(i18n.T("gui.log_preparing") + "\n")
 	_ = g.progress.Set(0)
-	_ = g.listData.Set([]interface{}{})
 
 	g.progressBar.Show()
 
@@ -332,9 +163,9 @@ func (g *AppGUI) runBatchCheck() {
 		return
 	}
 
-	wrappers := make([]*ProxyItemWrapper, len(validProxies))
+	guiItems := make([]*ProxyItemWrapper, len(validProxies))
 	for i, p := range validProxies {
-		wrappers[i] = &ProxyItemWrapper{
+		guiItems[i] = &ProxyItemWrapper{
 			Host:    p.Host,
 			Port:    p.Port,
 			Type:    p.Type,
@@ -344,19 +175,19 @@ func (g *AppGUI) runBatchCheck() {
 		}
 	}
 
-	items := make([]interface{}, len(wrappers))
-	for i, item := range wrappers {
-		items[i] = item
-	}
-
-	_ = g.listData.Set(items)
+	fyne.Do(func() {
+		g.proxyItems = guiItems
+		if g.table != nil {
+			g.table.Refresh()
+		}
+	})
 
 	if ctx.Err() != nil {
 		g.appendLog(i18n.T("gui.log_stopped") + "\n")
 	} else {
 		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
-		if err := g.cache.Save(wrappers); err != nil {
+		if err := g.cache.Save(validProxies); err != nil {
 			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		} else {
 			g.appendLog(i18n.T("gui.log_cache_saved") + "\n")
@@ -367,50 +198,30 @@ func (g *AppGUI) runBatchCheck() {
 
 func (g *AppGUI) createResultTable() *widget.Table {
 	cols := 6
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		cols = 7
 	}
 
 	table := widget.NewTable(
 		func() (int, int) {
-			length := g.listData.Length()
-			return length, cols
+			return len(g.proxyItems), cols
 		},
 		func() fyne.CanvasObject {
 			return newTableCell()
 		},
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
-			val, err := g.listData.GetItem(id.Row)
-			if err != nil {
+			if id.Row < 0 || id.Row >= len(g.proxyItems) {
 				return
 			}
 
-			castedVal, ok := val.(binding.Untyped)
-			if !ok {
-				return
-			}
-
-			item, err := castedVal.Get()
-			if err != nil {
-				return
-			}
-
-			var p ProxyItemWrapper
-			switch v := item.(type) {
-			case *ProxyItemWrapper:
-				p = *v
-			case ProxyItemWrapper:
-				p = v
-			default:
-				return
-			}
+			item := g.proxyItems[id.Row]
 
 			tc, _ := cell.(*tableCell)
 
-			if g.systemProxySupported && id.Col == 6 {
-				h := p.Host
-				pt := p.Port
-				t := p.Type
+			if g.sysProxyManager.IsSupported() && id.Col == 6 {
+				h := item.Host
+				pt := item.Port
+				t := item.Type
 				tc.updateButton(func() {
 					g.applySystemProxy(h, pt, string(t))
 				})
@@ -420,17 +231,17 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			var text string
 			switch id.Col {
 			case 0:
-				text = p.Host
+				text = item.Host
 			case 1:
-				text = p.Port
+				text = item.Port
 			case 2:
-				text = string(p.Type)
+				text = string(item.Type)
 			case 3:
-				text = p.Country
+				text = item.Country
 			case 4:
-				text = p.TCP
+				text = item.TCP
 			case 5:
-				text = p.HTTP
+				text = item.HTTP
 			}
 			tc.updateText(text)
 		},
@@ -440,7 +251,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 }
 
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
-	err := setSystemProxy(host, port, proxyType)
+	err := g.sysProxyManager.SetProxy(host, port, proxyType)
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
 	} else {
