@@ -61,18 +61,17 @@ func TestCheckBatch_FiltersInvalidProxies(t *testing.T) {
 		{Host: "3.3.3.3", Port: "8080", Type: "socks5"},
 	}
 
+	checker := services.NewProxyChecker()
 	ctx := t.Context()
-	validProxies := services.CheckBatch(ctx, items, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
+	validProxies := checker.CheckBatch(ctx, items, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
 
 	require.Len(t, validProxies, 2, "Должны остаться только валидные прокси")
-	// Проверяем, что сортировка по ReqLatency работает (30ms < 50ms)
 	assert.Equal(t, "3.3.3.3", validProxies[0].Host, "Первым должен быть самый быстрый прокси")
 	assert.Equal(t, "1.1.1.1", validProxies[1].Host)
 }
 
 func TestCheckBatch_StopsOnContextCancellation(t *testing.T) {
 	mock := &mockVerifier{
-		// Блокируем первого воркера навсегда
 		blockChannel: make(chan struct{}),
 		responses: map[string]services.Result{
 			"1.1.1.1:8080": {StatusCode: 200},
@@ -85,15 +84,14 @@ func TestCheckBatch_StopsOnContextCancellation(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())
+	checker := services.NewProxyChecker()
 
 	done := make(chan []*services.ProxyItemFull)
 	go func() {
-		done <- services.CheckBatch(ctx, items, "google.com", "socks5", 10*time.Second, 2, false, nil, mock)
+		done <- checker.CheckBatch(ctx, items, "google.com", "socks5", 10*time.Second, 2, false, nil, mock)
 	}()
 
-	// Даем время запуститься воркерам и заблокироваться
 	time.Sleep(50 * time.Millisecond)
-
 	cancel()
 
 	select {
@@ -107,9 +105,9 @@ func TestCheckBatch_StopsOnContextCancellation(t *testing.T) {
 
 func TestCheckBatch_EmptyList(t *testing.T) {
 	mock := &mockVerifier{}
-
+	checker := services.NewProxyChecker()
 	ctx := t.Context()
-	validProxies := services.CheckBatch(ctx, []*services.ProxyItem{}, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
+	validProxies := checker.CheckBatch(ctx, []*services.ProxyItem{}, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
 
 	assert.Empty(t, validProxies, "Пустой список должен вернуть пустой слайс")
 }
@@ -121,53 +119,19 @@ func TestResolveSchema_DefaultBehavior(t *testing.T) {
 		forceHTTP2     bool
 		expectedSchema string
 	}{
-		{
-			name:           "HTTP mode without force",
-			proxyMode:      "http",
-			forceHTTP2:     false,
-			expectedSchema: "http://",
-		},
-		{
-			name:           "HTTPS mode without force",
-			proxyMode:      "https",
-			forceHTTP2:     false,
-			expectedSchema: "https://",
-		},
-		{
-			name:           "SOCKS4 mode without force",
-			proxyMode:      "socks4",
-			forceHTTP2:     false,
-			expectedSchema: "http://",
-		},
-		{
-			name:           "SOCKS5 mode without force",
-			proxyMode:      "socks5",
-			forceHTTP2:     false,
-			expectedSchema: "https://",
-		},
-		{
-			name:           "Unknown mode fallback without force",
-			proxyMode:      "unknown",
-			forceHTTP2:     false,
-			expectedSchema: "http://",
-		},
-		{
-			name:           "HTTP mode WITH force HTTP2",
-			proxyMode:      "http",
-			forceHTTP2:     true,
-			expectedSchema: "https://",
-		},
-		{
-			name:           "SOCKS4 mode WITH force HTTP2",
-			proxyMode:      "socks4",
-			forceHTTP2:     true,
-			expectedSchema: "https://",
-		},
+		{name: "HTTP mode without force", proxyMode: "http", forceHTTP2: false, expectedSchema: "http://"},
+		{name: "HTTPS mode without force", proxyMode: "https", forceHTTP2: false, expectedSchema: "https://"},
+		{name: "SOCKS4 mode without force", proxyMode: "socks4", forceHTTP2: false, expectedSchema: "http://"},
+		{name: "SOCKS5 mode without force", proxyMode: "socks5", forceHTTP2: false, expectedSchema: "https://"},
+		{name: "Unknown mode fallback without force", proxyMode: "unknown", forceHTTP2: false, expectedSchema: "http://"},
+		{name: "HTTP mode WITH force HTTP2", proxyMode: "http", forceHTTP2: true, expectedSchema: "https://"},
+		{name: "SOCKS4 mode WITH force HTTP2", proxyMode: "socks4", forceHTTP2: true, expectedSchema: "https://"},
 	}
 
+	checker := services.NewProxyChecker()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualSchema := services.ResolveSchema(tt.proxyMode, tt.forceHTTP2)
+			actualSchema := checker.ResolveSchema(tt.proxyMode, tt.forceHTTP2)
 			assert.Equal(t, tt.expectedSchema, actualSchema)
 		})
 	}

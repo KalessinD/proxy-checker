@@ -28,7 +28,8 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
 
-	res := services.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
+	checker := services.NewProxyChecker()
+	res := checker.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
 	if res.Error != nil {
 		fmt.Fprintf(os.Stderr, "%s %v\n", i18n.T("cli.fail"), res.Error)
 		return
@@ -40,8 +41,9 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 func handleProxiesList(cfg *config.Config, opts *Options) {
 	fmt.Printf(i18n.T("cli.mode")+"\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
 
+	fetcherInstance := fetcher.NewFetcher(cfg.Source)
+
 	if !opts.Check {
-		f := fetcher.NewFetcher(cfg.Source)
 		settings := fetcher.Settings{
 			Type:   cfg.Type,
 			MaxRTT: cfg.RTT,
@@ -49,7 +51,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		}
 
 		ctxParse := context.Background()
-		allProxies, err := f.Fetch(ctxParse, settings)
+		allProxies, err := fetcherInstance.Fetch(ctxParse, settings)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
 			return
@@ -76,8 +78,12 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		}
 	}
 
+	verifierInstance := services.NewDefaultVerifier()
+
 	validProxies, err := services.RunPipeline(
 		context.Background(),
+		fetcherInstance,
+		verifierInstance,
 		cfg,
 		resolver,
 		services.PipelineCallbacks{

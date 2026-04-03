@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"proxy-checker/internal/common/i18n"
+	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
 	"strings"
 
@@ -148,7 +149,10 @@ func (g *AppGUI) runBatchCheck() {
 
 	g.appendLog(fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
 
-	validProxies, err := services.RunPipeline(ctx, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
+	fetcherInstance := fetcher.NewFetcher(g.cfg.Source)
+	verifierInstance := services.NewDefaultVerifier()
+
+	validProxies, err := services.RunPipeline(ctx, fetcherInstance, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
 		OnFetched: func(total int) {
 			g.appendLog(fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
 		},

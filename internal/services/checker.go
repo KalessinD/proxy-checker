@@ -44,19 +44,30 @@ type (
 		CheckResult Result `json:",inline"`
 	}
 
-	// defaultVerifier implements ProxyVerifier with reale network usage
-	defaultVerifier struct{}
+	ProxyChecker struct{}
+
+	defaultVerifier struct {
+		checker *ProxyChecker
+	}
 )
 
+func NewProxyChecker() *ProxyChecker {
+	return &ProxyChecker{}
+}
+
+func NewDefaultVerifier() ProxyVerifier {
+	return &defaultVerifier{checker: NewProxyChecker()}
+}
+
 func (v *defaultVerifier) Verify(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
-	return checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
+	return v.checker.checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
 }
 
-func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
-	return (&defaultVerifier{}).Verify(ctx, proxyAddr, destAddr, mode, checkHTTP2)
+func (pc *ProxyChecker) CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+	return pc.checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
 }
 
-func CheckBatch(
+func (pc *ProxyChecker) CheckBatch(
 	ctx context.Context,
 	proxiesList []*ProxyItem,
 	dest string,
@@ -142,14 +153,14 @@ func CheckBatch(
 	return validProxies
 }
 
-func ResolveSchema(mode string, forceHTTP2 bool) string {
+func (pc *ProxyChecker) ResolveSchema(mode string, forceHTTP2 bool) string {
 	if forceHTTP2 {
 		return httpsSchema
 	}
 
 	switch mode {
 	case "http":
-		return "http://"
+		return httpSchema
 	case "https":
 		return httpsSchema
 	case "socks4":
@@ -161,7 +172,7 @@ func ResolveSchema(mode string, forceHTTP2 bool) string {
 	}
 }
 
-func checkProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+func (pc *ProxyChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
 	var res Result
 
 	dialTimeout := 10 * time.Second
@@ -190,11 +201,10 @@ func checkProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP
 		target = i18n.T("checker.default_target")
 	}
 
-	// Защита от случая, если пользователь вручную ввел схему в настройках/GUI
 	target = strings.TrimPrefix(target, "http://")
 	target = strings.TrimPrefix(target, "https://")
 
-	schema := ResolveSchema(mode, checkHTTP2)
+	schema := pc.ResolveSchema(mode, checkHTTP2)
 	target = schema + target
 
 	if mode == "socks4" && checkHTTP2 {
