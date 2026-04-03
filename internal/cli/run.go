@@ -7,8 +7,8 @@ import (
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
+	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
-	"proxy-checker/internal/services/fetcher"
 	"strings"
 )
 
@@ -41,7 +41,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 	fmt.Printf(i18n.T("cli.mode")+"\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
 
 	if !opts.Check {
-		f := services.NewFetcher(cfg.Source)
+		f := fetcher.NewFetcher(cfg.Source)
 		settings := fetcher.Settings{
 			Type:   cfg.Type,
 			MaxRTT: cfg.RTT,

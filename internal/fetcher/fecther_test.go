@@ -2,7 +2,7 @@ package fetcher_test
 
 import (
 	"proxy-checker/internal/common"
-	"proxy-checker/internal/services/fetcher"
+	"proxy-checker/internal/fetcher"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

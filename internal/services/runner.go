@@ -4,7 +4,7 @@ import (
 	"context"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
-	"proxy-checker/internal/services/fetcher"
+	"proxy-checker/internal/fetcher"
 )
 
 // PipelineCallbacks позволяет клиентам (GUI, CLI) реагировать на этапы пайплайна
@@ -15,7 +15,7 @@ type PipelineCallbacks struct {
 
 // RunPipeline запускает полный цикл: Fetch -> Check
 func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPResolver, cb PipelineCallbacks) ([]*ProxyItemFull, error) {
-	f := NewFetcher(cfg.Source)
+	f := fetcher.NewFetcher(cfg.Source)
 	settings := fetcher.Settings{
 		Type:     cfg.Type,
 		MaxRTT:   cfg.RTT,

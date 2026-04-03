@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
-	"proxy-checker/internal/services/fetcher"
+	"proxy-checker/internal/fetcher"
 	"strings"
 	"testing"
 
