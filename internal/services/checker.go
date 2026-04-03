@@ -25,24 +25,23 @@ const (
 
 type (
 	Result struct {
-		ProxyLatency    time.Duration
-		ProxyLatencyStr string
+		ProxyLatency    time.Duration `json:"proxy_latency"`
+		ProxyLatencyStr string        `json:"proxy_latency_str"`
 
-		ReqLatency    time.Duration
-		ReqLatencyStr string
+		ReqLatency    time.Duration `json:"req_latency"`
+		ReqLatencyStr string        `json:"req_latency_str"`
 
-		StatusCode int
-		Error      error
-
-		SupportsHTTP  bool
-		SupportsHTTP2 bool
+		StatusCode    int   `json:"status_code"`
+		Error         error `json:"error,omitempty"`
+		SupportsHTTP  bool  `json:"supports_http"`
+		SupportsHTTP2 bool  `json:"supports_http2"`
 	}
 
 	ProxyItem = fetcher.ProxyItem
 
 	ProxyItemFull struct {
-		ProxyItem
-		CheckResult Result
+		ProxyItem   `json:",inline"`
+		CheckResult Result `json:",inline"`
 	}
 
 	// defaultVerifier implements ProxyVerifier with reale network usage

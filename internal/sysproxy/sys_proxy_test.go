@@ -1,9 +1,9 @@
-package gui_test
+package sysproxy_test
 
 import (
 	"os"
 	"proxy-checker/internal/common/i18n"
-	"proxy-checker/internal/gui"
+	"proxy-checker/internal/sysproxy"
 	"runtime"
 	"testing"
 
@@ -17,14 +17,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewSystemProxyManager_ReturnsValidInterface(t *testing.T) {
-	manager := gui.NewSystemProxyManager()
+	manager := sysproxy.NewSystemProxyManager()
 	require.NotNil(t, manager, "Фабрика всегда должна возвращать реализацию")
 
-	var _ gui.SystemProxyManager = manager
+	var _ sysproxy.SystemProxyManager = manager
 }
 
 func TestNoopProxyManager_Behavior(t *testing.T) {
-	manager := &gui.NoOpProxyManager{}
+	manager := &sysproxy.NoOpProxyManager{}
 
 	assert.False(t, manager.IsSupported(), "Noop менеджер не поддерживает прокси")
 
@@ -43,12 +43,12 @@ func TestNoopProxyManager_Behavior(t *testing.T) {
 }
 
 func TestNewSystemProxyManager_PlatformConsistency(t *testing.T) {
-	manager := gui.NewSystemProxyManager()
+	manager := sysproxy.NewSystemProxyManager()
 
 	if runtime.GOOS == "linux" {
-		assert.IsNotType(t, &gui.NoOpProxyManager{}, manager, "На Linux должен использоваться linuxProxyManager")
+		assert.IsNotType(t, &sysproxy.NoOpProxyManager{}, manager, "На Linux должен использоваться linuxProxyManager")
 	} else {
-		assert.IsType(t, &gui.NoOpProxyManager{}, manager, "Не на Linux должен использоваться noopProxyManager")
+		assert.IsType(t, &sysproxy.NoOpProxyManager{}, manager, "Не на Linux должен использоваться noopProxyManager")
 	}
 }
 
@@ -68,7 +68,7 @@ func TestParseGVariantStringArray(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := gui.ParseGVariantStringArray(tt.rawInput)
+			result := sysproxy.ParseGVariantStringArray(tt.rawInput)
 			assert.Equal(t, tt.expectedList, result)
 		})
 	}
@@ -88,7 +88,7 @@ func TestFormatGVariantStringArray(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := gui.FormatGVariantStringArray(tt.inputHosts)
+			result := sysproxy.FormatGVariantStringArray(tt.inputHosts)
 			assert.Equal(t, tt.expectedString, result)
 		})
 	}

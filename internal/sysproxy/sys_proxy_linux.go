@@ -1,6 +1,6 @@
 //go:build linux
 
-package gui
+package sysproxy
 
 import (
 	"bytes"

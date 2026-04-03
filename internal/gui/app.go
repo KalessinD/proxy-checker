@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"image/color"
+	"proxy-checker/internal/cache"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
+	"proxy-checker/internal/sysproxy"
 	"strings"
 	"sync"
 
@@ -38,7 +40,7 @@ type (
 		app    fyne.App
 		window fyne.Window
 		cfg    *config.Config
-		cache  CacheInterface
+		cache  cache.Storage
 
 		progress binding.Float
 		listData binding.UntypedList
@@ -51,7 +53,7 @@ type (
 		logBuffer string
 		logMutex  sync.Mutex
 
-		sysProxyManager SystemProxyManager
+		sysProxyManager sysproxy.SystemProxyManager
 
 		isGeoIPAvailable bool
 		geoIPResolver    common.GeoIPResolver
@@ -118,8 +120,8 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 		cfg:             cfg,
 		progress:        binding.NewFloat(),
 		listData:        binding.NewUntypedList(),
-		cache:           NewCacheFile(),
-		sysProxyManager: NewSystemProxyManager(),
+		cache:           cache.NewFileCache(),
+		sysProxyManager: sysproxy.NewSystemProxyManager(),
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
@@ -144,9 +146,9 @@ func (g *AppGUI) initUIComponents() {
 			return
 		}
 
-		mode := ProxyModeNone
+		mode := sysproxy.ProxyModeNone
 		if checked {
-			mode = ProxyModeManual
+			mode = sysproxy.ProxyModeManual
 		}
 
 		if err := g.sysProxyManager.SetMode(mode); err != nil {
@@ -184,7 +186,7 @@ func (g *AppGUI) loadSystemProxyState() {
 	currentMode, err := g.sysProxyManager.GetMode()
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
-	} else if currentMode == ProxyModeManual {
+	} else if currentMode == sysproxy.ProxyModeManual {
 		g.switchProxy.SetChecked(true)
 	}
 }
@@ -240,7 +242,14 @@ func (g *AppGUI) Run() {
 	} else if len(cachedItems) > 0 {
 		guiItems := make([]interface{}, len(cachedItems))
 		for i, item := range cachedItems {
-			guiItems[i] = item
+			guiItems[i] = &ProxyItemWrapper{
+				Host:    item.Host,
+				Port:    item.Port,
+				Type:    item.Type,
+				Country: item.Country,
+				TCP:     item.CheckResult.ProxyLatencyStr,
+				HTTP:    item.CheckResult.ReqLatencyStr,
+			}
 		}
 		_ = g.listData.Set(guiItems)
 		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
