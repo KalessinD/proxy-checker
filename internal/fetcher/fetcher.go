@@ -3,6 +3,7 @@ package fetcher
 import (
 	"context"
 	"proxy-checker/internal/common"
+	"time"
 )
 
 type (
@@ -28,6 +29,8 @@ type (
 		Fetch(ctx context.Context, settings Settings) ([]*ProxyItem, error)
 	}
 )
+
+const fetcherClientTimeout = 20 * time.Second
 
 func NewFetcher(source common.Source) Fetcher {
 	switch source {
