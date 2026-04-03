@@ -43,6 +43,7 @@ func RunPipeline(ctx context.Context, cfg *config.Config, resolver common.GeoIPR
 		cfg.Workers,
 		cfg.CheckHTTP2,
 		cb.OnProgress,
+		&defaultVerifier{},
 	)
 
 	return validProxies, nil

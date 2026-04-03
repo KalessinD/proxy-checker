@@ -44,7 +44,18 @@ type (
 		ProxyItem
 		CheckResult Result
 	}
+
+	// defaultVerifier implements ProxyVerifier with reale network usage
+	defaultVerifier struct{}
 )
+
+func (v *defaultVerifier) Verify(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+	return checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
+}
+
+func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+	return (&defaultVerifier{}).Verify(ctx, proxyAddr, destAddr, mode, checkHTTP2)
+}
 
 func CheckBatch(
 	ctx context.Context,
@@ -55,6 +66,7 @@ func CheckBatch(
 	workers int,
 	checkHTTP2 bool,
 	progressCallback func(current, total int),
+	verifier ProxyVerifier,
 ) []*ProxyItemFull {
 	jobs := make(chan *ProxyItem, len(proxiesList))
 	results := make(chan *ProxyItemFull, len(proxiesList))
@@ -80,8 +92,7 @@ func CheckBatch(
 			addr := fmt.Sprintf("%s:%s", proxy.Host, proxy.Port)
 			ctxCheck, cancel := context.WithTimeout(ctx, timeout)
 
-			// ПЕРЕДАЕМ НОВЫЙ ФЛАГ
-			res := CheckProxy(ctxCheck, addr, dest, string(currentMode), checkHTTP2)
+			res := verifier.Verify(ctxCheck, addr, dest, string(currentMode), checkHTTP2)
 			cancel()
 
 			if ctx.Err() != nil {
@@ -132,8 +143,6 @@ func CheckBatch(
 	return validProxies
 }
 
-// ResolveSchema возвращает схему в зависимости от типа прокси.
-// Если запрошена принудительная проверка HTTP/2, всегда возвращаем https.
 func ResolveSchema(mode string, forceHTTP2 bool) string {
 	if forceHTTP2 {
 		return httpsSchema
@@ -153,7 +162,7 @@ func ResolveSchema(mode string, forceHTTP2 bool) string {
 	}
 }
 
-func CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+func checkProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
 	var res Result
 
 	dialTimeout := 10 * time.Second
