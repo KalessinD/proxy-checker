@@ -16,7 +16,11 @@ import (
 )
 
 func (g *AppGUI) showSettingsScreen() {
-	sources := []string{"proxymania", "thespeedx"}
+	sources := []string{
+		string(common.SourceProxyMania),
+		string(common.SourceTheSpeedX),
+		string(common.SourceProxifly),
+	}
 	selectSource := widget.NewSelect(sources, func(s string) {
 		g.cfg.Source = common.Source(s)
 	})
@@ -231,10 +235,10 @@ func (g *AppGUI) createDynamicFieldsBox(selectSource *widget.Select) *fyne.Conta
 	)
 
 	toggleDynamicFields := func(source string) {
-		if source == string(common.SourceTheSpeedX) {
-			dynamicBox.Hide()
-		} else {
+		if source == string(common.SourceProxyMania) {
 			dynamicBox.Show()
+		} else {
+			dynamicBox.Hide()
 		}
 	}
 	toggleDynamicFields(string(g.cfg.Source))

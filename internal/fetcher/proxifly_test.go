@@ -13,22 +13,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTheSpeedXFetcher_Fetch_Success(t *testing.T) {
+func TestProxiflyFetcher_Fetch_Success(t *testing.T) {
 	err := i18n.Init("en")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Fake response
-	socks5List := `1.1.1.1:1080
-2.2.2.2:1080
+	socks5List := `socks5://1.1.1.1:1080
+socks5://2.2.2.2:1080
+2.2.2.4:1080
 
 # комментарий должен быть проигнорирован
 invalid_line_without_port
-3.3.3.3:1080`
+socks5://3.3.3.3:1080`
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "socks5.txt") {
+		if strings.HasSuffix(r.URL.Path, "socks5/data.txt") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(socks5List))
 		} else {
@@ -37,7 +38,7 @@ invalid_line_without_port
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewTheSpeedXProvider())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider())
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,
@@ -52,19 +53,19 @@ invalid_line_without_port
 	assert.Equal(t, "1.1.1.1", items[0].Host)
 	assert.Equal(t, "1080", items[0].Port)
 	assert.Equal(t, common.ProxySOCKS5, items[0].Type)
-	assert.Equal(t, "N/A", items[0].Country, "Для TheSpeedX страна всегда N/A")
+	assert.Equal(t, "N/A", items[0].Country, "Для Proxifly страна всегда N/A")
 
 	assert.Equal(t, "3.3.3.3", items[2].Host)
 	assert.Equal(t, "1080", items[2].Port)
 }
 
-func TestTheSpeedXFetcher_Fetch_HttpError(t *testing.T) {
+func TestProxiflyFetcher_Fetch_HttpError(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewTheSpeedXProvider())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider())
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,
