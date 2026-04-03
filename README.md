@@ -2,6 +2,10 @@
 
 A fast, concurrent proxy parser and checker with a native cross-platform GUI and a powerful CLI. Written in Go.
 
+## Badges
+
+[![Coverage Status](https://coveralls.io/github/KalessinD/proxy-checker/badge.svg?branch=main)](https://coveralls.io/r/KalessinD/proxy-checker?branch=mainr)
+
 ## Features
 
 - **Multi-protocol Support:** Check HTTP, HTTPS, SOCK4, and SOCK5 proxies.
