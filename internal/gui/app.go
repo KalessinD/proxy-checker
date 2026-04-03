@@ -70,9 +70,6 @@ type (
 		switchProxy    *widget.Check
 	}
 
-	// forcedVariantTheme — это кастомная тема-обертка, которая принудительно
-	// устанавливает вариант (светлый/тёмный), сохраняя остальные пользовательские
-	// настройки, чтобы обойти использование deprecated theme.LightTheme()/DarkTheme().
 	forcedVariantTheme struct {
 		fyne.Theme
 		variant fyne.ThemeVariant
@@ -175,6 +172,10 @@ func (g *AppGUI) initUIComponents() {
 	})
 	g.btnCancel.Importance = widget.DangerImportance
 	g.btnCancel.Disable()
+
+	g.logLabel = widget.NewLabel("")
+	g.logLabel.Wrapping = fyne.TextWrapWord
+	g.logScroll = container.NewScroll(g.logLabel)
 }
 
 func (g *AppGUI) loadSystemProxyState() {
@@ -191,7 +192,6 @@ func (g *AppGUI) loadSystemProxyState() {
 	}
 }
 
-// appendLog безопасно добавляет текст в логи из любого потока
 func (g *AppGUI) appendLog(text string) {
 	g.logMutex.Lock()
 	g.logBuffer += text
