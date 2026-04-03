@@ -395,8 +395,13 @@ func (g *AppGUI) createResultTable() *widget.Table {
 				return
 			}
 
-			p, ok := item.(ProxyItemWrapper)
-			if !ok {
+			var p ProxyItemWrapper
+			switch v := item.(type) {
+			case *ProxyItemWrapper:
+				p = *v
+			case ProxyItemWrapper:
+				p = v
+			default:
 				return
 			}
 
