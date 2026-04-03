@@ -41,6 +41,13 @@ jobs:
         run: |
           xvfb-run --auto-servernum make test
 
+      - name: Generate Coverage Report for GitHub
+        run: |
+          echo "## 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          make coverage >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
   release:
     needs: autotests
     if: startsWith(github.ref, 'refs/tags/v') # starts only on tags with leading "v"
