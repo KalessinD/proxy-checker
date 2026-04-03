@@ -220,7 +220,10 @@ func (g *AppGUI) createResultTable() *widget.Table {
 
 			item := g.proxyItems[id.Row]
 
-			tc, _ := cell.(*tableCell)
+			tc, ok := cell.(*tableCell)
+			if !ok {
+				return
+			}
 
 			if g.sysProxyManager.IsSupported() && id.Col == 6 {
 				h := item.Host

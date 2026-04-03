@@ -58,7 +58,7 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		}
 
 		fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
-		printTable(allProxies)
+		PrintTable(allProxies)
 		return
 	}
 
@@ -110,10 +110,10 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 	}
 
 	fmt.Printf("%s: %d\n", i18n.T("cli.valid_found"), len(validProxies))
-	printFullTable(validProxies)
+	PrintFullTable(validProxies)
 }
 
-func printTable(proxies []*fetcher.ProxyItem) {
+func PrintTable(proxies []*fetcher.ProxyItem) {
 	sep := strings.Repeat("-", 70)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-10s\n",
@@ -129,7 +129,7 @@ func printTable(proxies []*fetcher.ProxyItem) {
 	}
 }
 
-func printFullTable(proxies []*services.ProxyItemFull) {
+func PrintFullTable(proxies []*services.ProxyItemFull) {
 	sep := strings.Repeat("-", 95)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-15s %-15s\n",
