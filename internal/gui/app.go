@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"image/color"
+	"proxy-checker/internal/cache"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
+	"proxy-checker/internal/sysproxy"
 	"strings"
 	"sync"
 
@@ -38,10 +40,10 @@ type (
 		app    fyne.App
 		window fyne.Window
 		cfg    *config.Config
-		cache  CacheInterface
+		cache  cache.Storage
 
-		progress binding.Float
-		listData binding.UntypedList
+		progress   binding.Float
+		proxyItems []*ProxyItemWrapper
 
 		progressBar *widget.ProgressBar
 		table       *widget.Table
@@ -51,7 +53,7 @@ type (
 		logBuffer string
 		logMutex  sync.Mutex
 
-		systemProxySupported bool
+		sysProxyManager sysproxy.SystemProxyManager
 
 		isGeoIPAvailable bool
 		geoIPResolver    common.GeoIPResolver
@@ -113,77 +115,80 @@ func NewAppGUI(cfg *config.Config) *AppGUI {
 	a := app.NewWithID(common.AppName)
 
 	gui := &AppGUI{
-		app:      a,
-		window:   a.NewWindow(common.AppName),
-		cfg:      cfg,
-		progress: binding.NewFloat(),
-		listData: binding.NewUntypedList(),
-		cache:    NewCacheFile(),
+		app:             a,
+		window:          a.NewWindow(common.AppName),
+		cfg:             cfg,
+		progress:        binding.NewFloat(),
+		proxyItems:      make([]*ProxyItemWrapper, 0),
+		cache:           cache.NewFileCache(),
+		sysProxyManager: sysproxy.NewSystemProxyManager(),
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
 	gui.applyTheme(cfg.Theme)
-	gui.systemProxySupported = isSystemProxySupported()
 
 	gui.initGeoIP(cfg.GeoIPDBPath)
+	gui.initUIComponents()
+	gui.loadSystemProxyState()
 
-	gui.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() {
-		gui.showSettingsScreen()
+	return gui
+}
+
+func (g *AppGUI) initUIComponents() {
+	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() {
+		g.showSettingsScreen()
 	})
 
-	gui.switchProxy = widget.NewCheck("", func(checked bool) {
-		if !gui.systemProxySupported {
-			gui.appendLog(i18n.T("gui.sys_proxy_unsupported") + "\n")
-			gui.switchProxy.SetChecked(false)
+	g.switchProxy = widget.NewCheck("", func(checked bool) {
+		if !g.sysProxyManager.IsSupported() {
+			g.appendLog(i18n.T("gui.sys_proxy_unsupported") + "\n")
+			g.switchProxy.SetChecked(false)
 			return
 		}
 
-		var mode string
+		mode := sysproxy.ProxyModeNone
 		if checked {
-			mode = ProxyModeManual
-		} else {
-			mode = ProxyModeNone
+			mode = sysproxy.ProxyModeManual
 		}
 
-		if err := setSystemProxyMode(mode); err != nil {
-			gui.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_error"), err))
-			gui.switchProxy.SetChecked(!checked)
+		if err := g.sysProxyManager.SetMode(mode); err != nil {
+			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_error"), err))
+			g.switchProxy.SetChecked(!checked)
 		} else {
-			gui.appendLog(fmt.Sprintf("%s: %s\n", i18n.T("gui.sys_proxy_mode_changed"), mode))
+			g.appendLog(fmt.Sprintf("%s: %s\n", i18n.T("gui.sys_proxy_mode_changed"), mode))
 		}
 	})
 
-	if !gui.systemProxySupported {
-		gui.switchProxy.Disable()
+	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() {
+		g.showSingleCheckScreen()
+	})
+
+	g.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() {
+		go g.runBatchCheck()
+	})
+
+	g.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
+		if g.cancelFunc != nil {
+			g.cancelFunc()
+			g.appendLog(i18n.T("gui.log_stopped") + "\n")
+		}
+	})
+	g.btnCancel.Importance = widget.DangerImportance
+	g.btnCancel.Disable()
+}
+
+func (g *AppGUI) loadSystemProxyState() {
+	if !g.sysProxyManager.IsSupported() {
+		g.switchProxy.Disable()
+		return
 	}
 
-	gui.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() {
-		gui.showSingleCheckScreen()
-	})
-
-	gui.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() {
-		go gui.runBatchCheck()
-	})
-
-	gui.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
-		if gui.cancelFunc != nil {
-			gui.cancelFunc()
-			gui.appendLog(i18n.T("gui.log_stopped") + "\n")
-		}
-	})
-	gui.btnCancel.Importance = widget.DangerImportance
-	gui.btnCancel.Disable()
-
-	if gui.systemProxySupported {
-		currentMode, err := getSystemProxyMode()
-		if err != nil {
-			gui.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
-		} else if currentMode == ProxyModeManual {
-			gui.switchProxy.SetChecked(true)
-		}
+	currentMode, err := g.sysProxyManager.GetMode()
+	if err != nil {
+		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
+	} else if currentMode == sysproxy.ProxyModeManual {
+		g.switchProxy.SetChecked(true)
 	}
-
-	return gui
 }
 
 // appendLog безопасно добавляет текст в логи из любого потока
@@ -235,11 +240,23 @@ func (g *AppGUI) Run() {
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 	} else if len(cachedItems) > 0 {
-		guiItems := make([]interface{}, len(cachedItems))
+		items := make([]*ProxyItemWrapper, len(cachedItems))
 		for i, item := range cachedItems {
-			guiItems[i] = item
+			items[i] = &ProxyItemWrapper{
+				Host:    item.Host,
+				Port:    item.Port,
+				Type:    item.Type,
+				Country: item.Country,
+				TCP:     item.CheckResult.ProxyLatencyStr,
+				HTTP:    item.CheckResult.ReqLatencyStr,
+			}
 		}
-		_ = g.listData.Set(guiItems)
+		fyne.Do(func() {
+			g.proxyItems = items
+			if g.table != nil {
+				g.table.Refresh()
+			}
+		})
 		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
 	}
 

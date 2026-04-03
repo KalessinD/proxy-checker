@@ -6,12 +6,12 @@ import (
 )
 
 type ProxyItem struct {
-	Host    string
-	Port    string
-	Country string
-	Type    common.ProxyType
-	RTT     string
-	RTTms   int
+	Host    string           `json:"host"`
+	Port    string           `json:"port"`
+	Country string           `json:"country"`
+	Type    common.ProxyType `json:"type"`
+	RTT     string           `json:"rtt"`
+	RTTms   int              `json:"rtt_ms"`
 }
 
 type Settings struct {

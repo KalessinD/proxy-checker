@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -205,7 +204,7 @@ func (g *AppGUI) showMainScreen() {
 	)
 
 	var leftSide fyne.CanvasObject
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		proxyLabel := widget.NewLabelWithStyle(i18n.T("gui.label_sys_proxy"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 		// ИЗМЕНЕНИЕ: Оборачиваем лейбл и чекбокс в vPad со сдвигом 3 пикселя вниз
@@ -257,7 +256,7 @@ func (g *AppGUI) showMainScreen() {
 		widget.NewLabel(i18n.T("gui.header_host")), widget.NewLabel(i18n.T("gui.header_port")), widget.NewLabel(i18n.T("gui.header_type")),
 		widget.NewLabel(i18n.T("gui.header_country")), widget.NewLabel(i18n.T("gui.header_tcp")), widget.NewLabel(i18n.T("gui.header_http")),
 	}
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		headerObjects = append(headerObjects, widget.NewLabel(""))
 	}
 	tableHeader := container.NewGridWithColumns(len(headerObjects), headerObjects...)
@@ -265,7 +264,7 @@ func (g *AppGUI) showMainScreen() {
 	scalableTable := newResizableTable(
 		g.table,
 		tableHeader,
-		g.systemProxySupported,
+		g.sysProxyManager.IsSupported(),
 		float32(g.cfg.MinWidth),
 		float32(g.cfg.MinHeight),
 	)
@@ -300,7 +299,6 @@ func (g *AppGUI) runBatchCheck() {
 	g.logBuffer = ""
 	g.appendLog(i18n.T("gui.log_preparing") + "\n")
 	_ = g.progress.Set(0)
-	_ = g.listData.Set([]interface{}{})
 
 	g.progressBar.Show()
 
@@ -332,9 +330,9 @@ func (g *AppGUI) runBatchCheck() {
 		return
 	}
 
-	wrappers := make([]*ProxyItemWrapper, len(validProxies))
+	guiItems := make([]*ProxyItemWrapper, len(validProxies))
 	for i, p := range validProxies {
-		wrappers[i] = &ProxyItemWrapper{
+		guiItems[i] = &ProxyItemWrapper{
 			Host:    p.Host,
 			Port:    p.Port,
 			Type:    p.Type,
@@ -344,19 +342,19 @@ func (g *AppGUI) runBatchCheck() {
 		}
 	}
 
-	items := make([]interface{}, len(wrappers))
-	for i, item := range wrappers {
-		items[i] = item
-	}
-
-	_ = g.listData.Set(items)
+	fyne.Do(func() {
+		g.proxyItems = guiItems
+		if g.table != nil {
+			g.table.Refresh()
+		}
+	})
 
 	if ctx.Err() != nil {
 		g.appendLog(i18n.T("gui.log_stopped") + "\n")
 	} else {
 		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
-		if err := g.cache.Save(wrappers); err != nil {
+		if err := g.cache.Save(validProxies); err != nil {
 			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		} else {
 			g.appendLog(i18n.T("gui.log_cache_saved") + "\n")
@@ -367,50 +365,30 @@ func (g *AppGUI) runBatchCheck() {
 
 func (g *AppGUI) createResultTable() *widget.Table {
 	cols := 6
-	if g.systemProxySupported {
+	if g.sysProxyManager.IsSupported() {
 		cols = 7
 	}
 
 	table := widget.NewTable(
 		func() (int, int) {
-			length := g.listData.Length()
-			return length, cols
+			return len(g.proxyItems), cols
 		},
 		func() fyne.CanvasObject {
 			return newTableCell()
 		},
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
-			val, err := g.listData.GetItem(id.Row)
-			if err != nil {
+			if id.Row < 0 || id.Row >= len(g.proxyItems) {
 				return
 			}
 
-			castedVal, ok := val.(binding.Untyped)
-			if !ok {
-				return
-			}
-
-			item, err := castedVal.Get()
-			if err != nil {
-				return
-			}
-
-			var p ProxyItemWrapper
-			switch v := item.(type) {
-			case *ProxyItemWrapper:
-				p = *v
-			case ProxyItemWrapper:
-				p = v
-			default:
-				return
-			}
+			item := g.proxyItems[id.Row]
 
 			tc, _ := cell.(*tableCell)
 
-			if g.systemProxySupported && id.Col == 6 {
-				h := p.Host
-				pt := p.Port
-				t := p.Type
+			if g.sysProxyManager.IsSupported() && id.Col == 6 {
+				h := item.Host
+				pt := item.Port
+				t := item.Type
 				tc.updateButton(func() {
 					g.applySystemProxy(h, pt, string(t))
 				})
@@ -420,17 +398,17 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			var text string
 			switch id.Col {
 			case 0:
-				text = p.Host
+				text = item.Host
 			case 1:
-				text = p.Port
+				text = item.Port
 			case 2:
-				text = string(p.Type)
+				text = string(item.Type)
 			case 3:
-				text = p.Country
+				text = item.Country
 			case 4:
-				text = p.TCP
+				text = item.TCP
 			case 5:
-				text = p.HTTP
+				text = item.HTTP
 			}
 			tc.updateText(text)
 		},
@@ -440,7 +418,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 }
 
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
-	err := setSystemProxy(host, port, proxyType)
+	err := g.sysProxyManager.SetProxy(host, port, proxyType)
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
 	} else {
