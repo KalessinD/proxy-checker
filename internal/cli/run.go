@@ -28,7 +28,8 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
 
-	res := services.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
+	checker := services.NewProxyChecker()
+	res := checker.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
 	if res.Error != nil {
 		fmt.Fprintf(os.Stderr, "%s %v\n", i18n.T("cli.fail"), res.Error)
 		return
@@ -40,8 +41,9 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 func handleProxiesList(cfg *config.Config, opts *Options) {
 	fmt.Printf(i18n.T("cli.mode")+"\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
 
+	fetcherInstance := fetcher.NewFetcher(cfg.Source)
+
 	if !opts.Check {
-		f := fetcher.NewFetcher(cfg.Source)
 		settings := fetcher.Settings{
 			Type:   cfg.Type,
 			MaxRTT: cfg.RTT,
@@ -49,14 +51,14 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		}
 
 		ctxParse := context.Background()
-		allProxies, err := f.Fetch(ctxParse, settings)
+		allProxies, err := fetcherInstance.Fetch(ctxParse, settings)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
 			return
 		}
 
 		fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
-		printTable(allProxies)
+		PrintTable(allProxies)
 		return
 	}
 
@@ -76,8 +78,12 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 		}
 	}
 
+	verifierInstance := services.NewDefaultVerifier()
+
 	validProxies, err := services.RunPipeline(
 		context.Background(),
+		fetcherInstance,
+		verifierInstance,
 		cfg,
 		resolver,
 		services.PipelineCallbacks{
@@ -104,10 +110,10 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 	}
 
 	fmt.Printf("%s: %d\n", i18n.T("cli.valid_found"), len(validProxies))
-	printFullTable(validProxies)
+	PrintFullTable(validProxies)
 }
 
-func printTable(proxies []*fetcher.ProxyItem) {
+func PrintTable(proxies []*fetcher.ProxyItem) {
 	sep := strings.Repeat("-", 70)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-10s\n",
@@ -123,7 +129,7 @@ func printTable(proxies []*fetcher.ProxyItem) {
 	}
 }
 
-func printFullTable(proxies []*services.ProxyItemFull) {
+func PrintFullTable(proxies []*services.ProxyItemFull) {
 	sep := strings.Repeat("-", 95)
 	fmt.Printf(
 		"%-25s %-6s %-10s %-15s %-15s %-15s\n",

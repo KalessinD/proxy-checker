@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"proxy-checker/internal/common/i18n"
+	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
 	"strings"
 
@@ -40,7 +41,6 @@ func (g *AppGUI) showMainScreen() {
 	if g.sysProxyManager.IsSupported() {
 		proxyLabel := widget.NewLabelWithStyle(i18n.T("gui.label_sys_proxy"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
-		// ИЗМЕНЕНИЕ: Оборачиваем лейбл и чекбокс в vPad со сдвигом 3 пикселя вниз
 		alignedLabel := newVPad(proxyLabel, 3)
 		borderedSwitch := newBorderedBox(g.switchProxy)
 		alignedSwitch := newVPad(borderedSwitch, 3)
@@ -60,12 +60,6 @@ func (g *AppGUI) showMainScreen() {
 		container.NewPadded(buttonsBar),
 	)
 
-	g.logLabel = widget.NewLabel("")
-	g.logLabel.Wrapping = fyne.TextWrapWord
-	g.logScroll = container.NewScroll(g.logLabel)
-
-	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
-
 	progressBar := widget.NewProgressBarWithData(g.progress)
 	g.progressBar = progressBar
 
@@ -79,6 +73,9 @@ func (g *AppGUI) showMainScreen() {
 	}
 
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_logs")))
+	// ИСПОЛЬЗУЕМ УЖЕ СОЗДАННЫЕ В initUIComponents ВИДЖЕТЫ
+	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
+
 	topBox.Add(logArea)
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_progress")))
 	topBox.Add(progressBar)
@@ -148,7 +145,10 @@ func (g *AppGUI) runBatchCheck() {
 
 	g.appendLog(fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
 
-	validProxies, err := services.RunPipeline(ctx, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
+	fetcherInstance := fetcher.NewFetcher(g.cfg.Source)
+	verifierInstance := services.NewDefaultVerifier()
+
+	validProxies, err := services.RunPipeline(ctx, fetcherInstance, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
 		OnFetched: func(total int) {
 			g.appendLog(fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
 		},
@@ -216,7 +216,10 @@ func (g *AppGUI) createResultTable() *widget.Table {
 
 			item := g.proxyItems[id.Row]
 
-			tc, _ := cell.(*tableCell)
+			tc, ok := cell.(*tableCell)
+			if !ok {
+				return
+			}
 
 			if g.sysProxyManager.IsSupported() && id.Col == 6 {
 				h := item.Host

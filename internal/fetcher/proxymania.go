@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"go.uber.org/zap"
@@ -21,9 +20,8 @@ type ProxyManiaFetcher struct {
 }
 
 const (
-	ProxyManiaBaseURL    = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
-	DefaultUnknownRTT    = 99999
-	fetcherClientTimeout = 20 * time.Second
+	ProxyManiaBaseURL = "https://proxymania.su/en/free-proxy?speed=100&type=SOCKS5"
+	DefaultUnknownRTT = 99999
 )
 
 func NewProxyManiaFetcher() *ProxyManiaFetcher {
