@@ -172,13 +172,15 @@ The project follows standard Go layout principles with clean separation between 
 .
 ... cmd/proxy-checker/   # Application entry point
 ... internal/
+    - cache/
     - cli/              # Command line interface and argument parsing
     - common/           # Shared domain types (ProxyType, Source)
+    - fetcher/          # Web scrapers for different proxy sources
     - config/           # TOML settings loading, saving, and validation
     - gui/              # Fyne v2 graphical interface (windows, widgets)
     - proxies/          # Low-level proxy dialers (SOCK4/5, HTTP)
     - services/         # Core business logic (checking, fetching pipeline)
-        - fetcher/      # Web scrapers for different proxy sources
+    - sysproxy          # classes to work with system proxy settings
 ... assets/             # Icons and static resources
 ... Makefile
 ```
