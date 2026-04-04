@@ -313,3 +313,35 @@ func Run(cfg *config.Config, logger common.LoggerInterface) {
 	gui := NewAppGUI(cfg, logger)
 	gui.Run()
 }
+
+func (g *AppGUI) buildTargetSelector() (*widget.Select, *widget.Entry, *fyne.Container) {
+	targetSites := []string{
+		"google.com",
+		"youtube.com",
+		"chatgpt.com",
+		"web.telegram.org",
+		i18n.T("gui.single.custom_site"),
+	}
+
+	customEntry := widget.NewEntry()
+	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
+	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
+
+	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
+	customBox.Hide()
+
+	targetSelect := widget.NewSelect(targetSites, func(s string) {
+		if s == i18n.T("gui.single.custom_site") {
+			g.isCustomTarget = true
+			customBox.Show()
+		} else {
+			g.isCustomTarget = false
+			g.cfg.DestAddr = s
+			g.customTargetURL = ""
+			customBox.Hide()
+		}
+	})
+	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
+
+	return targetSelect, customEntry, customBox
+}

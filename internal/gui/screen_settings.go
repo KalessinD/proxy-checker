@@ -55,7 +55,7 @@ func (g *AppGUI) showSettingsScreen() {
 	ignoreHostsBox, ignoreHostsEntry := g.createIgnoreHostsBox()
 	proxyTypeSelector, http2Box := g.createProxyTypeSelector()
 	dynamicBox := g.createDynamicFieldsBox(selectSource)
-	selectTarget, customBox := g.createTargetSelector()
+	selectTarget, _, customBox := g.buildTargetSelector()
 
 	settingsContent := container.NewVBox(
 		widget.NewLabel(i18n.T("gui.settings.title")),
@@ -258,36 +258,6 @@ func (g *AppGUI) createDynamicFieldsBox(selectSource *widget.Select) *fyne.Conta
 		toggleDynamicFields(s)
 	}
 	return dynamicBox
-}
-
-func (g *AppGUI) createTargetSelector() (*widget.Select, *fyne.Container) {
-	targetSites := []string{"google.com", "youtube.com", "chatgpt.com", "web.telegram.org", i18n.T("gui.single.custom_site")}
-	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
-	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
-	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
-	customBox.Hide()
-
-	selectTarget := widget.NewSelect(targetSites, func(s string) {
-		if s == i18n.T("gui.single.custom_site") {
-			g.isCustomTarget = true
-			customBox.Show()
-		} else {
-			g.isCustomTarget = false
-			g.cfg.DestAddr = s
-			g.customTargetURL = ""
-			customBox.Hide()
-		}
-	})
-	selectTarget.PlaceHolder = i18n.T("gui.settings.target_placeholder")
-
-	if g.isCustomTarget {
-		selectTarget.SetSelected(i18n.T("gui.single.custom_site"))
-		customBox.Show()
-	} else if g.cfg.DestAddr != "" {
-		selectTarget.SetSelected(g.cfg.DestAddr)
-	}
-	return selectTarget, customBox
 }
 
 func (g *AppGUI) createThemeSelector(themeLabels []string) *widget.Select {

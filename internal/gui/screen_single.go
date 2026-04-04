@@ -27,33 +27,8 @@ func (g *AppGUI) showSingleCheckScreen() {
 		radioType.SetSelected(currentType)
 	}
 
-	targetSites := []string{
-		"google.com",
-		"youtube.com",
-		"chatgpt.com",
-		"web.telegram.org",
-		i18n.T("gui.single.custom_site"),
-	}
-
-	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
+	targetSelect, customEntry, customBox := g.buildTargetSelector()
 	customEntry.SetText(g.customTargetURL)
-	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
-
-	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
-	customBox.Hide()
-
-	targetSelect := widget.NewSelect(targetSites, func(s string) {
-		if s == i18n.T("gui.single.custom_site") {
-			g.isCustomTarget = true
-			customBox.Show()
-		} else {
-			g.isCustomTarget = false
-			g.cfg.DestAddr = s
-			customBox.Hide()
-		}
-	})
-	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
 
 	if g.isCustomTarget {
 		targetSelect.SetSelected(i18n.T("gui.single.custom_site"))
