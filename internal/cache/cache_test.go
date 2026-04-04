@@ -33,61 +33,119 @@ func TestCacheFile_NewFileCache(t *testing.T) {
 	assert.Contains(t, c.GetFilePath(), os.TempDir())
 }
 
-func TestCacheFile_SaveAndLoad_ValidData(t *testing.T) {
+func TestCacheFile_SaveAndLoad_ValidData_SpecificType(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "valid_cache.data")
 	c := &cache.FileStorage{
 		FilePath: tempCacheFile,
 		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
 	}
 
-	sourceName := "test_source"
 	inputItems := []*services.ProxyItemFull{
-		{
-			ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080"},
-		},
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5}},
 	}
 
-	ttl := 3600
-	err := c.Save(sourceName, inputItems, ttl)
+	err := c.Save(common.SourceProxyMania, common.ProxySOCKS5, inputItems, 3600)
 	require.NoError(t, err)
 	assert.FileExists(t, tempCacheFile)
 
-	loadedItems, err := c.Load(sourceName)
+	loadedItems, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 	require.NoError(t, err)
 
 	require.Len(t, loadedItems, 1, "Должно быть загружено 1 элемент")
 	assert.Equal(t, "1.1.1.1", loadedItems[0].Host)
+	assert.Equal(t, common.ProxySOCKS5, loadedItems[0].Type)
 }
 
-func TestCacheFile_Save_MultipleSources(t *testing.T) {
-	tempCacheFile := filepath.Join(t.TempDir(), "multi_source.data")
+func TestCacheFile_Save_MultipleTypesForSameSource(t *testing.T) {
+	tempCacheFile := filepath.Join(t.TempDir(), "multi_type.data")
 	c := &cache.FileStorage{
 		FilePath: tempCacheFile,
 		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
 	}
 
-	items1 := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "1.1.1.1"}}}
-	items2 := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "2.2.2.2"}}}
+	itemsSOCKS5 := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Type: common.ProxySOCKS5}}}
+	itemsHTTP := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "2.2.2.2", Type: common.ProxyHTTP}}}
 
-	err := c.Save("source1", items1, 3600)
-	require.NoError(t, err)
+	require.NoError(t, c.Save(common.SourceProxyMania, common.ProxySOCKS5, itemsSOCKS5, 3600))
+	require.NoError(t, c.Save(common.SourceProxyMania, common.ProxyHTTP, itemsHTTP, 3600))
 
-	err = c.Save("source2", items2, 3600)
+	loadedSOCKS5, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 	require.NoError(t, err)
+	assert.Equal(t, "1.1.1.1", loadedSOCKS5[0].Host)
 
-	loaded1, err := c.Load("source1")
+	loadedHTTP, err := c.Load(common.SourceProxyMania, common.ProxyHTTP)
 	require.NoError(t, err)
-	assert.Equal(t, "1.1.1.1", loaded1[0].Host)
-
-	loaded2, err := c.Load("source2")
-	require.NoError(t, err)
-	assert.Equal(t, "2.2.2.2", loaded2[0].Host)
+	assert.Equal(t, "2.2.2.2", loadedHTTP[0].Host)
 
 	var cf cache.Data
-	data, _ := os.ReadFile(tempCacheFile)
-	err = json.Unmarshal(data, &cf)
+	data, err := os.ReadFile(tempCacheFile)
 	require.NoError(t, err)
-	assert.Len(t, cf.Sources, 2)
+	require.NoError(t, json.Unmarshal(data, &cf))
+	assert.Len(t, cf.Sources, 2, "Должно быть два отдельных ключа в файле")
+}
+
+func TestCacheFile_Save_AllType_SplitsData(t *testing.T) {
+	tempCacheFile := filepath.Join(t.TempDir(), "split_all.data")
+	c := &cache.FileStorage{
+		FilePath: tempCacheFile,
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
+
+	itemsAll := []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Type: common.ProxySOCKS5}},
+		{ProxyItem: services.ProxyItem{Host: "2.2.2.2", Type: common.ProxyHTTP}},
+	}
+
+	err := c.Save(common.SourceProxyMania, common.ProxyAll, itemsAll, 3600)
+	require.NoError(t, err)
+
+	loadedSOCKS5, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
+	require.NoError(t, err)
+	assert.Len(t, loadedSOCKS5, 1, "ALL должен разбить и сохранить SOCKS5 отдельно")
+	assert.Equal(t, "1.1.1.1", loadedSOCKS5[0].Host)
+
+	loadedHTTP, err := c.Load(common.SourceProxyMania, common.ProxyHTTP)
+	require.NoError(t, err)
+	assert.Len(t, loadedHTTP, 1, "ALL должен разбить и сохранить HTTP отдельно")
+	assert.Equal(t, "2.2.2.2", loadedHTTP[0].Host)
+}
+
+func TestCacheFile_Load_AllType_MergesData(t *testing.T) {
+	tempCacheFile := filepath.Join(t.TempDir(), "merge_all.data")
+	c := &cache.FileStorage{
+		FilePath: tempCacheFile,
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
+
+	require.NoError(t, c.Save(common.SourceProxyMania, common.ProxySOCKS5, []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Type: common.ProxySOCKS5}},
+	}, 3600))
+	require.NoError(t, c.Save(common.SourceProxyMania, common.ProxyHTTP, []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "2.2.2.2", Type: common.ProxyHTTP}},
+	}, 3600))
+
+	loadedAll, err := c.Load(common.SourceProxyMania, common.ProxyAll)
+	require.NoError(t, err)
+	assert.Len(t, loadedAll, 2, "ALL должен объединить все типы для источника")
+}
+
+func TestCacheFile_Load_AllType_DeduplicatesData(t *testing.T) {
+	tempCacheFile := filepath.Join(t.TempDir(), "dedup_all.data")
+	c := &cache.FileStorage{
+		FilePath: tempCacheFile,
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
+
+	require.NoError(t, c.Save(common.SourceProxyMania, common.ProxySOCKS5, []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5}},
+	}, 3600))
+	require.NoError(t, c.Save(common.SourceProxyMania, common.ProxyHTTP, []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080", Type: common.ProxyHTTP}},
+	}, 3600))
+
+	loadedAll, err := c.Load(common.SourceProxyMania, common.ProxyAll)
+	require.NoError(t, err)
+	assert.Len(t, loadedAll, 1, "ALL должен дедуплицировать по Host:Port")
 }
 
 func TestCacheFile_Save_EmptySlice(t *testing.T) {
@@ -97,16 +155,16 @@ func TestCacheFile_Save_EmptySlice(t *testing.T) {
 		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
 	}
 
-	err := c.Save("empty_source", []*services.ProxyItemFull{}, 3600)
+	err := c.Save(common.SourceProxyMania, common.ProxySOCKS5, []*services.ProxyItemFull{}, 3600)
 	require.NoError(t, err)
 
-	loaded, err := c.Load("empty_source")
+	loaded, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 	require.NoError(t, err)
 	assert.Empty(t, loaded)
 }
 
 func TestCacheFile_Load_EdgeCases(t *testing.T) {
-	t.Run("Source not found", func(t *testing.T) {
+	t.Run("Source and type not found", func(t *testing.T) {
 		tempCacheFile := filepath.Join(t.TempDir(), "not_found.data")
 		c := &cache.FileStorage{
 			FilePath: tempCacheFile,
@@ -117,7 +175,7 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(tempCacheFile, data, 0o600))
 
-		items, err := c.Load("non_existent_source")
+		items, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 		require.NoError(t, err)
 		assert.Empty(t, items)
 	})
@@ -129,17 +187,19 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 			Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
 		}
 
-		err := c.Save("expired_source", []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "1.1.1.1"}}}, -1)
+		err := c.Save(common.SourceProxyMania, common.ProxySOCKS5, []*services.ProxyItemFull{{
+			ProxyItem: services.ProxyItem{Host: "1.1.1.1"},
+		}}, -1)
 		require.NoError(t, err)
 
-		items, err := c.Load("expired_source")
+		items, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 		require.NoError(t, err)
 		assert.Empty(t, items, "Просроченный кэш должен возвращать пустой список")
 	})
 
 	t.Run("File does not exist", func(t *testing.T) {
 		c := &cache.FileStorage{FilePath: "/nonexistent/path/cache.data"}
-		items, err := c.Load("any_source")
+		items, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 		require.NoError(t, err)
 		assert.Empty(t, items)
 	})
@@ -152,7 +212,7 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 			Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
 		}
 
-		items, err := c.Load("any_source")
+		items, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 		require.NoError(t, err, "При ошибке парсинга должны вернуть пустой список без ошибки")
 		assert.Empty(t, items)
 	})

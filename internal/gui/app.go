@@ -237,10 +237,10 @@ func (g *AppGUI) applyTheme(themeName string) {
 	}
 }
 
-// loadCacheForSource загружает данные из кэша для указанного источника и обновляет таблицу.
+// loadCacheForSource загружает данные из кэша для указанного источника и типа прокси.
 // Если кэш пуст или истек, очищает текущий список.
-func (g *AppGUI) loadCacheForSource(source string) {
-	cachedItems, err := g.cache.Load(source)
+func (g *AppGUI) loadCacheForSource(source common.Source, proxyType common.ProxyType) {
+	cachedItems, err := g.cache.Load(source, proxyType)
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		return
@@ -282,8 +282,7 @@ func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapp
 func (g *AppGUI) Run() {
 	g.showMainScreen()
 
-	currentSource := string(g.cfg.Source)
-	g.loadCacheForSource(currentSource)
+	g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
 
 	g.window.ShowAndRun()
 }

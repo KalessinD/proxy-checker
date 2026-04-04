@@ -22,7 +22,8 @@ func (g *AppGUI) showSettingsScreen() {
 		string(common.SourceProxifly),
 	}
 
-	oldSource := string(g.cfg.Source)
+	oldSource := g.cfg.Source
+	oldProxyType := g.cfg.Type
 
 	selectSource := widget.NewSelect(sources, func(s string) {
 		g.cfg.Source = common.Source(s)
@@ -98,9 +99,8 @@ func (g *AppGUI) showSettingsScreen() {
 			g.appendLog(i18n.T("gui.settings.saved") + "\n")
 		}
 
-		newSource := string(g.cfg.Source)
-		if oldSource != newSource {
-			g.loadCacheForSource(newSource)
+		if oldSource != g.cfg.Source || oldProxyType != g.cfg.Type {
+			g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
 		}
 
 		g.showMainScreen()

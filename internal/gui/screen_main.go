@@ -176,8 +176,7 @@ func (g *AppGUI) runBatchCheck() {
 	} else {
 		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
-		sourceName := string(g.cfg.Source)
-		if err := g.cache.Save(sourceName, validProxies, g.cfg.CacheTTL); err != nil {
+		if err := g.cache.Save(g.cfg.Source, g.cfg.Type, validProxies, g.cfg.CacheTTL); err != nil {
 			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		} else {
 			g.appendLog(i18n.T("gui.log_cache_saved") + "\n")
