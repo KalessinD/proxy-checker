@@ -9,7 +9,7 @@ const (
 	TheSpeedXBaseURL = "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/"
 
 	ThespeedxHTTPFileName   = "http.txt"
-	ThespeedxHTTPSFileName  = "http.txt"
+	ThespeedxHTTPSFileName  = "https.txt"
 	ThespeedxSocks4FileName = "socks4.txt"
 	ThespeedxSocks5FileName = "socks5.txt"
 )
@@ -47,7 +47,7 @@ func (p *TheSpeedXProvider) GetFilesByType(proxyType common.ProxyType) []string 
 	case common.ProxyHTTP:
 		fileNames = append(fileNames, ThespeedxHTTPFileName)
 	case common.ProxyAll:
-		fileNames = append(fileNames, ThespeedxHTTPFileName, ThespeedxHTTPSFileName, ThespeedxSocks5FileName)
+		fileNames = append(fileNames, ThespeedxHTTPFileName, ThespeedxHTTPSFileName, ThespeedxSocks4FileName, ThespeedxSocks5FileName)
 	default:
 		fileNames = append(fileNames, ThespeedxSocks5FileName)
 	}

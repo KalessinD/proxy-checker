@@ -79,8 +79,8 @@ func TestProxiflyFetcher_Fetch_HttpError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, items)
-	assert.Contains(t, err.Error(), i18n.T("fetcher.err_fetch_list_status"))
-	assert.Contains(t, err.Error(), "403")
+	assert.Contains(t, err.Error(), "failed to fetch all sources")
+	assert.Contains(t, err.Error(), "status 403")
 }
 
 func TestProxiflyProvider_GetFilesByType(t *testing.T) {

@@ -37,6 +37,7 @@ func (f *TextListFetcher) Fetch(ctx context.Context, settings Settings) ([]*Prox
 	fileNames := f.provider.GetFilesByType(settings.Type)
 
 	var items []*ProxyItem
+	var fetchErrors []string
 
 	client := &http.Client{Timeout: fetcherClientTimeout}
 
@@ -50,12 +51,16 @@ func (f *TextListFetcher) Fetch(ctx context.Context, settings Settings) ([]*Prox
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, err
+			fetchErrors = append(fetchErrors, fmt.Sprintf("%s: %v", fileName, err))
+			f.Logger.Warnf("failed to fetch %s: %v", fileName, err)
+			continue
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("%s %d", i18n.T("fetcher.err_fetch_list_status"), resp.StatusCode)
+			fetchErrors = append(fetchErrors, fmt.Sprintf("%s: status %d", fileName, resp.StatusCode))
+			f.Logger.Warnf("failed to fetch %s: status %d", fileName, resp.StatusCode)
+			resp.Body.Close()
+			continue
 		}
 
 		scanner := bufio.NewScanner(resp.Body)
@@ -94,8 +99,16 @@ func (f *TextListFetcher) Fetch(ctx context.Context, settings Settings) ([]*Prox
 		}
 
 		if err := scanner.Err(); err != nil && err != io.EOF {
-			return nil, err
+			fetchErrors = append(fetchErrors, fmt.Sprintf("%s: read error %v", fileName, err))
+			f.Logger.Warnf("error reading %s: %v", fileName, err)
 		}
+
+		resp.Body.Close()
 	}
+
+	if len(items) == 0 && len(fetchErrors) > 0 {
+		return nil, fmt.Errorf("failed to fetch all sources: %s", strings.Join(fetchErrors, "; "))
+	}
+
 	return items, nil
 }
