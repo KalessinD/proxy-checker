@@ -6,67 +6,103 @@ import (
 	"os"
 	"path/filepath"
 	"proxy-checker/internal/common"
-	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
+	"sync"
 	"time"
 )
 
-type FileCache struct {
-	FilePath string
-}
+type (
+	Record struct {
+		ExpireAt int64                     `json:"expire_at"`
+		Data     []*services.ProxyItemFull `json:"data"`
+	}
 
-type Storage interface {
-	Load(cfg *config.Config) ([]*services.ProxyItemFull, error)
-	Save(items []*services.ProxyItemFull) error
+	Data struct {
+		Sources map[string]*Record `json:"sources"`
+	}
+
+	Storage struct {
+		FilePath string
+		mu       sync.Mutex
+	}
+)
+
+type StorageInterface interface {
+	Load(source string) ([]*services.ProxyItemFull, error)
+	Save(source string, items []*services.ProxyItemFull, ttl int) error
 	GetFilePath() string
 }
 
-func NewFileCache() Storage {
-	return &FileCache{
+func NewFileCache() StorageInterface {
+	return &Storage{
 		FilePath: filepath.Join(os.TempDir(), common.AppName+"-cache.data"),
 	}
 }
 
-func (c *FileCache) GetFilePath() string {
+func (c *Storage) GetFilePath() string {
 	return c.FilePath
 }
 
-func (c *FileCache) Load(cfg *config.Config) ([]*services.ProxyItemFull, error) {
-	fileInfo, err := os.Stat(c.FilePath)
+func (c *Storage) Load(source string) ([]*services.ProxyItemFull, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	fileData, err := os.ReadFile(c.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []*services.ProxyItemFull{}, nil
 		}
-		return nil, fmt.Errorf("failed to stat cache file: %w", err)
-	}
-
-	cacheTTL := time.Duration(cfg.CacheTTL) * time.Second
-	if time.Since(fileInfo.ModTime()) > cacheTTL {
-		return []*services.ProxyItemFull{}, nil
-	}
-
-	fileData, err := os.ReadFile(c.FilePath)
-	if err != nil {
 		return nil, fmt.Errorf("failed to read cache file: %w", err)
 	}
 
-	var cachedItems []*services.ProxyItemFull
-	if err := json.Unmarshal(fileData, &cachedItems); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cache: %w", err)
-	}
-
-	if cachedItems == nil {
+	var cacheFile Data
+	if err := json.Unmarshal(fileData, &cacheFile); err != nil {
 		return []*services.ProxyItemFull{}, nil
 	}
 
-	return cachedItems, nil
-}
-
-func (c *FileCache) Save(items []*services.ProxyItemFull) error {
-	fileData, err := json.Marshal(items)
-	if err != nil {
-		return err
+	if cacheFile.Sources == nil {
+		return []*services.ProxyItemFull{}, nil
 	}
 
-	return os.WriteFile(c.FilePath, fileData, 0o600)
+	entry, exists := cacheFile.Sources[source]
+	if !exists {
+		return []*services.ProxyItemFull{}, nil
+	}
+
+	if time.Now().Unix() > entry.ExpireAt {
+		return []*services.ProxyItemFull{}, nil
+	}
+
+	if entry.Data == nil {
+		return []*services.ProxyItemFull{}, nil
+	}
+
+	return entry.Data, nil
+}
+
+func (c *Storage) Save(source string, items []*services.ProxyItemFull, ttl int) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var cacheFile Data
+	fileData, err := os.ReadFile(c.FilePath)
+	if err == nil {
+		_ = json.Unmarshal(fileData, &cacheFile)
+	}
+
+	if cacheFile.Sources == nil {
+		cacheFile.Sources = make(map[string]*Record)
+	}
+
+	cacheFile.Sources[source] = &Record{
+		ExpireAt: time.Now().Add(time.Duration(ttl) * time.Second).Unix(),
+		Data:     items,
+	}
+
+	newData, err := json.Marshal(cacheFile)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cache: %w", err)
+	}
+
+	return os.WriteFile(c.FilePath, newData, 0o600)
 }

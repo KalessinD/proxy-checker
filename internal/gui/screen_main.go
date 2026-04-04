@@ -73,7 +73,6 @@ func (g *AppGUI) showMainScreen() {
 	}
 
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_logs")))
-	// ИСПОЛЬЗУЕМ УЖЕ СОЗДАННЫЕ В initUIComponents ВИДЖЕТЫ
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
 	topBox.Add(logArea)
@@ -187,7 +186,8 @@ func (g *AppGUI) runBatchCheck() {
 	} else {
 		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
-		if err := g.cache.Save(validProxies); err != nil {
+		sourceName := string(g.cfg.Source)
+		if err := g.cache.Save(sourceName, validProxies, g.cfg.CacheTTL); err != nil {
 			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		} else {
 			g.appendLog(i18n.T("gui.log_cache_saved") + "\n")

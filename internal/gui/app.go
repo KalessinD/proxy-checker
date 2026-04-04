@@ -40,7 +40,7 @@ type (
 		app    fyne.App
 		window fyne.Window
 		cfg    *config.Config
-		cache  cache.Storage
+		cache  cache.StorageInterface
 
 		progress   binding.Float
 		proxyItems []*ProxyItemWrapper
@@ -233,32 +233,52 @@ func (g *AppGUI) applyTheme(themeName string) {
 	}
 }
 
-func (g *AppGUI) Run() {
-	g.showMainScreen()
-
-	cachedItems, err := g.cache.Load(g.cfg)
+// loadCacheForSource загружает данные из кэша для указанного источника и обновляет таблицу.
+// Если кэш пуст или истек, очищает текущий список.
+func (g *AppGUI) loadCacheForSource(source string) {
+	cachedItems, err := g.cache.Load(source)
 	if err != nil {
 		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
-	} else if len(cachedItems) > 0 {
-		items := make([]*ProxyItemWrapper, len(cachedItems))
-		for i, item := range cachedItems {
-			items[i] = &ProxyItemWrapper{
-				Host:    item.Host,
-				Port:    item.Port,
-				Type:    item.Type,
-				Country: item.Country,
-				TCP:     item.CheckResult.ProxyLatencyStr,
-				HTTP:    item.CheckResult.ReqLatencyStr,
-			}
-		}
+		return
+	}
+
+	if len(cachedItems) == 0 {
 		fyne.Do(func() {
-			g.proxyItems = items
+			g.proxyItems = []*ProxyItemWrapper{}
 			if g.table != nil {
 				g.table.Refresh()
 			}
 		})
-		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+		return
 	}
+
+	items := make([]*ProxyItemWrapper, len(cachedItems))
+	for i, item := range cachedItems {
+		items[i] = &ProxyItemWrapper{
+			Host:    item.Host,
+			Port:    item.Port,
+			Type:    item.Type,
+			Country: item.Country,
+			TCP:     item.CheckResult.ProxyLatencyStr,
+			HTTP:    item.CheckResult.ReqLatencyStr,
+		}
+	}
+
+	fyne.Do(func() {
+		g.proxyItems = items
+		if g.table != nil {
+			g.table.Refresh()
+		}
+	})
+
+	g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+}
+
+func (g *AppGUI) Run() {
+	g.showMainScreen()
+
+	currentSource := string(g.cfg.Source)
+	g.loadCacheForSource(currentSource)
 
 	g.window.ShowAndRun()
 }

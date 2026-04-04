@@ -6,153 +6,133 @@ import (
 	"path/filepath"
 	"proxy-checker/internal/cache"
 	"proxy-checker/internal/common"
-	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Компиляторная проверка того, что структура реализует интерфейс
-var _ cache.Storage = (*cache.FileCache)(nil)
+var _ cache.StorageInterface = (*cache.Storage)(nil)
 
 func TestCacheFile_GetFilePath(t *testing.T) {
 	customPath := "/tmp/my_custom_cache.data"
-	cache := &cache.FileCache{FilePath: customPath}
+	c := &cache.Storage{FilePath: customPath}
 
-	actualPath := cache.GetFilePath()
+	actualPath := c.GetFilePath()
 	assert.Equal(t, customPath, actualPath, "GetFilePath должен возвращать установленный путь")
 }
 
 func TestCacheFile_NewFileCache(t *testing.T) {
-	cache := cache.NewFileCache()
-	require.NotNil(t, cache)
+	c := cache.NewFileCache()
+	require.NotNil(t, c)
 
-	assert.Contains(t, cache.GetFilePath(), common.AppName+"-cache.data")
-	assert.Contains(t, cache.GetFilePath(), os.TempDir())
+	assert.Contains(t, c.GetFilePath(), common.AppName+"-cache.data")
+	assert.Contains(t, c.GetFilePath(), os.TempDir())
 }
 
 func TestCacheFile_SaveAndLoad_ValidData(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "valid_cache.data")
-	cache := &cache.FileCache{FilePath: tempCacheFile}
+	c := &cache.Storage{FilePath: tempCacheFile}
 
+	sourceName := "test_source"
 	inputItems := []*services.ProxyItemFull{
 		{
-			ProxyItem: services.ProxyItem{
-				Host:  "1.1.1.1",
-				Port:  "8080",
-				Type:  common.ProxyHTTP,
-				RTT:   "",
-				RTTms: 0,
-			},
-			CheckResult: services.Result{},
-		},
-		{
-			ProxyItem: services.ProxyItem{
-				Host:    "2.2.2.2",
-				Port:    "3128",
-				Type:    common.ProxySOCKS5,
-				Country: "US",
-				RTT:     "",
-				RTTms:   0,
-			},
-			CheckResult: services.Result{},
+			ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080"},
 		},
 	}
 
-	err := cache.Save(inputItems)
+	ttl := 3600
+	err := c.Save(sourceName, inputItems, ttl)
 	require.NoError(t, err)
 	assert.FileExists(t, tempCacheFile)
 
-	cfg := &config.Config{CacheTTL: 3600}
-	loadedItems, err := cache.Load(cfg)
+	loadedItems, err := c.Load(sourceName)
 	require.NoError(t, err)
 
-	require.Len(t, loadedItems, 2, "Должно быть загружено 2 элемента")
+	require.Len(t, loadedItems, 1, "Должно быть загружено 1 элемент")
 	assert.Equal(t, "1.1.1.1", loadedItems[0].Host)
-	assert.Equal(t, common.ProxySOCKS5, loadedItems[1].Type)
-	assert.Equal(t, "US", loadedItems[1].Country)
+}
+
+func TestCacheFile_Save_MultipleSources(t *testing.T) {
+	tempCacheFile := filepath.Join(t.TempDir(), "multi_source.data")
+	c := &cache.Storage{FilePath: tempCacheFile}
+
+	items1 := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "1.1.1.1"}}}
+	items2 := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "2.2.2.2"}}}
+
+	err := c.Save("source1", items1, 3600)
+	require.NoError(t, err)
+
+	err = c.Save("source2", items2, 3600)
+	require.NoError(t, err)
+
+	loaded1, err := c.Load("source1")
+	require.NoError(t, err)
+	assert.Equal(t, "1.1.1.1", loaded1[0].Host)
+
+	loaded2, err := c.Load("source2")
+	require.NoError(t, err)
+	assert.Equal(t, "2.2.2.2", loaded2[0].Host)
+
+	var cf cache.Data
+	data, _ := os.ReadFile(tempCacheFile)
+	err = json.Unmarshal(data, &cf)
+	require.NoError(t, err)
+	assert.Len(t, cf.Sources, 2)
 }
 
 func TestCacheFile_Save_EmptySlice(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "empty_cache.data")
-	cache := &cache.FileCache{FilePath: tempCacheFile}
+	c := &cache.Storage{FilePath: tempCacheFile}
 
-	err := cache.Save([]*services.ProxyItemFull{})
+	err := c.Save("empty_source", []*services.ProxyItemFull{}, 3600)
 	require.NoError(t, err)
 
-	data, err := os.ReadFile(tempCacheFile)
+	loaded, err := c.Load("empty_source")
 	require.NoError(t, err)
-
-	assert.Equal(t, "[]", string(data))
+	assert.Empty(t, loaded)
 }
 
 func TestCacheFile_Load_EdgeCases(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupFile      func(t *testing.T, path string)
-		expectedSize   int
-		expectedLength int
-		expectError    bool
-	}{
-		{
-			name: "File does not exist",
-			setupFile: func(_ *testing.T, _ string) {
-				// do nothing
-			},
-			expectedSize:   0,
-			expectError:    false,
-			expectedLength: 0,
-		},
-		{
-			name: "File contains corrupted JSON",
-			setupFile: func(t *testing.T, path string) {
-				err := os.WriteFile(path, []byte("this is definitely not json {"), 0o600)
-				require.NoError(t, err)
-			},
-			expectedSize:   0,
-			expectError:    true,
-			expectedLength: 0,
-		},
-		{
-			name: "Cache TTL is expired",
-			setupFile: func(t *testing.T, path string) {
-				items := []*services.ProxyItemFull{
-					{
-						ProxyItem: services.ProxyItem{Host: "3.3.3.3", Port: "80"},
-					},
-				}
-				data, _ := json.Marshal(items)
-				require.NoError(t, os.WriteFile(path, data, 0o600))
+	t.Run("Source not found", func(t *testing.T) {
+		tempCacheFile := filepath.Join(t.TempDir(), "not_found.data")
+		c := &cache.Storage{FilePath: tempCacheFile}
+		initialData := cache.Data{Sources: make(map[string]*cache.Record)}
+		data, _ := json.Marshal(initialData)
+		_ = os.WriteFile(tempCacheFile, data, 0o600)
 
-				pastTime := time.Now().Add(-time.Hour * 2)
-				require.NoError(t, os.Chtimes(path, pastTime, pastTime))
-			},
-			expectedSize:   0,
-			expectError:    false,
-			expectedLength: 0,
-		},
-	}
+		items, err := c.Load("non_existent_source")
+		require.NoError(t, err)
+		assert.Empty(t, items)
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tempCacheFile := filepath.Join(t.TempDir(), "edge_cache.data")
-			cache := &cache.FileCache{FilePath: tempCacheFile}
+	t.Run("Cache expired", func(t *testing.T) {
+		tempCacheFile := filepath.Join(t.TempDir(), "expired.data")
+		c := &cache.Storage{FilePath: tempCacheFile}
 
-			tt.setupFile(t, tempCacheFile)
+		err := c.Save("expired_source", []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "1.1.1.1"}}}, -1)
+		require.NoError(t, err)
 
-			cfg := &config.Config{CacheTTL: 3600}
+		items, err := c.Load("expired_source")
+		require.NoError(t, err)
+		assert.Empty(t, items, "Просроченный кэш должен возвращать пустой список")
+	})
 
-			loadedItems, err := cache.Load(cfg)
+	t.Run("File does not exist", func(t *testing.T) {
+		c := &cache.Storage{FilePath: "/nonexistent/path/cache.data"}
+		items, err := c.Load("any_source")
+		require.NoError(t, err)
+		assert.Empty(t, items)
+	})
 
-			if tt.expectError {
-				require.Error(t, err, "Ожидается ошибка для кейса: "+tt.name)
-			} else {
-				require.NoError(t, err)
-				assert.Len(t, loadedItems, tt.expectedLength, "Ожидается пустой результат для кейса: "+tt.name)
-			}
-		})
-	}
+	t.Run("Corrupted JSON", func(t *testing.T) {
+		tempCacheFile := filepath.Join(t.TempDir(), "corrupted.data")
+		_ = os.WriteFile(tempCacheFile, []byte("{bad json"), 0o600)
+		c := &cache.Storage{FilePath: tempCacheFile}
+
+		items, err := c.Load("any_source")
+		require.NoError(t, err, "При ошибке парсинга должны вернуть пустой список без ошибки")
+		assert.Empty(t, items)
+	})
 }

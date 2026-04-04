@@ -21,6 +21,9 @@ func (g *AppGUI) showSettingsScreen() {
 		string(common.SourceTheSpeedX),
 		string(common.SourceProxifly),
 	}
+
+	oldSource := string(g.cfg.Source)
+
 	selectSource := widget.NewSelect(sources, func(s string) {
 		g.cfg.Source = common.Source(s)
 	})
@@ -94,11 +97,19 @@ func (g *AppGUI) showSettingsScreen() {
 		} else {
 			g.appendLog(i18n.T("gui.settings.saved") + "\n")
 		}
+
+		newSource := string(g.cfg.Source)
+		if oldSource != newSource {
+			g.loadCacheForSource(newSource)
+		}
+
 		g.showMainScreen()
 	})
 
 	buttonsBox := container.NewHBox(
-		widget.NewButton(i18n.T("gui.btn_back"), func() { g.showMainScreen() }),
+		widget.NewButton(i18n.T("gui.btn_back"), func() {
+			g.showMainScreen()
+		}),
 		layout.NewSpacer(),
 		btnSave,
 	)
