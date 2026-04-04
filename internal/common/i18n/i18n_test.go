@@ -43,7 +43,7 @@ func TestT_MissingKey(t *testing.T) {
 func TestAvailableLanguages(t *testing.T) {
 	langs := i18n.AvailableLanguages()
 
-	assert.NotEmpty(t, langs, "Список языков не должен быть пустым")
-	assert.Contains(t, langs, "en", "Должен содержать английский язык")
-	assert.Contains(t, langs, "ru", "Должен содержать русский язык")
+	assert.NotEmpty(t, langs, "Language list must not be empty")
+	assert.Contains(t, langs, "en", "Must contain English language")
+	assert.Contains(t, langs, "ru", "Must contain Russian language")
 }

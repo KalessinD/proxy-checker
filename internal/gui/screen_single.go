@@ -27,40 +27,8 @@ func (g *AppGUI) showSingleCheckScreen() {
 		radioType.SetSelected(currentType)
 	}
 
-	targetSites := []string{
-		"google.com",
-		"youtube.com",
-		"chatgpt.com",
-		"web.telegram.org",
-		i18n.T("gui.single.custom_site"),
-	}
-
-	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
-	customEntry.SetText(g.customTargetURL)
-	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
-
-	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
-	customBox.Hide()
-
-	targetSelect := widget.NewSelect(targetSites, func(s string) {
-		if s == i18n.T("gui.single.custom_site") {
-			g.isCustomTarget = true
-			customBox.Show()
-		} else {
-			g.isCustomTarget = false
-			g.cfg.DestAddr = s
-			customBox.Hide()
-		}
-	})
-	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
-
-	if g.isCustomTarget {
-		targetSelect.SetSelected(i18n.T("gui.single.custom_site"))
-		customBox.Show()
-	} else if g.cfg.DestAddr != "" {
-		targetSelect.SetSelected(g.cfg.DestAddr)
-	}
+	targetSelect, customEntry, customBox := g.buildTargetSelector()
+	g.restoreTargetSelectorState(targetSelect, customEntry, customBox)
 
 	btnRun := widget.NewButton(i18n.T("gui.btn_run"), func() {
 		addr := proxyEntry.Text
@@ -73,12 +41,12 @@ func (g *AppGUI) showSingleCheckScreen() {
 		}
 
 		if addr == "" {
-			g.appendLog(i18n.T("gui.single.err_empty_addr") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.single.err_empty_addr")+"\n")
 			return
 		}
 
 		g.showMainScreen()
-		g.appendLog(fmt.Sprintf("%s: %s -> %s (%s)...\n", i18n.T("gui.single.log_checking"), addr, target, checkType))
+		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s -> %s (%s)...\n", i18n.T("gui.single.log_checking"), addr, target, checkType))
 		_ = g.progress.Set(0)
 
 		go func() {
@@ -95,7 +63,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 			checker := services.NewProxyChecker()
 			res := checker.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
 			if res.Error != nil {
-				g.appendLog(fmt.Sprintf("%s %v\n", i18n.T("cli.fail"), res.Error))
+				g.appendLog(common.LogLevelError, fmt.Sprintf("%s %v\n", i18n.T("cli.fail"), res.Error))
 				return
 			}
 
@@ -114,7 +82,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 					g.table.Refresh()
 				}
 			})
-			g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.single.log_done"), res.StatusCode))
+			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.single.log_done"), res.StatusCode))
 			_ = g.progress.Set(1.0)
 		}()
 	})

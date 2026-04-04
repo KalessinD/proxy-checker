@@ -11,7 +11,29 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func InitLogger(logPath string, disableConsole bool) error {
+type LoggerInterface interface {
+	Info(fields ...any)
+	Error(fields ...any)
+	Warn(fields ...any)
+	Debug(fields ...any)
+
+	Infof(msg string, fields ...any)
+	Errorf(msg string, fields ...any)
+	Warnf(msg string, fields ...any)
+	Debugf(msg string, fields ...any)
+
+	Sync() error
+}
+
+type ZapLogger struct {
+	*zap.SugaredLogger
+}
+
+func NewZapLogger(logger *zap.SugaredLogger) LoggerInterface {
+	return &ZapLogger{SugaredLogger: logger}
+}
+
+func InitLogger(logPath string, disableConsole bool) (LoggerInterface, error) {
 	pe := zap.NewProductionEncoderConfig()
 	pe.TimeKey = "time"
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -33,12 +55,12 @@ func InitLogger(logPath string, disableConsole bool) error {
 
 		_, err := os.Stat(dir)
 		if err != nil {
-			return fmt.Errorf("%s %s", i18n.T("log.warn_dir_access"), dir)
+			return nil, fmt.Errorf("%s %s", i18n.T("log.warn_dir_access"), dir)
 		}
 
 		file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
-			return fmt.Errorf("%s (%s): %w", i18n.T("log.warn_open_file"), logPath, err)
+			return nil, fmt.Errorf("%s (%s): %w", i18n.T("log.warn_open_file"), logPath, err)
 		}
 
 		fileCore := zapcore.NewCore(
@@ -49,8 +71,6 @@ func InitLogger(logPath string, disableConsole bool) error {
 		cores = append(cores, fileCore)
 	}
 
-	// Защита от паники: если консоль отключена и файл недоступен,
-	// zap.NewTee на пустом слайсе упадет. Используем NopCore.
 	if len(cores) == 0 {
 		cores = append(cores, zapcore.NewNopCore())
 	}
@@ -58,9 +78,7 @@ func InitLogger(logPath string, disableConsole bool) error {
 	core := zapcore.NewTee(cores...)
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
-	zap.ReplaceGlobals(logger)
-
-	return nil
+	return NewZapLogger(logger.Sugar()), nil
 }
 
 func DefaultLogPath() string {

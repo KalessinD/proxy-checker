@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestMain(m *testing.M) {
@@ -42,6 +43,8 @@ func TestProxyManiaFetcher_Fetch_ErrorCases(t *testing.T) {
 		},
 	}
 
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -52,6 +55,7 @@ func TestProxyManiaFetcher_Fetch_ErrorCases(t *testing.T) {
 
 			fetcherInstance := &fetcher.ProxyManiaFetcher{
 				BaseURL: testServer.URL,
+				Logger:  logger,
 			}
 
 			settings := fetcher.Settings{
@@ -75,7 +79,7 @@ func TestProxyManiaFetcher_Fetch_ErrorCases(t *testing.T) {
 }
 
 func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
-	// Фейковый HTML-ответ, имитирующий структуру таблицы ProxyMania
+	// Fake HTML response to simulate the ProxyMania table structure
 	htmlResponse := `
 	<html><body>
 	<table class="table_proxychecker">
@@ -117,7 +121,7 @@ func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
 	items, err := fetcherInstance.Fetch(t.Context(), settings)
 	require.NoError(t, err)
 
-	require.Len(t, items, 2, "Должно быть распарсено 2 прокси")
+	require.Len(t, items, 2, "Must be parsed 2 proxies")
 
 	assert.Equal(t, "192.168.1.1", items[0].Host)
 	assert.Equal(t, "8080", items[0].Port)
@@ -128,5 +132,5 @@ func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", items[1].Host)
 	assert.Equal(t, "3128", items[1].Port)
 	assert.Equal(t, common.ProxyHTTP, items[1].Type)
-	assert.Equal(t, fetcher.DefaultUnknownRTT, items[1].RTTms, "N/A должно парситься в дефолтный RTT")
+	assert.Equal(t, fetcher.DefaultUnknownRTT, items[1].RTTms, "N/A should be parsed as default RTT")
 }

@@ -8,10 +8,10 @@ import (
 const (
 	ProxiFlyURL = "https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/"
 
-	proxiflyHTTPFileName    = "http/data.txt"
-	proxiflyHTTPSFileName   = "https/data.txt"
-	proxiflySsocks4FileName = "socks4/data.txt"
-	proxiflyHSocks5FileName = "socks5/data.txt"
+	ProxiflyHTTPFileName    = "http/data.txt"
+	ProxiflyHTTPSFileName   = "https/data.txt"
+	ProxiflySsocks4FileName = "socks4/data.txt"
+	ProxiflyHSocks5FileName = "socks5/data.txt"
 )
 
 type (
@@ -40,17 +40,17 @@ func (p *ProxiflyProvider) GetFilesByType(proxyType common.ProxyType) []string {
 
 	switch proxyType {
 	case common.ProxySOCKS5:
-		fileNames = append(fileNames, proxiflyHSocks5FileName)
+		fileNames = append(fileNames, ProxiflyHSocks5FileName)
 	case common.ProxySOCKS4:
-		fileNames = append(fileNames, proxiflySsocks4FileName)
+		fileNames = append(fileNames, ProxiflySsocks4FileName)
 	case common.ProxyHTTPS:
-		fileNames = append(fileNames, proxiflyHTTPSFileName)
+		fileNames = append(fileNames, ProxiflyHTTPSFileName)
 	case common.ProxyHTTP:
-		fileNames = append(fileNames, proxiflyHTTPFileName)
+		fileNames = append(fileNames, ProxiflyHTTPFileName)
 	case common.ProxyAll:
-		fileNames = append(fileNames, proxiflyHTTPFileName, proxiflyHTTPSFileName, proxiflySsocks4FileName, proxiflyHSocks5FileName)
+		fileNames = append(fileNames, ProxiflyHTTPFileName, ProxiflyHTTPSFileName, ProxiflySsocks4FileName, ProxiflyHSocks5FileName)
 	default:
-		fileNames = append(fileNames, proxiflyHSocks5FileName)
+		fileNames = append(fileNames, ProxiflyHSocks5FileName)
 	}
 
 	return fileNames

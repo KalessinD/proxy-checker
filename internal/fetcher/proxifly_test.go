@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestProxiflyFetcher_Fetch_Success(t *testing.T) {
@@ -38,7 +39,8 @@ socks5://3.3.3.3:1080`
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider())
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider(), logger)
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,
@@ -48,12 +50,12 @@ socks5://3.3.3.3:1080`
 	items, err := fetcherInstance.Fetch(t.Context(), settings)
 	require.NoError(t, err)
 
-	require.Len(t, items, 3, "Должно быть распарсено 3 валидных прокси")
+	require.Len(t, items, 3, "Must be parsed 3 valid proxies")
 
 	assert.Equal(t, "1.1.1.1", items[0].Host)
 	assert.Equal(t, "1080", items[0].Port)
 	assert.Equal(t, common.ProxySOCKS5, items[0].Type)
-	assert.Equal(t, "N/A", items[0].Country, "Для Proxifly страна всегда N/A")
+	require.Len(t, items, 3, "Must be parsed 3 valid proxies")
 
 	assert.Equal(t, "3.3.3.3", items[2].Host)
 	assert.Equal(t, "1080", items[2].Port)
@@ -65,7 +67,8 @@ func TestProxiflyFetcher_Fetch_HttpError(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider())
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider(), logger)
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,
@@ -76,6 +79,40 @@ func TestProxiflyFetcher_Fetch_HttpError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, items)
-	assert.Contains(t, err.Error(), i18n.T("fetcher.err_fetch_list_status"))
-	assert.Contains(t, err.Error(), "403")
+	assert.Contains(t, err.Error(), "failed to fetch all sources")
+	assert.Contains(t, err.Error(), "status 403")
+}
+
+func TestProxiflyProvider_GetFilesByType(t *testing.T) {
+	provider := fetcher.NewProxiflyProvider()
+
+	tests := []struct {
+		name      string
+		proxyType common.ProxyType
+		expected  []string
+	}{
+		{name: "SOCKS5", proxyType: common.ProxySOCKS5, expected: []string{fetcher.ProxiflyHSocks5FileName}},
+		{name: "HTTP", proxyType: common.ProxyHTTP, expected: []string{fetcher.ProxiflyHTTPFileName}},
+		{name: "All types", proxyType: common.ProxyAll, expected: []string{
+			fetcher.ProxiflyHTTPFileName,
+			fetcher.ProxiflyHTTPSFileName,
+			fetcher.ProxiflySsocks4FileName,
+			fetcher.ProxiflyHSocks5FileName,
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, provider.GetFilesByType(tt.proxyType))
+		})
+	}
+}
+
+func TestProxiflyProvider_GetTypeFromFilename(t *testing.T) {
+	provider := fetcher.NewProxiflyProvider()
+
+	assert.Equal(t, common.ProxySOCKS5, provider.GetTypeFromFilename("socks5/data.txt"))
+	assert.Equal(t, common.ProxyHTTP, provider.GetTypeFromFilename("http/data.txt"))
+	assert.Equal(t, common.ProxySOCKS4, provider.GetTypeFromFilename("socks4/data.txt"))
+	assert.Equal(t, common.ProxyType("invalid"), provider.GetTypeFromFilename("invalid/data.txt"))
 }

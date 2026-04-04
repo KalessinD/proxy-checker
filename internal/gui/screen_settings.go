@@ -21,6 +21,10 @@ func (g *AppGUI) showSettingsScreen() {
 		string(common.SourceTheSpeedX),
 		string(common.SourceProxifly),
 	}
+
+	oldSource := g.cfg.Source
+	oldProxyType := g.cfg.Type
+
 	selectSource := widget.NewSelect(sources, func(s string) {
 		g.cfg.Source = common.Source(s)
 	})
@@ -51,7 +55,9 @@ func (g *AppGUI) showSettingsScreen() {
 	ignoreHostsBox, ignoreHostsEntry := g.createIgnoreHostsBox()
 	proxyTypeSelector, http2Box := g.createProxyTypeSelector()
 	dynamicBox := g.createDynamicFieldsBox(selectSource)
-	selectTarget, customBox := g.createTargetSelector()
+	selectTarget, customEntry, customBox := g.buildTargetSelector()
+
+	g.restoreTargetSelectorState(selectTarget, customEntry, customBox)
 
 	settingsContent := container.NewVBox(
 		widget.NewLabel(i18n.T("gui.settings.title")),
@@ -76,29 +82,36 @@ func (g *AppGUI) showSettingsScreen() {
 		g.cfg.GeoIPDBPath = geoipEntry.Text
 		g.initGeoIP(g.cfg.GeoIPDBPath)
 		if g.isGeoIPAvailable {
-			g.appendLog(i18n.T("gui.settings.geoip_loaded") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.geoip_loaded")+"\n")
 		} else if g.cfg.GeoIPDBPath != "" {
-			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), errors.New("file not found or invalid format")))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), errors.New("file not found or invalid format")))
 		}
 
 		if g.sysProxyManager.IsSupported() {
 			if err := g.sysProxyManager.SetIgnoreHosts(ignoreHostsEntry.Text); err != nil {
-				g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_set_ignore_hosts"), err))
+				g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_set_ignore_hosts"), err))
 			} else {
-				g.appendLog(i18n.T("gui.settings.ignore_hosts_saved") + "\n")
+				g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.ignore_hosts_saved")+"\n")
 			}
 		}
 
 		if err := g.cfg.SaveToFile(); err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.save_error"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.save_error"), err))
 		} else {
-			g.appendLog(i18n.T("gui.settings.saved") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.saved")+"\n")
 		}
+
+		if oldSource != g.cfg.Source || oldProxyType != g.cfg.Type {
+			g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
+		}
+
 		g.showMainScreen()
 	})
 
 	buttonsBox := container.NewHBox(
-		widget.NewButton(i18n.T("gui.btn_back"), func() { g.showMainScreen() }),
+		widget.NewButton(i18n.T("gui.btn_back"), func() {
+			g.showMainScreen()
+		}),
 		layout.NewSpacer(),
 		btnSave,
 	)
@@ -115,7 +128,7 @@ func (g *AppGUI) createIgnoreHostsBox() (*fyne.Container, *widget.Entry) {
 	if g.sysProxyManager.IsSupported() {
 		ignoreHosts, err := g.sysProxyManager.GetIgnoreHosts()
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_get_ignore_hosts"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_get_ignore_hosts"), err))
 		} else {
 			ignoreHostsEntry.SetText(ignoreHosts)
 		}
@@ -178,7 +191,7 @@ func (g *AppGUI) createWorkersSelector() *widget.Select {
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, err := strconv.Atoi(s)
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
 			return
 		}
 		g.cfg.Workers = val
@@ -192,7 +205,7 @@ func (g *AppGUI) createTimeoutSelector() *widget.Select {
 	selectTimeout := widget.NewSelect(timeoutOptions, func(s string) {
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("gui.settings.save_error"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("gui.settings.save_error"), err))
 			return
 		}
 		g.cfg.Timeout = d
@@ -210,7 +223,7 @@ func (g *AppGUI) createDynamicFieldsBox(selectSource *widget.Select) *fyne.Conta
 	selectRTT := widget.NewSelect(rttOptions, func(s string) {
 		val, err := strconv.Atoi(s)
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
 			return
 		}
 		g.cfg.RTT = val
@@ -249,46 +262,16 @@ func (g *AppGUI) createDynamicFieldsBox(selectSource *widget.Select) *fyne.Conta
 	return dynamicBox
 }
 
-func (g *AppGUI) createTargetSelector() (*widget.Select, *fyne.Container) {
-	targetSites := []string{"google.com", "youtube.com", "chatgpt.com", "web.telegram.org", i18n.T("gui.single.custom_site")}
-	customEntry := widget.NewEntry()
-	customEntry.SetPlaceHolder(i18n.T("gui.single.custom_placeholder"))
-	customEntry.OnChanged = func(s string) { g.customTargetURL = s }
-	customBox := container.NewVBox(widget.NewLabel(i18n.T("gui.single.enter_addr")), customEntry)
-	customBox.Hide()
-
-	selectTarget := widget.NewSelect(targetSites, func(s string) {
-		if s == i18n.T("gui.single.custom_site") {
-			g.isCustomTarget = true
-			customBox.Show()
-		} else {
-			g.isCustomTarget = false
-			g.cfg.DestAddr = s
-			g.customTargetURL = ""
-			customBox.Hide()
-		}
-	})
-	selectTarget.PlaceHolder = i18n.T("gui.settings.target_placeholder")
-
-	if g.isCustomTarget {
-		selectTarget.SetSelected(i18n.T("gui.single.custom_site"))
-		customBox.Show()
-	} else if g.cfg.DestAddr != "" {
-		selectTarget.SetSelected(g.cfg.DestAddr)
-	}
-	return selectTarget, customBox
-}
-
 func (g *AppGUI) createThemeSelector(themeLabels []string) *widget.Select {
 	selectTheme := widget.NewSelect(themeLabels, func(s string) {
 		var val string
 		switch {
 		case s == i18n.T("gui.settings.theme_light"):
-			val = "light"
+			val = themeLight
 		case s == i18n.T("gui.settings.theme_dark"):
-			val = "dark"
+			val = themeDark
 		default:
-			val = "system"
+			val = themeSystem
 		}
 		g.cfg.Theme = val
 		g.applyTheme(val)
@@ -296,9 +279,9 @@ func (g *AppGUI) createThemeSelector(themeLabels []string) *widget.Select {
 
 	currentThemeLabel := i18n.T("gui.settings.theme_system")
 	switch strings.ToLower(g.cfg.Theme) {
-	case "light":
+	case themeLight:
 		currentThemeLabel = i18n.T("gui.settings.theme_light")
-	case "dark":
+	case themeDark:
 		currentThemeLabel = i18n.T("gui.settings.theme_dark")
 	}
 	selectTheme.SetSelected(currentThemeLabel)

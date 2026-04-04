@@ -12,8 +12,9 @@ import (
 var translationsFS embed.FS
 
 var (
-	langMap map[string]string
-	mu      sync.RWMutex
+	langMap   map[string]string
+	enLangMap map[string]string
+	mu        sync.RWMutex
 )
 
 func Init(lang string) error {
@@ -34,6 +35,20 @@ func Init(lang string) error {
 		return err
 	}
 
+	// Always preload English map for fallback lookups without dynamic I/O
+	if lang == "en" {
+		enLangMap = langMap
+	} else {
+		enData, err := translationsFS.ReadFile("en.json")
+		if err != nil {
+			return err
+		}
+		enLangMap = make(map[string]string)
+		if err := json.Unmarshal(enData, &enLangMap); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -45,13 +60,8 @@ func T(key string) string {
 		return val
 	}
 
-	if langMap != nil {
-		enData, _ := translationsFS.ReadFile("en.json")
-		var enMap map[string]string
-		_ = json.Unmarshal(enData, &enMap)
-		if val, ok := enMap[key]; ok {
-			return val
-		}
+	if val, ok := enLangMap[key]; ok {
+		return val
 	}
 
 	return key

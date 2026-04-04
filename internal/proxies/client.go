@@ -64,13 +64,19 @@ func NewClient(proxyAddr, mode string, forceHTTP2 bool) (*http.Client, error) {
 		}
 
 	case "https":
-		proxyURL, _ := url.Parse("https://" + proxyAddr)
+		proxyURL, err := url.Parse("https://" + proxyAddr)
+		if err != nil {
+			return nil, err
+		}
 		transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
 		}
 
 	default: // http
-		proxyURL, _ := url.Parse("http://" + proxyAddr)
+		proxyURL, err := url.Parse("http://" + proxyAddr)
+		if err != nil {
+			return nil, err
+		}
 		transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
 		}

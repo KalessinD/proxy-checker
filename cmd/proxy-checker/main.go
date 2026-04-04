@@ -9,8 +9,6 @@ import (
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 func fatal(err error) {
@@ -30,17 +28,17 @@ func main() {
 
 	isGUI := len(os.Args) > 1 && strings.Contains(os.Args[1], "-gui")
 
-	if err := common.InitLogger(cfg.LogPath, !isGUI); err != nil {
+	logger, err := common.InitLogger(cfg.LogPath, !isGUI)
+	if err != nil {
 		fatal(err)
 	}
-	defer func() {
-		_ = zap.S().Sync()
-	}()
+
+	defer func() { _ = logger.Sync() }()
 
 	setupLanguage(cfg)
 
 	if isGUI {
-		gui.Run(cfg)
+		gui.Run(cfg, logger)
 		return
 	}
 
@@ -49,7 +47,7 @@ func main() {
 		fatal(err)
 	}
 
-	cli.Run(cfg, opts)
+	cli.Run(cfg, opts, logger)
 }
 
 func setupLanguage(cfg *config.Config) {

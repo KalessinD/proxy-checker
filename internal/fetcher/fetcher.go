@@ -32,15 +32,15 @@ type (
 
 const fetcherClientTimeout = 20 * time.Second
 
-func NewFetcher(source common.Source) Fetcher {
+func NewFetcher(source common.Source, logger common.LoggerInterface) Fetcher {
 	switch source {
 	case common.SourceProxifly:
-		return NewTextListFetcher(ProxiFlyURL, NewProxiflyProvider())
+		return NewTextListFetcher(ProxiFlyURL, NewProxiflyProvider(), logger)
 	case common.SourceTheSpeedX:
-		return NewTextListFetcher(TheSpeedXBaseURL, NewTheSpeedXProvider())
+		return NewTextListFetcher(TheSpeedXBaseURL, NewTheSpeedXProvider(), logger)
 	case common.SourceProxyMania:
-		return NewProxyManiaFetcher()
+		return NewProxyManiaFetcher(logger)
 	default:
-		return NewProxyManiaFetcher()
+		return NewProxyManiaFetcher(logger)
 	}
 }

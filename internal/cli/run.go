@@ -4,29 +4,34 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
 	"strings"
+	"syscall"
 )
 
-func Run(cfg *config.Config, opts *Options) {
+func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
 	switch {
 	case opts.ProxiesStat:
-		handleProxiesList(cfg, opts)
+		handleProxiesList(cfg, opts, logger)
 	case opts.ProxyAddr != "":
-		handleSingleCheck(cfg, opts)
+		handleSingleCheck(cfg, opts, logger)
 	default:
 		fmt.Println(i18n.T("cli.err_no_action"))
 	}
 }
 
-func handleSingleCheck(cfg *config.Config, opts *Options) {
-	fmt.Printf(i18n.T("cli.checking")+"\n", opts.ProxyAddr, cfg.Type)
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
-	defer cancel()
+func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterface) {
+	fmt.Printf("%s: %s (%s)...\n", i18n.T("cli.checking"), opts.ProxyAddr, cfg.Type)
+	ctx, sigCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+	defer sigCancel()
+
+	ctx, timeoutCancel := context.WithTimeout(ctx, cfg.Timeout)
+	defer timeoutCancel()
 
 	checker := services.NewProxyChecker()
 	res := checker.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
@@ -35,33 +40,55 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 		return
 	}
 
-	fmt.Printf("%s: TCP: %s, HTTP: %s, Статус: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, res.StatusCode)
+	fmt.Printf("%s: TCP: %s, HTTP: %s, %s: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, i18n.T("cli.status_label"), res.StatusCode)
 }
 
-func handleProxiesList(cfg *config.Config, opts *Options) {
-	fmt.Printf(i18n.T("cli.mode")+"\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
+func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
+	fmt.Printf(
+		"%s %s: %s, %s: %s, %s: %d, %s: %d\n",
+		i18n.T("cli.mode_start"),
+		i18n.T("cli.mode_type"),
+		cfg.Type,
+		i18n.T("cli.mode_source"),
+		cfg.Source,
+		i18n.T("cli.mode_rtt"),
+		cfg.RTT,
+		i18n.T("cli.mode_pages"),
+		cfg.Pages,
+	)
 
-	fetcherInstance := fetcher.NewFetcher(cfg.Source)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	if !opts.Check {
-		settings := fetcher.Settings{
-			Type:   cfg.Type,
-			MaxRTT: cfg.RTT,
-			Pages:  cfg.Pages,
-		}
+		handleListFetch(ctx, cfg, logger)
+	} else {
+		handleListCheck(ctx, cfg, logger)
+	}
+}
 
-		ctxParse := context.Background()
-		allProxies, err := fetcherInstance.Fetch(ctxParse, settings)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
-			return
-		}
+// handleListFetch handles fetching the list only, without validation
+func handleListFetch(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
+	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
 
-		fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
-		PrintTable(allProxies)
+	settings := fetcher.Settings{
+		Type:   cfg.Type,
+		MaxRTT: cfg.RTT,
+		Pages:  cfg.Pages,
+	}
+
+	allProxies, err := fetcherInstance.Fetch(ctx, settings)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
 		return
 	}
 
+	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
+	PrintTable(allProxies)
+}
+
+// handleListCheck handles fetching and validation of the list
+func handleListCheck(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
 	fmt.Printf("%s (Workers: %d)...\n", i18n.T("cli.starting_workers"), cfg.Workers)
 
 	var resolver common.GeoIPResolver
@@ -79,9 +106,10 @@ func handleProxiesList(cfg *config.Config, opts *Options) {
 	}
 
 	verifierInstance := services.NewDefaultVerifier()
+	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
 
 	validProxies, err := services.RunPipeline(
-		context.Background(),
+		ctx,
 		fetcherInstance,
 		verifierInstance,
 		cfg,

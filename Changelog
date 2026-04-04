@@ -26,3 +26,8 @@ Revision history for Golang Tool to search for a working proxies
 0.0.13  2026 Apr 04
     - refactoring
     - add new source: proxifly
+
+0.0.14  2026 Apr 04
+    - refactoring
+    - cache for each pair source + proxy type
+    - logger has been reworked

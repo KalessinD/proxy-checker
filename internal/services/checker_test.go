@@ -65,8 +65,8 @@ func TestCheckBatch_FiltersInvalidProxies(t *testing.T) {
 	ctx := t.Context()
 	validProxies := checker.CheckBatch(ctx, items, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
 
-	require.Len(t, validProxies, 2, "Должны остаться только валидные прокси")
-	assert.Equal(t, "3.3.3.3", validProxies[0].Host, "Первым должен быть самый быстрый прокси")
+	require.Len(t, validProxies, 2, "Only valid proxies must remain")
+	assert.Equal(t, "3.3.3.3", validProxies[0].Host, "The fastest proxy must be first")
 	assert.Equal(t, "1.1.1.1", validProxies[1].Host)
 }
 
@@ -97,9 +97,9 @@ func TestCheckBatch_StopsOnContextCancellation(t *testing.T) {
 	select {
 	case <-done:
 		called := atomic.LoadInt32(&mock.callCount)
-		assert.LessOrEqual(t, called, int32(2), "При отмене не должно запускаться лишних воркеров")
+		assert.LessOrEqual(t, called, int32(2), "No extra workers should start on cancel")
 	case <-time.After(2 * time.Second):
-		t.Fatal("CheckBatch не завершился после отмены контекста (вероятный deadlock)")
+		t.Fatal("CheckBatch did not exit after context cancellation (potential deadlock)")
 	}
 }
 
@@ -109,7 +109,7 @@ func TestCheckBatch_EmptyList(t *testing.T) {
 	ctx := t.Context()
 	validProxies := checker.CheckBatch(ctx, []*services.ProxyItem{}, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
 
-	assert.Empty(t, validProxies, "Пустой список должен вернуть пустой слайс")
+	assert.Empty(t, validProxies, "Empty list must return an empty slice")
 }
 
 func TestResolveSchema_DefaultBehavior(t *testing.T) {
@@ -135,4 +135,25 @@ func TestResolveSchema_DefaultBehavior(t *testing.T) {
 			assert.Equal(t, tt.expectedSchema, actualSchema)
 		})
 	}
+}
+
+func TestProxyChecker_CheckProxy_Timeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	checker := services.NewProxyChecker()
+	res := checker.CheckProxy(ctx, "127.0.0.1:9999", "google.com", "http", false)
+
+	assert.Error(t, res.Error)
+}
+
+func TestNewDefaultVerifier_Verify_DelegatesToChecker(t *testing.T) {
+	verifier := services.NewDefaultVerifier()
+	require.NotNil(t, verifier)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel() // Cancel immediately to fail fast without real network I/O
+
+	res := verifier.Verify(ctx, "127.0.0.1:9999", "google.com", "http", false)
+	assert.Error(t, res.Error, "Canceled context must cause an error")
 }
