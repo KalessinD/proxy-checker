@@ -11,6 +11,9 @@ import (
 	"strings"
 )
 
+// Version is injected at build time using -ldflags="-X main.Version=$(APP_VERSION)"
+var Version = "dev"
+
 func fatal(err error) {
 	if err != nil {
 		fmt.Fprint(os.Stderr, err.Error())
@@ -38,7 +41,7 @@ func main() {
 	setupLanguage(cfg)
 
 	if isGUI {
-		gui.Run(cfg, logger)
+		gui.Run(cfg, logger, Version)
 		return
 	}
 

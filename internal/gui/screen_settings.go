@@ -105,6 +105,7 @@ func (g *AppGUI) ShowSettingsScreen() {
 			g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
 		}
 
+		g.setupMainMenu()
 		g.showMainScreen()
 	})
 

@@ -38,11 +38,12 @@ type (
 	}
 
 	AppGUI struct {
-		app    fyne.App
-		window fyne.Window
-		cfg    *config.Config
-		cache  cache.StorageInterface
-		logger common.LoggerInterface
+		app     fyne.App
+		window  fyne.Window
+		cfg     *config.Config
+		cache   cache.StorageInterface
+		logger  common.LoggerInterface
+		version string
 
 		progress   binding.Float
 		proxyItems []*ProxyItemWrapper
@@ -111,7 +112,7 @@ func (g *AppGUI) initGeoIP(customPath string) {
 	}
 }
 
-func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface) *AppGUI {
+func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface, version string) *AppGUI {
 	gui := &AppGUI{
 		app:             fyneApp,
 		window:          fyneApp.NewWindow(common.AppName),
@@ -121,6 +122,7 @@ func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterfa
 		proxyItems:      make([]*ProxyItemWrapper, 0),
 		cache:           cache.NewFileStorage(logger),
 		sysProxyManager: sysproxy.NewSystemProxyManager(),
+		version:         version,
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
@@ -131,6 +133,22 @@ func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterfa
 	gui.loadSystemProxyState()
 
 	return gui
+}
+
+// setupMainMenu initializes the top-level application menu bar.
+func (g *AppGUI) setupMainMenu() {
+	// fileMenu := fyne.NewMenu(i18n.T("gui.menu_file"))
+	fileMenu := fyne.NewMenu(i18n.T("gui.menu_file"), fyne.NewMenuItem(i18n.T("gui.menu_settings"), func() {
+		g.ShowSettingsScreen()
+	}))
+
+	aboutMenuItem := fyne.NewMenuItem(i18n.T("gui.menu_about"), func() {
+		g.ShowAboutDialog()
+	})
+
+	helpMenu := fyne.NewMenu(i18n.T("gui.menu_help"), aboutMenuItem)
+
+	g.window.SetMainMenu(fyne.NewMainMenu(fileMenu, helpMenu))
 }
 
 func (g *AppGUI) initUIComponents() {
@@ -298,6 +316,7 @@ func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapp
 }
 
 func (g *AppGUI) Run() {
+	g.setupMainMenu()
 	g.showMainScreen()
 
 	g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
@@ -342,9 +361,9 @@ func (g *AppGUI) getTargetURL() string {
 	return g.cfg.DestAddr
 }
 
-func Run(cfg *config.Config, logger common.LoggerInterface) {
+func Run(cfg *config.Config, logger common.LoggerInterface, version string) {
 	fyneApp := app.NewWithID(common.AppName)
-	gui := NewAppGUI(fyneApp, cfg, logger)
+	gui := NewAppGUI(fyneApp, cfg, logger, version)
 	gui.Run()
 }
 

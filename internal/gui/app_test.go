@@ -25,7 +25,7 @@ func TestNewAppGUI_Base(t *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	appGUI := gui.NewAppGUI(testApp, cfg, logger)
+	appGUI := gui.NewAppGUI(testApp, cfg, logger, "dev")
 
 	assert.NotNil(t, appGUI)
 }
@@ -37,7 +37,7 @@ func TestNewAppGUI_MainScreen(_ *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	appGUI := gui.NewAppGUI(testApp, cfg, logger)
+	appGUI := gui.NewAppGUI(testApp, cfg, logger, "dev")
 
 	appGUI.Run()
 }
@@ -49,7 +49,7 @@ func TestNewAppGUI_SingleScreen(_ *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	gui.NewAppGUI(testApp, cfg, logger).ShowSettingsScreen()
+	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowSettingsScreen()
 }
 
 func TestNewAppGUI_SettingseScreen(_ *testing.T) {
@@ -59,5 +59,15 @@ func TestNewAppGUI_SettingseScreen(_ *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	gui.NewAppGUI(testApp, cfg, logger).ShowSettingsScreen()
+	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowSettingsScreen()
+}
+
+func TestNewAppGUI_AboutScreen(_ *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
+	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowAboutDialog()
 }

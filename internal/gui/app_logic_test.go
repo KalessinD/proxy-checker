@@ -19,7 +19,7 @@ func TestMapToWrapper_Success(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger)
+	g := NewAppGUI(testApp, cfg, logger, "dev")
 
 	inputItems := []*services.ProxyItemFull{
 		{
@@ -53,7 +53,7 @@ func TestMapToWrapper_EmptySlice(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger)
+	g := NewAppGUI(testApp, cfg, logger, "dev")
 
 	wrappers := g.mapToWrapper([]*services.ProxyItemFull{})
 
@@ -66,7 +66,7 @@ func TestApplyTheme_NoPanics(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger)
+	g := NewAppGUI(testApp, cfg, logger, "dev")
 
 	themes := []string{"light", "dark", "system", "unknown_theme_fallback"}
 
