@@ -41,3 +41,23 @@ func TestNewAppGUI_MainScreen(_ *testing.T) {
 
 	appGUI.Run()
 }
+
+func TestNewAppGUI_SingleScreen(_ *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
+	gui.NewAppGUI(testApp, cfg, logger).ShowSettingsScreen()
+}
+
+func TestNewAppGUI_SettingseScreen(_ *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
+	gui.NewAppGUI(testApp, cfg, logger).ShowSettingsScreen()
+}

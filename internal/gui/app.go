@@ -135,7 +135,7 @@ func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterfa
 
 func (g *AppGUI) initUIComponents() {
 	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() {
-		g.showSettingsScreen()
+		g.ShowSettingsScreen()
 	})
 
 	g.switchProxy = widget.NewCheck("", func(checked bool) {
@@ -159,7 +159,7 @@ func (g *AppGUI) initUIComponents() {
 	})
 
 	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() {
-		g.showSingleCheckScreen()
+		g.ShowSingleCheckScreen()
 	})
 
 	g.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() {

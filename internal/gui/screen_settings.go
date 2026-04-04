@@ -15,7 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func (g *AppGUI) showSettingsScreen() {
+func (g *AppGUI) ShowSettingsScreen() {
 	sources := []string{
 		string(common.SourceProxyMania),
 		string(common.SourceTheSpeedX),
