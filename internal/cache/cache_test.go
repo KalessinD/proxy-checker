@@ -21,7 +21,7 @@ func TestCacheFile_GetFilePath(t *testing.T) {
 	c := &cache.FileStorage{FilePath: customPath}
 
 	actualPath := c.GetFilePath()
-	assert.Equal(t, customPath, actualPath, "GetFilePath должен возвращать установленный путь")
+	assert.Equal(t, customPath, actualPath, "GetFilePath must return the set path")
 }
 
 func TestCacheFile_NewFileCache(t *testing.T) {
@@ -51,7 +51,7 @@ func TestCacheFile_SaveAndLoad_ValidData_SpecificType(t *testing.T) {
 	loadedItems, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 	require.NoError(t, err)
 
-	require.Len(t, loadedItems, 1, "Должно быть загружено 1 элемент")
+	require.Len(t, loadedItems, 1, "Must be loadead exactly 1 element")
 	assert.Equal(t, "1.1.1.1", loadedItems[0].Host)
 	assert.Equal(t, common.ProxySOCKS5, loadedItems[0].Type)
 }
@@ -81,7 +81,7 @@ func TestCacheFile_Save_MultipleTypesForSameSource(t *testing.T) {
 	data, err := os.ReadFile(tempCacheFile)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, &cf))
-	assert.Len(t, cf.Sources, 2, "Должно быть два отдельных ключа в файле")
+	assert.Len(t, cf.Sources, 2, "Must be two separate keys in the file")
 }
 
 func TestCacheFile_Save_AllType_SplitsData(t *testing.T) {
@@ -101,12 +101,12 @@ func TestCacheFile_Save_AllType_SplitsData(t *testing.T) {
 
 	loadedSOCKS5, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 	require.NoError(t, err)
-	assert.Len(t, loadedSOCKS5, 1, "ALL должен разбить и сохранить SOCKS5 отдельно")
+	assert.Len(t, loadedSOCKS5, 1, "ALL type: SOCKS5 must be saved separately")
 	assert.Equal(t, "1.1.1.1", loadedSOCKS5[0].Host)
 
 	loadedHTTP, err := c.Load(common.SourceProxyMania, common.ProxyHTTP)
 	require.NoError(t, err)
-	assert.Len(t, loadedHTTP, 1, "ALL должен разбить и сохранить HTTP отдельно")
+	assert.Len(t, loadedHTTP, 1, "ALL type: HTTP must be saved separately")
 	assert.Equal(t, "2.2.2.2", loadedHTTP[0].Host)
 }
 
@@ -126,7 +126,7 @@ func TestCacheFile_Load_AllType_MergesData(t *testing.T) {
 
 	loadedAll, err := c.Load(common.SourceProxyMania, common.ProxyAll)
 	require.NoError(t, err)
-	assert.Len(t, loadedAll, 2, "ALL должен объединить все типы для источника")
+	assert.Len(t, loadedAll, 2, "ALL type: all types must be merged to be used in source")
 }
 
 func TestCacheFile_Load_AllType_DeduplicatesData(t *testing.T) {
@@ -145,7 +145,7 @@ func TestCacheFile_Load_AllType_DeduplicatesData(t *testing.T) {
 
 	loadedAll, err := c.Load(common.SourceProxyMania, common.ProxyAll)
 	require.NoError(t, err)
-	assert.Len(t, loadedAll, 1, "ALL должен дедуплицировать по Host:Port")
+	assert.Len(t, loadedAll, 1, "ALL type: deduplication by Host:Port")
 }
 
 func TestCacheFile_Save_EmptySlice(t *testing.T) {
@@ -194,7 +194,7 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 
 		items, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
 		require.NoError(t, err)
-		assert.Empty(t, items, "Просроченный кэш должен возвращать пустой список")
+		assert.Empty(t, items, "Expired cache must return an empty list")
 	})
 
 	t.Run("File does not exist", func(t *testing.T) {
@@ -213,7 +213,7 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 		}
 
 		items, err := c.Load(common.SourceProxyMania, common.ProxySOCKS5)
-		require.NoError(t, err, "При ошибке парсинга должны вернуть пустой список без ошибки")
-		assert.Empty(t, items)
+		require.NoError(t, err, "Unexpected error")
+		assert.Empty(t, items, "Corrupted JSON must return empty list")
 	})
 }

@@ -60,7 +60,7 @@ func TestParseFlags(t *testing.T) {
 			name:            "Error on mutually exclusive flags",
 			args:            []string{"-proxy", "1.1.1.1:80", "-proxies-stat"},
 			wantErr:         true,
-			expectedErrText: "simultaneously",
+			expectedErrText: "Cannot use -proxy and -proxies-stat simultaneously",
 		},
 		{
 			name:            "Error on invalid proxy address format",

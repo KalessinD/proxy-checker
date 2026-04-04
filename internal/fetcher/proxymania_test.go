@@ -121,7 +121,7 @@ func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
 	items, err := fetcherInstance.Fetch(t.Context(), settings)
 	require.NoError(t, err)
 
-	require.Len(t, items, 2, "Должно быть распарсено 2 прокси")
+	require.Len(t, items, 2, "Must be parsed 2 proxies")
 
 	assert.Equal(t, "192.168.1.1", items[0].Host)
 	assert.Equal(t, "8080", items[0].Port)
@@ -132,5 +132,5 @@ func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", items[1].Host)
 	assert.Equal(t, "3128", items[1].Port)
 	assert.Equal(t, common.ProxyHTTP, items[1].Type)
-	assert.Equal(t, fetcher.DefaultUnknownRTT, items[1].RTTms, "N/A должно парситься в дефолтный RTT")
+	assert.Equal(t, fetcher.DefaultUnknownRTT, items[1].RTTms, "N/A should be parsed as default RTT")
 }

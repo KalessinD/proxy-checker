@@ -70,7 +70,7 @@ func TestEnsureConfigExists(t *testing.T) {
 
 		data, err := os.ReadFile(configPath)
 		require.NoError(t, err)
-		assert.Contains(t, string(data), "lang = 'en'", "Файл не должен перезаписываться, если уже существует")
+		assert.Contains(t, string(data), "lang = 'en'", "File must not be overwritten if it already exists")
 	})
 }
 
@@ -85,6 +85,6 @@ func TestLoad_CorruptedTOML(t *testing.T) {
 	require.NoError(t, os.WriteFile(configPath, []byte("[[[invalid toml syntax"), 0o600))
 
 	loadedCfg, err := config.Load()
-	require.Error(t, err, "Должна возвращаться ошибка парсинга TOML")
+	require.Error(t, err, "Must return TOML parsing error")
 	assert.Nil(t, loadedCfg)
 }

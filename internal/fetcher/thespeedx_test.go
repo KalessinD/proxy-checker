@@ -49,13 +49,12 @@ invalid_line_without_port
 	items, err := fetcherInstance.Fetch(t.Context(), settings)
 	require.NoError(t, err)
 
-	require.Len(t, items, 3, "Должно быть распарсено 3 валидных прокси")
+	require.Len(t, items, 3, "Must be parsed 3 valid proxies")
 
 	assert.Equal(t, "1.1.1.1", items[0].Host)
 	assert.Equal(t, "1080", items[0].Port)
 	assert.Equal(t, common.ProxySOCKS5, items[0].Type)
-	assert.Equal(t, "N/A", items[0].Country, "Для TheSpeedX страна всегда N/A")
-
+	assert.Equal(t, "N/A", items[0].Country, "Country is always N/A for TheSpeedX")
 	assert.Equal(t, "3.3.3.3", items[2].Host)
 	assert.Equal(t, "1080", items[2].Port)
 }

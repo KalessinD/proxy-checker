@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 
 func TestNewSystemProxyManager_ReturnsValidInterface(t *testing.T) {
 	manager := sysproxy.NewSystemProxyManager()
-	require.NotNil(t, manager, "Фабрика всегда должна возвращать реализацию")
+	require.NotNil(t, manager, "Factory always must return the interface|")
 
 	var _ sysproxy.SystemProxyManager = manager
 }
@@ -26,7 +26,7 @@ func TestNewSystemProxyManager_ReturnsValidInterface(t *testing.T) {
 func TestNoopProxyManager_Behavior(t *testing.T) {
 	manager := &sysproxy.NoOpProxyManager{}
 
-	assert.False(t, manager.IsSupported(), "Noop менеджер не поддерживает прокси")
+	assert.False(t, manager.IsSupported(), "Noop manager doesn't not support proxies")
 
 	mode, err := manager.GetMode()
 	assert.NoError(t, err)
@@ -46,9 +46,9 @@ func TestNewSystemProxyManager_PlatformConsistency(t *testing.T) {
 	manager := sysproxy.NewSystemProxyManager()
 
 	if runtime.GOOS == "linux" {
-		assert.IsNotType(t, &sysproxy.NoOpProxyManager{}, manager, "На Linux должен использоваться linuxProxyManager")
+		assert.IsNotType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use linuxProxyManager on Linux")
 	} else {
-		assert.IsType(t, &sysproxy.NoOpProxyManager{}, manager, "Не на Linux должен использоваться noopProxyManager")
+		assert.IsType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use noopProxyManager on non-Linux")
 	}
 }
 
