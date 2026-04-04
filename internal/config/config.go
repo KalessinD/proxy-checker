@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"proxy-checker/internal/common"
@@ -71,7 +72,16 @@ func Load() (*Config, error) {
 		return cfg, nil
 	}
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to access config file: %w", err)
+		}
+		return cfg, nil
+	}
+
+	// Extra safety: don't try to decode directories
+	if fileInfo.IsDir() {
 		return cfg, nil
 	}
 
