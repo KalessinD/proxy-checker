@@ -1,0 +1,43 @@
+package gui_test
+
+import (
+	"os"
+	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
+	"proxy-checker/internal/config"
+	"proxy-checker/internal/gui"
+	"testing"
+
+	"fyne.io/fyne/v2/test"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+)
+
+func TestMain(m *testing.M) {
+	_ = i18n.Init("en")
+	os.Exit(m.Run())
+}
+
+func TestNewAppGUI_Base(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
+	appGUI := gui.NewAppGUI(testApp, cfg, logger)
+
+	assert.NotNil(t, appGUI)
+}
+
+func TestNewAppGUI_MainScreen(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
+	appGUI := gui.NewAppGUI(testApp, cfg, logger)
+
+	appGUI.Run()
+}

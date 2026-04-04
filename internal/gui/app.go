@@ -109,12 +109,10 @@ func (g *AppGUI) initGeoIP(customPath string) {
 	}
 }
 
-func NewAppGUI(cfg *config.Config, logger common.LoggerInterface) *AppGUI {
-	a := app.NewWithID(common.AppName)
-
+func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface) *AppGUI {
 	gui := &AppGUI{
-		app:             a,
-		window:          a.NewWindow(common.AppName),
+		app:             fyneApp,
+		window:          fyneApp.NewWindow(common.AppName),
 		cfg:             cfg,
 		logger:          logger,
 		progress:        binding.NewFloat(),
@@ -310,7 +308,8 @@ func (g *AppGUI) getTargetURL() string {
 }
 
 func Run(cfg *config.Config, logger common.LoggerInterface) {
-	gui := NewAppGUI(cfg, logger)
+	fyneApp := app.NewWithID(common.AppName)
+	gui := NewAppGUI(fyneApp, cfg, logger)
 	gui.Run()
 }
 
