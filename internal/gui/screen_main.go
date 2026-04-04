@@ -126,7 +126,13 @@ func (g *AppGUI) setUIState(running bool) {
 }
 
 func (g *AppGUI) runBatchCheck() {
-	g.logBuffer = ""
+	fyne.DoAndWait(func() {
+		if g.logRichText != nil {
+			g.logRichText.Segments = nil
+			g.logRichText.Refresh()
+		}
+	})
+
 	g.appendLog(common.LogLevelInfo, i18n.T("gui.log_preparing")+"\n")
 	_ = g.progress.Set(0)
 

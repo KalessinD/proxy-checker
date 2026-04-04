@@ -50,10 +50,9 @@ type (
 		progressBar *widget.ProgressBar
 		table       *widget.Table
 
-		logLabel  *widget.Label
-		logScroll *container.Scroll
-		logBuffer string
-		logMutex  sync.Mutex
+		logRichText *widget.RichText
+		logScroll   *container.Scroll
+		logMutex    sync.Mutex
 
 		sysProxyManager sysproxy.SystemProxyManager
 
@@ -176,9 +175,9 @@ func (g *AppGUI) initUIComponents() {
 	g.btnCancel.Importance = widget.DangerImportance
 	g.btnCancel.Disable()
 
-	g.logLabel = widget.NewLabel("")
-	g.logLabel.Wrapping = fyne.TextWrapWord
-	g.logScroll = container.NewScroll(g.logLabel)
+	g.logRichText = widget.NewRichText()
+	g.logRichText.Wrapping = fyne.TextWrapWord
+	g.logScroll = container.NewScroll(g.logRichText)
 }
 
 func (g *AppGUI) loadSystemProxyState() {
@@ -197,9 +196,22 @@ func (g *AppGUI) loadSystemProxyState() {
 
 func (g *AppGUI) appendLog(level common.LogLevel, text string) {
 	g.logMutex.Lock()
-	g.logBuffer += text
+	defer g.logMutex.Unlock()
+
 	cleanText := strings.TrimSpace(text)
-	g.logMutex.Unlock()
+
+	// Determine the text style based on the log level
+	segmentStyle := widget.RichTextStyleInline
+	if level == common.LogLevelError {
+		segmentStyle.ColorName = theme.ColorNameError
+	}
+
+	newSegment := &widget.TextSegment{
+		Text:  text,
+		Style: segmentStyle,
+	}
+
+	g.logRichText.Segments = append(g.logRichText.Segments, newSegment)
 
 	if cleanText != "" {
 		switch {
@@ -212,10 +224,10 @@ func (g *AppGUI) appendLog(level common.LogLevel, text string) {
 		}
 	}
 
-	if g.logLabel != nil {
+	if g.logRichText != nil {
 		fyne.Do(func() {
-			if g.logLabel != nil && g.logScroll != nil {
-				g.logLabel.SetText(g.logBuffer)
+			if g.logRichText != nil && g.logScroll != nil {
+				g.logRichText.Refresh()
 				g.logScroll.ScrollToBottom()
 			}
 		})
