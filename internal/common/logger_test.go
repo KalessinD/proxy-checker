@@ -58,6 +58,13 @@ func TestInitLogger(t *testing.T) {
 			expectError:    true,
 			errorContains:  "No access to log directory",
 		},
+		{
+			name:           "Error when log path is a directory",
+			logPath:        t.TempDir(),
+			disableConsole: false,
+			expectError:    true,
+			errorContains:  "Could not open log file",
+		},
 	}
 
 	for _, tt := range tests {

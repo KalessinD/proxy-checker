@@ -4,6 +4,7 @@ import (
 	"proxy-checker/internal/proxies"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,4 +33,24 @@ func TestNewClient_HTTP2Forced(t *testing.T) {
 	client, err := proxies.NewClient("127.0.0.1:8080", "http", true)
 	require.NoError(t, err)
 	require.NotNil(t, client)
+}
+
+func TestNewClient_InvalidProxyAddress(t *testing.T) {
+	tests := []struct {
+		name string
+		mode string
+		addr string
+	}{
+		{name: "HTTP mode with spaces", mode: "http", addr: "host with spaces:8080"},
+		{name: "HTTP mode with control character", mode: "http", addr: "host\n:8080"},
+		{name: "HTTPS mode with control character", mode: "https", addr: "host\n:8080"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := proxies.NewClient(tt.addr, tt.mode, false)
+			require.Error(t, err)
+			assert.Nil(t, client)
+		})
+	}
 }

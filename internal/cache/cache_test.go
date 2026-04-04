@@ -217,3 +217,18 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 		assert.Empty(t, items, "Corrupted JSON must return empty list")
 	})
 }
+
+func TestCacheFile_Save_AllType_SplitWriteError(t *testing.T) {
+	c := &cache.FileStorage{
+		FilePath: "/nonexistent/deep/dir/cache.data",
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
+
+	itemsAll := []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Type: common.ProxySOCKS5}},
+	}
+
+	err := c.Save(common.SourceProxyMania, common.ProxyAll, itemsAll, 3600)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to write cache")
+}

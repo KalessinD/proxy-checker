@@ -146,3 +146,14 @@ func TestProxyChecker_CheckProxy_Timeout(t *testing.T) {
 
 	assert.Error(t, res.Error)
 }
+
+func TestNewDefaultVerifier_Verify_DelegatesToChecker(t *testing.T) {
+	verifier := services.NewDefaultVerifier()
+	require.NotNil(t, verifier)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel() // Cancel immediately to fail fast without real network I/O
+
+	res := verifier.Verify(ctx, "127.0.0.1:9999", "google.com", "http", false)
+	assert.Error(t, res.Error, "Canceled context must cause an error")
+}

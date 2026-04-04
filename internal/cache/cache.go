@@ -182,5 +182,8 @@ func (c *FileStorage) writeCacheData(cacheData *Data) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal cache: %w", err)
 	}
-	return os.WriteFile(c.FilePath, newData, 0o600)
+	if err := os.WriteFile(c.FilePath, newData, 0o600); err != nil {
+		return fmt.Errorf("failed to write cache: %w", err)
+	}
+	return nil
 }

@@ -88,3 +88,46 @@ func TestLoad_CorruptedTOML(t *testing.T) {
 	require.Error(t, err, "Must return TOML parsing error")
 	assert.Nil(t, loadedCfg)
 }
+
+func TestLoad_SuccessfulLoad(t *testing.T) {
+	tempHome := t.TempDir()
+	t.Setenv("HOME", tempHome)
+
+	configDir := filepath.Join(tempHome, ".config")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+	configPath := filepath.Join(configDir, "proxy-checker.conf")
+
+	content := `type = "http"
+timeout = "5s"
+workers = 32
+dest_addr = "yahoo.com"
+source = "thespeedx"
+lang = "ru"`
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
+
+	loadedCfg, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, common.ProxyHTTP, loadedCfg.Type)
+	assert.Equal(t, 5*time.Second, loadedCfg.Timeout)
+	assert.Equal(t, 32, loadedCfg.Workers)
+	assert.Equal(t, "yahoo.com", loadedCfg.DestAddr)
+	assert.Equal(t, common.SourceTheSpeedX, loadedCfg.Source)
+	assert.Equal(t, "ru", loadedCfg.Lang)
+}
+
+func TestLoad_UnreadableFile(t *testing.T) {
+	tempHome := t.TempDir()
+	t.Setenv("HOME", tempHome)
+
+	configDir := filepath.Join(tempHome, ".config")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+	configPath := filepath.Join(configDir, "proxy-checker.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte("lang = 'en'"), 0o600))
+
+	require.NoError(t, os.Chmod(configPath, 0o000))
+
+	loadedCfg, err := config.Load()
+	require.Error(t, err)
+	assert.Nil(t, loadedCfg)
+	assert.Contains(t, err.Error(), "permission denied")
+}
