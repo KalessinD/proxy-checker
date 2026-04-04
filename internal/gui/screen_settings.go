@@ -295,11 +295,11 @@ func (g *AppGUI) createThemeSelector(themeLabels []string) *widget.Select {
 		var val string
 		switch {
 		case s == i18n.T("gui.settings.theme_light"):
-			val = "light"
+			val = themeLight
 		case s == i18n.T("gui.settings.theme_dark"):
-			val = "dark"
+			val = themeDark
 		default:
-			val = "system"
+			val = themeSystem
 		}
 		g.cfg.Theme = val
 		g.applyTheme(val)
@@ -307,9 +307,9 @@ func (g *AppGUI) createThemeSelector(themeLabels []string) *widget.Select {
 
 	currentThemeLabel := i18n.T("gui.settings.theme_system")
 	switch strings.ToLower(g.cfg.Theme) {
-	case "light":
+	case themeLight:
 		currentThemeLabel = i18n.T("gui.settings.theme_light")
-	case "dark":
+	case themeDark:
 		currentThemeLabel = i18n.T("gui.settings.theme_dark")
 	}
 	selectTheme.SetSelected(currentThemeLabel)

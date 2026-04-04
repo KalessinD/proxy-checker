@@ -8,6 +8,7 @@ import (
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
+	"proxy-checker/internal/services"
 	"proxy-checker/internal/sysproxy"
 	"strings"
 	"sync"
@@ -21,8 +22,9 @@ import (
 )
 
 const (
-	themeLight = "light"
-	themeDark  = "dark"
+	themeLight  = "light"
+	themeDark   = "dark"
+	themeSystem = "system"
 )
 
 type (
@@ -118,7 +120,7 @@ func NewAppGUI(cfg *config.Config, logger common.LoggerInterface) *AppGUI {
 		logger:          logger,
 		progress:        binding.NewFloat(),
 		proxyItems:      make([]*ProxyItemWrapper, 0),
-		cache:           cache.NewFileCache(),
+		cache:           cache.NewFileStorage(logger),
 		sysProxyManager: sysproxy.NewSystemProxyManager(),
 	}
 
@@ -229,6 +231,7 @@ func (g *AppGUI) applyTheme(themeName string) {
 			Theme:   theme.DefaultTheme(),
 			variant: theme.VariantDark,
 		})
+	case themeSystem:
 	default:
 		g.app.Settings().SetTheme(nil)
 	}
@@ -253,17 +256,7 @@ func (g *AppGUI) loadCacheForSource(source string) {
 		return
 	}
 
-	items := make([]*ProxyItemWrapper, len(cachedItems))
-	for i, item := range cachedItems {
-		items[i] = &ProxyItemWrapper{
-			Host:    item.Host,
-			Port:    item.Port,
-			Type:    item.Type,
-			Country: item.Country,
-			TCP:     item.CheckResult.ProxyLatencyStr,
-			HTTP:    item.CheckResult.ReqLatencyStr,
-		}
-	}
+	items := g.mapToWrapper(cachedItems)
 
 	fyne.Do(func() {
 		g.proxyItems = items
@@ -273,6 +266,17 @@ func (g *AppGUI) loadCacheForSource(source string) {
 	})
 
 	g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+}
+
+func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapper {
+	wrappers := make([]*ProxyItemWrapper, len(items))
+	for i, item := range items {
+		wrappers[i] = &ProxyItemWrapper{
+			Host: item.Host, Port: item.Port, Type: item.Type, Country: item.Country,
+			TCP: item.CheckResult.ProxyLatencyStr, HTTP: item.CheckResult.ReqLatencyStr,
+		}
+	}
+	return wrappers
 }
 
 func (g *AppGUI) Run() {

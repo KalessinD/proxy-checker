@@ -162,17 +162,7 @@ func (g *AppGUI) runBatchCheck() {
 		return
 	}
 
-	guiItems := make([]*ProxyItemWrapper, len(validProxies))
-	for i, p := range validProxies {
-		guiItems[i] = &ProxyItemWrapper{
-			Host:    p.Host,
-			Port:    p.Port,
-			Type:    p.Type,
-			Country: p.Country,
-			TCP:     p.CheckResult.ProxyLatencyStr,
-			HTTP:    p.CheckResult.ReqLatencyStr,
-		}
-	}
+	guiItems := g.mapToWrapper(validProxies)
 
 	fyne.Do(func() {
 		g.proxyItems = guiItems

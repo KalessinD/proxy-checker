@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
 	"strings"
+	"syscall"
 )
 
 func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
@@ -25,8 +27,11 @@ func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
 
 func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterface) {
 	fmt.Printf(i18n.T("cli.checking")+"\n", opts.ProxyAddr, cfg.Type)
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
-	defer cancel()
+	ctx, sigCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+	defer sigCancel()
+
+	ctx, timeoutCancel := context.WithTimeout(ctx, cfg.Timeout)
+	defer timeoutCancel()
 
 	checker := services.NewProxyChecker()
 	res := checker.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
@@ -41,27 +46,38 @@ func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterfa
 func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
 	fmt.Printf(i18n.T("cli.mode")+"\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
 
-	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	if !opts.Check {
-		settings := fetcher.Settings{
-			Type:   cfg.Type,
-			MaxRTT: cfg.RTT,
-			Pages:  cfg.Pages,
-		}
+		handleListFetch(ctx, cfg, logger)
+	} else {
+		handleListCheck(ctx, cfg, logger)
+	}
+}
 
-		ctxParse := context.Background()
-		allProxies, err := fetcherInstance.Fetch(ctxParse, settings)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
-			return
-		}
+// handleListFetch обрабатывает только получение списка без проверки
+func handleListFetch(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
+	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
 
-		fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
-		PrintTable(allProxies)
+	settings := fetcher.Settings{
+		Type:   cfg.Type,
+		MaxRTT: cfg.RTT,
+		Pages:  cfg.Pages,
+	}
+
+	allProxies, err := fetcherInstance.Fetch(ctx, settings)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
 		return
 	}
 
+	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
+	PrintTable(allProxies)
+}
+
+// handleListCheck обрабатывает получение и проверку списка
+func handleListCheck(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
 	fmt.Printf("%s (Workers: %d)...\n", i18n.T("cli.starting_workers"), cfg.Workers)
 
 	var resolver common.GeoIPResolver
@@ -79,9 +95,10 @@ func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerIn
 	}
 
 	verifierInstance := services.NewDefaultVerifier()
+	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
 
 	validProxies, err := services.RunPipeline(
-		context.Background(),
+		ctx,
 		fetcherInstance,
 		verifierInstance,
 		cfg,

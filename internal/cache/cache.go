@@ -21,8 +21,9 @@ type (
 		Sources map[string]*Record `json:"sources"`
 	}
 
-	Storage struct {
+	FileStorage struct {
 		FilePath string
+		Logger   common.LoggerInterface
 		mu       sync.Mutex
 	}
 )
@@ -33,17 +34,18 @@ type StorageInterface interface {
 	GetFilePath() string
 }
 
-func NewFileCache() StorageInterface {
-	return &Storage{
+func NewFileStorage(logger common.LoggerInterface) StorageInterface {
+	return &FileStorage{
 		FilePath: filepath.Join(os.TempDir(), common.AppName+"-cache.data"),
+		Logger:   logger,
 	}
 }
 
-func (c *Storage) GetFilePath() string {
+func (c *FileStorage) GetFilePath() string {
 	return c.FilePath
 }
 
-func (c *Storage) Load(source string) ([]*services.ProxyItemFull, error) {
+func (c *FileStorage) Load(source string) ([]*services.ProxyItemFull, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -57,6 +59,7 @@ func (c *Storage) Load(source string) ([]*services.ProxyItemFull, error) {
 
 	var cacheFile Data
 	if err := json.Unmarshal(fileData, &cacheFile); err != nil {
+		c.Logger.Warnf("failed to unmarshal cache file: %v", err)
 		return []*services.ProxyItemFull{}, nil
 	}
 
@@ -80,7 +83,7 @@ func (c *Storage) Load(source string) ([]*services.ProxyItemFull, error) {
 	return entry.Data, nil
 }
 
-func (c *Storage) Save(source string, items []*services.ProxyItemFull, ttl int) error {
+func (c *FileStorage) Save(source string, items []*services.ProxyItemFull, ttl int) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

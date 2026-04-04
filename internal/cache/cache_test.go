@@ -11,20 +11,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
-var _ cache.StorageInterface = (*cache.Storage)(nil)
+var _ cache.StorageInterface = (*cache.FileStorage)(nil)
 
 func TestCacheFile_GetFilePath(t *testing.T) {
-	customPath := "/tmp/my_custom_cache.data"
-	c := &cache.Storage{FilePath: customPath}
+	customPath := filepath.Join(t.TempDir(), "my_custom_cache.data")
+	c := &cache.FileStorage{FilePath: customPath}
 
 	actualPath := c.GetFilePath()
 	assert.Equal(t, customPath, actualPath, "GetFilePath должен возвращать установленный путь")
 }
 
 func TestCacheFile_NewFileCache(t *testing.T) {
-	c := cache.NewFileCache()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	c := cache.NewFileStorage(logger)
 	require.NotNil(t, c)
 
 	assert.Contains(t, c.GetFilePath(), common.AppName+"-cache.data")
@@ -33,7 +35,10 @@ func TestCacheFile_NewFileCache(t *testing.T) {
 
 func TestCacheFile_SaveAndLoad_ValidData(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "valid_cache.data")
-	c := &cache.Storage{FilePath: tempCacheFile}
+	c := &cache.FileStorage{
+		FilePath: tempCacheFile,
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
 
 	sourceName := "test_source"
 	inputItems := []*services.ProxyItemFull{
@@ -56,7 +61,10 @@ func TestCacheFile_SaveAndLoad_ValidData(t *testing.T) {
 
 func TestCacheFile_Save_MultipleSources(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "multi_source.data")
-	c := &cache.Storage{FilePath: tempCacheFile}
+	c := &cache.FileStorage{
+		FilePath: tempCacheFile,
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
 
 	items1 := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "1.1.1.1"}}}
 	items2 := []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "2.2.2.2"}}}
@@ -84,7 +92,10 @@ func TestCacheFile_Save_MultipleSources(t *testing.T) {
 
 func TestCacheFile_Save_EmptySlice(t *testing.T) {
 	tempCacheFile := filepath.Join(t.TempDir(), "empty_cache.data")
-	c := &cache.Storage{FilePath: tempCacheFile}
+	c := &cache.FileStorage{
+		FilePath: tempCacheFile,
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
 
 	err := c.Save("empty_source", []*services.ProxyItemFull{}, 3600)
 	require.NoError(t, err)
@@ -97,10 +108,14 @@ func TestCacheFile_Save_EmptySlice(t *testing.T) {
 func TestCacheFile_Load_EdgeCases(t *testing.T) {
 	t.Run("Source not found", func(t *testing.T) {
 		tempCacheFile := filepath.Join(t.TempDir(), "not_found.data")
-		c := &cache.Storage{FilePath: tempCacheFile}
+		c := &cache.FileStorage{
+			FilePath: tempCacheFile,
+			Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+		}
 		initialData := cache.Data{Sources: make(map[string]*cache.Record)}
-		data, _ := json.Marshal(initialData)
-		_ = os.WriteFile(tempCacheFile, data, 0o600)
+		data, err := json.Marshal(initialData)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(tempCacheFile, data, 0o600))
 
 		items, err := c.Load("non_existent_source")
 		require.NoError(t, err)
@@ -109,7 +124,10 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 
 	t.Run("Cache expired", func(t *testing.T) {
 		tempCacheFile := filepath.Join(t.TempDir(), "expired.data")
-		c := &cache.Storage{FilePath: tempCacheFile}
+		c := &cache.FileStorage{
+			FilePath: tempCacheFile,
+			Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+		}
 
 		err := c.Save("expired_source", []*services.ProxyItemFull{{ProxyItem: services.ProxyItem{Host: "1.1.1.1"}}}, -1)
 		require.NoError(t, err)
@@ -120,7 +138,7 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("File does not exist", func(t *testing.T) {
-		c := &cache.Storage{FilePath: "/nonexistent/path/cache.data"}
+		c := &cache.FileStorage{FilePath: "/nonexistent/path/cache.data"}
 		items, err := c.Load("any_source")
 		require.NoError(t, err)
 		assert.Empty(t, items)
@@ -128,8 +146,11 @@ func TestCacheFile_Load_EdgeCases(t *testing.T) {
 
 	t.Run("Corrupted JSON", func(t *testing.T) {
 		tempCacheFile := filepath.Join(t.TempDir(), "corrupted.data")
-		_ = os.WriteFile(tempCacheFile, []byte("{bad json"), 0o600)
-		c := &cache.Storage{FilePath: tempCacheFile}
+		require.NoError(t, os.WriteFile(tempCacheFile, []byte("{bad json"), 0o600))
+		c := &cache.FileStorage{
+			FilePath: tempCacheFile,
+			Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+		}
 
 		items, err := c.Load("any_source")
 		require.NoError(t, err, "При ошибке парсинга должны вернуть пустой список без ошибки")
