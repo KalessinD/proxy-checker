@@ -30,7 +30,7 @@ func TestNewAppGUI_Base(t *testing.T) {
 	assert.NotNil(t, appGUI)
 }
 
-func TestNewAppGUI_MainScreen(t *testing.T) {
+func TestNewAppGUI_MainScreen(_ *testing.T) {
 	testApp := test.NewApp()
 	defer testApp.Quit()
 
