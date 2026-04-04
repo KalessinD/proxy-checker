@@ -18,6 +18,7 @@ type SystemProxyManager interface {
 	SetProxy(host, port, proxyType string) error
 	GetIgnoreHosts() (string, error)
 	SetIgnoreHosts(ignoreHostsText string) error
+	GetActiveProxy() (host string, port string, err error)
 }
 
 type NoOpProxyManager struct{}
@@ -28,6 +29,9 @@ func (m *NoOpProxyManager) SetMode(_ string) error          { return nil }
 func (m *NoOpProxyManager) SetProxy(_, _, _ string) error   { return nil }
 func (m *NoOpProxyManager) GetIgnoreHosts() (string, error) { return "", nil }
 func (m *NoOpProxyManager) SetIgnoreHosts(_ string) error   { return nil }
+func (m *NoOpProxyManager) GetActiveProxy() (string, string, error) {
+	return "", "", nil
+}
 
 func NewSystemProxyManager() SystemProxyManager {
 	if runtime.GOOS == "linux" {

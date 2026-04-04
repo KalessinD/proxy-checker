@@ -1,9 +1,11 @@
 package gui
 
 import (
+	"image/color"
 	"proxy-checker/internal/common/i18n"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 )
@@ -13,6 +15,7 @@ type (
 		widget.BaseWidget
 		label *widget.Label
 		btn   *widget.Button
+		bg    *canvas.Rectangle
 	}
 
 	resizableTable struct {
@@ -29,6 +32,7 @@ func newTableCell() *tableCell {
 	c := &tableCell{
 		label: widget.NewLabel(""),
 		btn:   widget.NewButton(i18n.T("gui.btn_apply"), nil),
+		bg:    canvas.NewRectangle(color.Transparent),
 	}
 	c.label.Truncation = fyne.TextTruncateClip
 	c.btn.Hide()
@@ -37,7 +41,7 @@ func newTableCell() *tableCell {
 }
 
 func (c *tableCell) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(container.NewStack(c.label, c.btn))
+	return widget.NewSimpleRenderer(container.NewStack(c.bg, c.label, c.btn))
 }
 
 func (c *tableCell) updateText(text string) {
@@ -104,4 +108,18 @@ func (w *resizableTable) updateColumnWidths(availableWidth float32) {
 	if w.hasButtonCol {
 		w.table.SetColumnWidth(6, buttonWidth)
 	}
+}
+
+func (c *tableCell) setHighlighted(isHighlighted bool, isDarkVariant bool) {
+	if isHighlighted {
+		if isDarkVariant {
+			c.bg.FillColor = color.NRGBA{R: 45, G: 65, B: 95, A: 160}
+		} else {
+			c.bg.FillColor = color.NRGBA{R: 176, G: 224, B: 255, A: 160}
+		}
+		c.bg.CornerRadius = 0
+	} else {
+		c.bg.FillColor = color.Transparent
+	}
+	c.bg.Refresh()
 }

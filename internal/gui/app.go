@@ -56,6 +56,8 @@ type (
 
 		sysProxyManager sysproxy.SystemProxyManager
 
+		highlightedRow   int
+		isDarkTheme      bool
 		isGeoIPAvailable bool
 		geoIPResolver    common.GeoIPResolver
 
@@ -235,17 +237,20 @@ func (g *AppGUI) appendLog(level common.LogLevel, text string) {
 func (g *AppGUI) applyTheme(themeName string) {
 	switch strings.ToLower(themeName) {
 	case themeLight:
+		g.isDarkTheme = false
 		g.app.Settings().SetTheme(&forcedVariantTheme{
 			Theme:   theme.DefaultTheme(),
 			variant: theme.VariantLight,
 		})
 	case themeDark:
+		g.isDarkTheme = true
 		g.app.Settings().SetTheme(&forcedVariantTheme{
 			Theme:   theme.DefaultTheme(),
 			variant: theme.VariantDark,
 		})
 	case themeSystem:
 	default:
+		g.isDarkTheme = false
 		g.app.Settings().SetTheme(nil)
 	}
 }
@@ -296,8 +301,38 @@ func (g *AppGUI) Run() {
 	g.showMainScreen()
 
 	g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
+	g.restoreSystemProxyHighlight()
 
 	g.window.ShowAndRun()
+}
+
+func (g *AppGUI) restoreSystemProxyHighlight() {
+	if !g.sysProxyManager.IsSupported() {
+		return
+	}
+
+	host, port, err := g.sysProxyManager.GetActiveProxy()
+	if err != nil {
+		g.appendLog(common.LogLevelWarn, fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
+		return
+	}
+
+	if host != "" && port != "" {
+		g.highlightProxyInList(host, port)
+	}
+}
+
+func (g *AppGUI) highlightProxyInList(host, port string) {
+	g.highlightedRow = -1
+	for i, item := range g.proxyItems {
+		if item.Host == host && item.Port == port {
+			g.highlightedRow = i
+			break
+		}
+	}
+	if g.table != nil {
+		g.table.Refresh()
+	}
 }
 
 func (g *AppGUI) getTargetURL() string {
