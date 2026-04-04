@@ -80,23 +80,23 @@ func (g *AppGUI) showSettingsScreen() {
 		g.cfg.GeoIPDBPath = geoipEntry.Text
 		g.initGeoIP(g.cfg.GeoIPDBPath)
 		if g.isGeoIPAvailable {
-			g.appendLog(i18n.T("gui.settings.geoip_loaded") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.geoip_loaded")+"\n")
 		} else if g.cfg.GeoIPDBPath != "" {
-			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), errors.New("file not found or invalid format")))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), errors.New("file not found or invalid format")))
 		}
 
 		if g.sysProxyManager.IsSupported() {
 			if err := g.sysProxyManager.SetIgnoreHosts(ignoreHostsEntry.Text); err != nil {
-				g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_set_ignore_hosts"), err))
+				g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_set_ignore_hosts"), err))
 			} else {
-				g.appendLog(i18n.T("gui.settings.ignore_hosts_saved") + "\n")
+				g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.ignore_hosts_saved")+"\n")
 			}
 		}
 
 		if err := g.cfg.SaveToFile(); err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.save_error"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.save_error"), err))
 		} else {
-			g.appendLog(i18n.T("gui.settings.saved") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.saved")+"\n")
 		}
 
 		if oldSource != g.cfg.Source || oldProxyType != g.cfg.Type {
@@ -126,7 +126,7 @@ func (g *AppGUI) createIgnoreHostsBox() (*fyne.Container, *widget.Entry) {
 	if g.sysProxyManager.IsSupported() {
 		ignoreHosts, err := g.sysProxyManager.GetIgnoreHosts()
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_get_ignore_hosts"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("sysproxy.err_get_ignore_hosts"), err))
 		} else {
 			ignoreHostsEntry.SetText(ignoreHosts)
 		}
@@ -189,7 +189,7 @@ func (g *AppGUI) createWorkersSelector() *widget.Select {
 	selectWorkers := widget.NewSelect(workerOptions, func(s string) {
 		val, err := strconv.Atoi(s)
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
 			return
 		}
 		g.cfg.Workers = val
@@ -203,7 +203,7 @@ func (g *AppGUI) createTimeoutSelector() *widget.Select {
 	selectTimeout := widget.NewSelect(timeoutOptions, func(s string) {
 		d, err := time.ParseDuration(s)
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("gui.settings.save_error"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("gui.settings.save_error"), err))
 			return
 		}
 		g.cfg.Timeout = d
@@ -221,7 +221,7 @@ func (g *AppGUI) createDynamicFieldsBox(selectSource *widget.Select) *fyne.Conta
 	selectRTT := widget.NewSelect(rttOptions, func(s string) {
 		val, err := strconv.Atoi(s)
 		if err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("cli.err_invalid_type"), err))
 			return
 		}
 		g.cfg.RTT = val

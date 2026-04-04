@@ -96,7 +96,7 @@ func (g *AppGUI) initGeoIP(customPath string) {
 			g.isGeoIPAvailable = true
 			return
 		}
-		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), err))
+		g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), err))
 	}
 
 	if customPath != "" {
@@ -106,7 +106,7 @@ func (g *AppGUI) initGeoIP(customPath string) {
 			g.isGeoIPAvailable = true
 			return
 		}
-		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), err))
+		g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.geoip_error"), err))
 	}
 }
 
@@ -141,7 +141,7 @@ func (g *AppGUI) initUIComponents() {
 
 	g.switchProxy = widget.NewCheck("", func(checked bool) {
 		if !g.sysProxyManager.IsSupported() {
-			g.appendLog(i18n.T("gui.sys_proxy_unsupported") + "\n")
+			g.appendLog(common.LogLevelError, i18n.T("gui.sys_proxy_unsupported")+"\n")
 			g.switchProxy.SetChecked(false)
 			return
 		}
@@ -152,10 +152,10 @@ func (g *AppGUI) initUIComponents() {
 		}
 
 		if err := g.sysProxyManager.SetMode(mode); err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_error"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_error"), err))
 			g.switchProxy.SetChecked(!checked)
 		} else {
-			g.appendLog(fmt.Sprintf("%s: %s\n", i18n.T("gui.sys_proxy_mode_changed"), mode))
+			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s\n", i18n.T("gui.sys_proxy_mode_changed"), mode))
 		}
 	})
 
@@ -170,7 +170,7 @@ func (g *AppGUI) initUIComponents() {
 	g.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
 		if g.cancelFunc != nil {
 			g.cancelFunc()
-			g.appendLog(i18n.T("gui.log_stopped") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.log_stopped")+"\n")
 		}
 	})
 	g.btnCancel.Importance = widget.DangerImportance
@@ -189,22 +189,25 @@ func (g *AppGUI) loadSystemProxyState() {
 
 	currentMode, err := g.sysProxyManager.GetMode()
 	if err != nil {
-		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
+		g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
 	} else if currentMode == sysproxy.ProxyModeManual {
 		g.switchProxy.SetChecked(true)
 	}
 }
 
-func (g *AppGUI) appendLog(text string) {
+func (g *AppGUI) appendLog(level common.LogLevel, text string) {
 	g.logMutex.Lock()
 	g.logBuffer += text
 	cleanText := strings.TrimSpace(text)
 	g.logMutex.Unlock()
 
 	if cleanText != "" {
-		if strings.Contains(strings.ToLower(cleanText), "ошибка") || strings.Contains(strings.ToLower(cleanText), "error") {
+		switch {
+		case level == common.LogLevelError:
 			g.logger.Error(cleanText)
-		} else {
+		case level == common.LogLevelWarn:
+			g.logger.Warn(cleanText)
+		default:
 			g.logger.Info(cleanText)
 		}
 	}
@@ -242,7 +245,7 @@ func (g *AppGUI) applyTheme(themeName string) {
 func (g *AppGUI) loadCacheForSource(source common.Source, proxyType common.ProxyType) {
 	cachedItems, err := g.cache.Load(source, proxyType)
 	if err != nil {
-		g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+		g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		return
 	}
 
@@ -265,7 +268,7 @@ func (g *AppGUI) loadCacheForSource(source common.Source, proxyType common.Proxy
 		}
 	})
 
-	g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
 }
 
 func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapper {

@@ -3,6 +3,7 @@ package gui
 import (
 	"context"
 	"fmt"
+	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
@@ -20,7 +21,7 @@ func (g *AppGUI) showMainScreen() {
 	g.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
 		if g.cancelFunc != nil {
 			g.cancelFunc()
-			g.appendLog(i18n.T("gui.log_stopped") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.log_stopped")+"\n")
 		}
 	})
 	g.btnCancel.Importance = widget.DangerImportance
@@ -126,7 +127,7 @@ func (g *AppGUI) setUIState(running bool) {
 
 func (g *AppGUI) runBatchCheck() {
 	g.logBuffer = ""
-	g.appendLog(i18n.T("gui.log_preparing") + "\n")
+	g.appendLog(common.LogLevelInfo, i18n.T("gui.log_preparing")+"\n")
 	_ = g.progress.Set(0)
 
 	g.progressBar.Show()
@@ -142,14 +143,14 @@ func (g *AppGUI) runBatchCheck() {
 		g.progressBar.Hide()
 	})
 
-	g.appendLog(fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
+	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
 
 	fetcherInstance := fetcher.NewFetcher(g.cfg.Source, g.logger)
 	verifierInstance := services.NewDefaultVerifier()
 
 	validProxies, err := services.RunPipeline(ctx, fetcherInstance, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
 		OnFetched: func(total int) {
-			g.appendLog(fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
+			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
 		},
 		OnProgress: func(current, total int) {
 			if ctx.Err() == nil {
@@ -158,7 +159,7 @@ func (g *AppGUI) runBatchCheck() {
 		},
 	})
 	if err != nil {
-		g.appendLog(fmt.Sprintf("%s: %v", i18n.T("gui.log_fetch_error"), err))
+		g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v", i18n.T("gui.log_fetch_error"), err))
 		return
 	}
 
@@ -172,14 +173,14 @@ func (g *AppGUI) runBatchCheck() {
 	})
 
 	if ctx.Err() != nil {
-		g.appendLog(i18n.T("gui.log_stopped") + "\n")
+		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_stopped")+"\n")
 	} else {
-		g.appendLog(fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
+		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
 		if err := g.cache.Save(g.cfg.Source, g.cfg.Type, validProxies, g.cfg.CacheTTL); err != nil {
-			g.appendLog(fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
 		} else {
-			g.appendLog(i18n.T("gui.log_cache_saved") + "\n")
+			g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
 		}
 	}
 	_ = g.progress.Set(1.0)
@@ -245,9 +246,9 @@ func (g *AppGUI) createResultTable() *widget.Table {
 func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	err := g.sysProxyManager.SetProxy(host, port, proxyType)
 	if err != nil {
-		g.appendLog(fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
+		g.appendLog(common.LogLevelError, fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
 	} else {
-		g.appendLog(fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
+		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 		g.switchProxy.SetChecked(true)
 	}
 }
