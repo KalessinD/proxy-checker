@@ -12,11 +12,11 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"go.uber.org/zap"
 )
 
 type ProxyManiaFetcher struct {
 	BaseURL string
+	Logger  common.LoggerInterface
 }
 
 const (
@@ -24,9 +24,10 @@ const (
 	DefaultUnknownRTT = 99999
 )
 
-func NewProxyManiaFetcher() *ProxyManiaFetcher {
+func NewProxyManiaFetcher(logger common.LoggerInterface) *ProxyManiaFetcher {
 	return &ProxyManiaFetcher{
 		BaseURL: ProxyManiaBaseURL,
+		Logger:  logger,
 	}
 }
 
@@ -65,7 +66,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*Pr
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: fetcherClientTimeout} // ИСПОЛЬЗУЕМ КОНСТАНТУ
+	client := &http.Client{Timeout: fetcherClientTimeout}
 
 	for len(queue) > 0 {
 		if maxPages > 0 && pagesFetched >= maxPages {
@@ -82,7 +83,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*Pr
 
 		proxies, pageLinks, err := f.fetchSinglePage(ctx, client, currentURL, baseParsedURL)
 		if err != nil {
-			zap.S().Warnf("failed to fetch page %s: %v", strings.TrimSpace(currentURL), err)
+			f.Logger.Warnf("failed to fetch page %s: %v", strings.TrimSpace(currentURL), err)
 			continue
 		}
 
@@ -164,7 +165,7 @@ func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Cl
 		speedCell := row.Find("td.speed-fast")
 		rttText := strings.TrimSpace(speedCell.Text())
 
-		rttMs := DefaultUnknownRTT // ИСПОЛЬЗУЕМ КОНСТАНТУ
+		rttMs := DefaultUnknownRTT
 		if p := strings.Fields(rttText); len(p) > 0 {
 			if val, err := strconv.Atoi(p[0]); err == nil {
 				rttMs = val

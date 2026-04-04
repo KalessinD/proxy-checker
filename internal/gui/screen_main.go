@@ -144,7 +144,7 @@ func (g *AppGUI) runBatchCheck() {
 
 	g.appendLog(fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
 
-	fetcherInstance := fetcher.NewFetcher(g.cfg.Source)
+	fetcherInstance := fetcher.NewFetcher(g.cfg.Source, g.logger)
 	verifierInstance := services.NewDefaultVerifier()
 
 	validProxies, err := services.RunPipeline(ctx, fetcherInstance, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{

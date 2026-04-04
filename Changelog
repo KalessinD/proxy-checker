@@ -27,3 +27,4 @@ Revision history for Golang Tool to search for a working proxies
     - refactoring
     - add new source: proxifly
     - cache for each source
+    - logger has been reworked

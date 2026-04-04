@@ -18,7 +18,6 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"go.uber.org/zap"
 )
 
 const (
@@ -41,6 +40,7 @@ type (
 		window fyne.Window
 		cfg    *config.Config
 		cache  cache.StorageInterface
+		logger common.LoggerInterface
 
 		progress   binding.Float
 		proxyItems []*ProxyItemWrapper
@@ -108,13 +108,14 @@ func (g *AppGUI) initGeoIP(customPath string) {
 	}
 }
 
-func NewAppGUI(cfg *config.Config) *AppGUI {
+func NewAppGUI(cfg *config.Config, logger common.LoggerInterface) *AppGUI {
 	a := app.NewWithID(common.AppName)
 
 	gui := &AppGUI{
 		app:             a,
 		window:          a.NewWindow(common.AppName),
 		cfg:             cfg,
+		logger:          logger,
 		progress:        binding.NewFloat(),
 		proxyItems:      make([]*ProxyItemWrapper, 0),
 		cache:           cache.NewFileCache(),
@@ -200,9 +201,9 @@ func (g *AppGUI) appendLog(text string) {
 
 	if cleanText != "" {
 		if strings.Contains(strings.ToLower(cleanText), "ошибка") || strings.Contains(strings.ToLower(cleanText), "error") {
-			zap.S().Error(cleanText)
+			g.logger.Error(cleanText)
 		} else {
-			zap.S().Info(cleanText)
+			g.logger.Info(cleanText)
 		}
 	}
 
@@ -290,7 +291,7 @@ func (g *AppGUI) getTargetURL() string {
 	return g.cfg.DestAddr
 }
 
-func Run(cfg *config.Config) {
-	gui := NewAppGUI(cfg)
+func Run(cfg *config.Config, logger common.LoggerInterface) {
+	gui := NewAppGUI(cfg, logger)
 	gui.Run()
 }

@@ -17,7 +17,6 @@ func TestDefaultLogPath(t *testing.T) {
 	if runtime.GOOS == "linux" {
 		assert.Equal(t, "/tmp/"+common.AppName+".log", path)
 	} else {
-		// Для не-Linux систем ожидаем путь внутри домашней директории
 		homeDir, err := os.UserHomeDir()
 		require.NoError(t, err)
 		expectedPath := filepath.Join(homeDir, common.AppName+".log")
@@ -32,7 +31,7 @@ func TestInitLogger(t *testing.T) {
 		disableConsole bool
 		expectError    bool
 		errorContains  string
-		setupFunc      func() // Вызывается перед тестом для подготовки окружения
+		setupFunc      func()
 	}{
 		{
 			name:           "Success with console only",
@@ -50,7 +49,7 @@ func TestInitLogger(t *testing.T) {
 			name:           "Fallback to NopCore when console disabled and no path",
 			logPath:        "",
 			disableConsole: true,
-			expectError:    false, // Код обрабатывает этот кейс через NopCore
+			expectError:    false,
 		},
 		{
 			name:           "Error when log directory does not exist",
@@ -67,13 +66,15 @@ func TestInitLogger(t *testing.T) {
 				tt.setupFunc()
 			}
 
-			err := common.InitLogger(tt.logPath, tt.disableConsole)
+			logger, err := common.InitLogger(tt.logPath, tt.disableConsole)
 
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorContains)
+				assert.Nil(t, logger)
 			} else {
 				require.NoError(t, err)
+				assert.NotNil(t, logger)
 			}
 
 			if tt.logPath != "" && !tt.expectError {
@@ -87,8 +88,9 @@ func TestInitLogger_FileCreationPermissions(t *testing.T) {
 	tempDir := t.TempDir()
 	logFile := filepath.Join(tempDir, "perms_test.log")
 
-	err := common.InitLogger(logFile, true)
+	logger, err := common.InitLogger(logFile, true)
 	require.NoError(t, err)
+	require.NotNil(t, logger)
 
 	info, err := os.Stat(logFile)
 	require.NoError(t, err)

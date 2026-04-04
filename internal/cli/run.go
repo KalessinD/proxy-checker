@@ -12,18 +12,18 @@ import (
 	"strings"
 )
 
-func Run(cfg *config.Config, opts *Options) {
+func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
 	switch {
 	case opts.ProxiesStat:
-		handleProxiesList(cfg, opts)
+		handleProxiesList(cfg, opts, logger)
 	case opts.ProxyAddr != "":
-		handleSingleCheck(cfg, opts)
+		handleSingleCheck(cfg, opts, logger)
 	default:
 		fmt.Println(i18n.T("cli.err_no_action"))
 	}
 }
 
-func handleSingleCheck(cfg *config.Config, opts *Options) {
+func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterface) {
 	fmt.Printf(i18n.T("cli.checking")+"\n", opts.ProxyAddr, cfg.Type)
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
@@ -38,10 +38,10 @@ func handleSingleCheck(cfg *config.Config, opts *Options) {
 	fmt.Printf("%s: TCP: %s, HTTP: %s, Статус: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, res.StatusCode)
 }
 
-func handleProxiesList(cfg *config.Config, opts *Options) {
+func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
 	fmt.Printf(i18n.T("cli.mode")+"\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
 
-	fetcherInstance := fetcher.NewFetcher(cfg.Source)
+	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
 
 	if !opts.Check {
 		settings := fetcher.Settings{

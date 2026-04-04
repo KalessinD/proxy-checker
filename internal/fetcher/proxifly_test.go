@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestProxiflyFetcher_Fetch_Success(t *testing.T) {
@@ -38,7 +39,8 @@ socks5://3.3.3.3:1080`
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider())
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider(), logger)
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,
@@ -65,7 +67,8 @@ func TestProxiflyFetcher_Fetch_HttpError(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider())
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewProxiflyProvider(), logger)
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,

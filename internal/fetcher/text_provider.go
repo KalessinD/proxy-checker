@@ -15,6 +15,7 @@ type (
 	TextListFetcher struct {
 		BaseURL  string
 		provider TextProviderInterface
+		Logger   common.LoggerInterface
 	}
 
 	TextProviderInterface interface {
@@ -24,10 +25,11 @@ type (
 	}
 )
 
-func NewTextListFetcher(baseURL string, provider TextProviderInterface) *TextListFetcher {
+func NewTextListFetcher(baseURL string, provider TextProviderInterface, logger common.LoggerInterface) *TextListFetcher {
 	return &TextListFetcher{
 		BaseURL:  baseURL,
 		provider: provider,
+		Logger:   logger,
 	}
 }
 

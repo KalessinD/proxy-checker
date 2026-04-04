@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestTheSpeedXFetcher_Fetch_Success(t *testing.T) {
@@ -37,7 +38,8 @@ invalid_line_without_port
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewTheSpeedXProvider())
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewTheSpeedXProvider(), logger)
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,
@@ -64,7 +66,8 @@ func TestTheSpeedXFetcher_Fetch_HttpError(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewTheSpeedXProvider())
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	fetcherInstance := fetcher.NewTextListFetcher(testServer.URL+"/", fetcher.NewTheSpeedXProvider(), logger)
 
 	settings := fetcher.Settings{
 		Type: common.ProxySOCKS5,

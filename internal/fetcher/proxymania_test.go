@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestMain(m *testing.M) {
@@ -42,6 +43,8 @@ func TestProxyManiaFetcher_Fetch_ErrorCases(t *testing.T) {
 		},
 	}
 
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -52,6 +55,7 @@ func TestProxyManiaFetcher_Fetch_ErrorCases(t *testing.T) {
 
 			fetcherInstance := &fetcher.ProxyManiaFetcher{
 				BaseURL: testServer.URL,
+				Logger:  logger,
 			}
 
 			settings := fetcher.Settings{
