@@ -252,8 +252,8 @@ func (g *AppGUI) applyTheme(themeName string) {
 	}
 }
 
-// loadCacheForSource загружает данные из кэша для указанного источника и типа прокси.
-// Если кэш пуст или истек, очищает текущий список.
+// loadCacheForSource loads data from cache for the specified source and proxy type.
+// If the cache is empty or expired, it clears the current list.
 func (g *AppGUI) loadCacheForSource(source common.Source, proxyType common.ProxyType) {
 	cachedItems, err := g.cache.Load(source, proxyType)
 	if err != nil {
@@ -344,4 +344,17 @@ func (g *AppGUI) buildTargetSelector() (*widget.Select, *widget.Entry, *fyne.Con
 	targetSelect.PlaceHolder = i18n.T("gui.settings.target_placeholder")
 
 	return targetSelect, customEntry, customBox
+}
+
+// restoreTargetSelectorState applies the current AppGUI state (isCustomTarget, customTargetURL, cfg.DestAddr)
+// to the target selector widgets so they reflect the actual configuration.
+func (g *AppGUI) restoreTargetSelectorState(targetSelect *widget.Select, customEntry *widget.Entry, customBox *fyne.Container) {
+	customEntry.SetText(g.customTargetURL)
+
+	if g.isCustomTarget {
+		targetSelect.SetSelected(i18n.T("gui.single.custom_site"))
+		customBox.Show()
+	} else if g.cfg.DestAddr != "" {
+		targetSelect.SetSelected(g.cfg.DestAddr)
+	}
 }

@@ -55,7 +55,9 @@ func (g *AppGUI) showSettingsScreen() {
 	ignoreHostsBox, ignoreHostsEntry := g.createIgnoreHostsBox()
 	proxyTypeSelector, http2Box := g.createProxyTypeSelector()
 	dynamicBox := g.createDynamicFieldsBox(selectSource)
-	selectTarget, _, customBox := g.buildTargetSelector()
+	selectTarget, customEntry, customBox := g.buildTargetSelector()
+
+	g.restoreTargetSelectorState(selectTarget, customEntry, customBox)
 
 	settingsContent := container.NewVBox(
 		widget.NewLabel(i18n.T("gui.settings.title")),

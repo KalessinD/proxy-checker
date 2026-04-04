@@ -79,7 +79,7 @@ func TestProxyManiaFetcher_Fetch_ErrorCases(t *testing.T) {
 }
 
 func TestProxyManiaFetcher_Fetch_Success(t *testing.T) {
-	// Фейковый HTML-ответ, имитирующий структуру таблицы ProxyMania
+	// Fake HTML response to simulate the ProxyMania table structure
 	htmlResponse := `
 	<html><body>
 	<table class="table_proxychecker">

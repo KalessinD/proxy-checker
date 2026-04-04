@@ -45,7 +45,7 @@ func TestIsGnomeDesktop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Сохраняем и восстанавливаем env
+			// Save and restore environment variables
 			oldDesktop := os.Getenv("XDG_CURRENT_DESKTOP")
 			oldSession := os.Getenv("DESKTOP_SESSION")
 			defer func() {
@@ -57,7 +57,7 @@ func TestIsGnomeDesktop(t *testing.T) {
 			t.Setenv("DESKTOP_SESSION", tt.sessionEnv)
 			result := sysproxy.IsGnomeDesktop()
 
-			assert.Equal(t, tt.expectMatch, result, "Not expected result")
+			assert.Equal(t, tt.expectMatch, result, "Result does not match expectation")
 		})
 	}
 }

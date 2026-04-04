@@ -26,7 +26,7 @@ func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
 }
 
 func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterface) {
-	fmt.Printf(i18n.T("cli.checking")+"\n", opts.ProxyAddr, cfg.Type)
+	fmt.Printf("%s: %s (%s)...\n", i18n.T("cli.checking"), opts.ProxyAddr, cfg.Type)
 	ctx, sigCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 	defer sigCancel()
 
@@ -40,11 +40,22 @@ func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterfa
 		return
 	}
 
-	fmt.Printf("%s: TCP: %s, HTTP: %s, Статус: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, res.StatusCode)
+	fmt.Printf("%s: TCP: %s, HTTP: %s, %s: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, i18n.T("cli.status_label"), res.StatusCode)
 }
 
 func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
-	fmt.Printf(i18n.T("cli.mode")+"\n", cfg.Type, cfg.Source, cfg.RTT, cfg.Pages)
+	fmt.Printf(
+		"%s %s: %s, %s: %s, %s: %d, %s: %d\n",
+		i18n.T("cli.mode_start"),
+		i18n.T("cli.mode_type"),
+		cfg.Type,
+		i18n.T("cli.mode_source"),
+		cfg.Source,
+		i18n.T("cli.mode_rtt"),
+		cfg.RTT,
+		i18n.T("cli.mode_pages"),
+		cfg.Pages,
+	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -56,7 +67,7 @@ func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerIn
 	}
 }
 
-// handleListFetch обрабатывает только получение списка без проверки
+// handleListFetch handles fetching the list only, without validation
 func handleListFetch(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
 	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
 
@@ -76,7 +87,7 @@ func handleListFetch(ctx context.Context, cfg *config.Config, logger common.Logg
 	PrintTable(allProxies)
 }
 
-// handleListCheck обрабатывает получение и проверку списка
+// handleListCheck handles fetching and validation of the list
 func handleListCheck(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
 	fmt.Printf("%s (Workers: %d)...\n", i18n.T("cli.starting_workers"), cfg.Workers)
 

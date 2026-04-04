@@ -28,14 +28,7 @@ func (g *AppGUI) showSingleCheckScreen() {
 	}
 
 	targetSelect, customEntry, customBox := g.buildTargetSelector()
-	customEntry.SetText(g.customTargetURL)
-
-	if g.isCustomTarget {
-		targetSelect.SetSelected(i18n.T("gui.single.custom_site"))
-		customBox.Show()
-	} else if g.cfg.DestAddr != "" {
-		targetSelect.SetSelected(g.cfg.DestAddr)
-	}
+	g.restoreTargetSelectorState(targetSelect, customEntry, customBox)
 
 	btnRun := widget.NewButton(i18n.T("gui.btn_run"), func() {
 		addr := proxyEntry.Text
