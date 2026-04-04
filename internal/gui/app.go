@@ -38,11 +38,12 @@ type (
 	}
 
 	AppGUI struct {
-		app    fyne.App
-		window fyne.Window
-		cfg    *config.Config
-		cache  cache.StorageInterface
-		logger common.LoggerInterface
+		app     fyne.App
+		window  fyne.Window
+		cfg     *config.Config
+		cache   cache.StorageInterface
+		logger  common.LoggerInterface
+		version string
 
 		progress   binding.Float
 		proxyItems []*ProxyItemWrapper
@@ -56,6 +57,8 @@ type (
 
 		sysProxyManager sysproxy.SystemProxyManager
 
+		highlightedRow   int
+		isDarkTheme      bool
 		isGeoIPAvailable bool
 		geoIPResolver    common.GeoIPResolver
 
@@ -109,7 +112,7 @@ func (g *AppGUI) initGeoIP(customPath string) {
 	}
 }
 
-func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface) *AppGUI {
+func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface, version string) *AppGUI {
 	gui := &AppGUI{
 		app:             fyneApp,
 		window:          fyneApp.NewWindow(common.AppName),
@@ -119,6 +122,7 @@ func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterfa
 		proxyItems:      make([]*ProxyItemWrapper, 0),
 		cache:           cache.NewFileStorage(logger),
 		sysProxyManager: sysproxy.NewSystemProxyManager(),
+		version:         version,
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
@@ -131,9 +135,25 @@ func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterfa
 	return gui
 }
 
+// setupMainMenu initializes the top-level application menu bar.
+func (g *AppGUI) setupMainMenu() {
+	// fileMenu := fyne.NewMenu(i18n.T("gui.menu_file"))
+	fileMenu := fyne.NewMenu(i18n.T("gui.menu_file"), fyne.NewMenuItem(i18n.T("gui.menu_settings"), func() {
+		g.ShowSettingsScreen()
+	}))
+
+	aboutMenuItem := fyne.NewMenuItem(i18n.T("gui.menu_about"), func() {
+		g.ShowAboutDialog()
+	})
+
+	helpMenu := fyne.NewMenu(i18n.T("gui.menu_help"), aboutMenuItem)
+
+	g.window.SetMainMenu(fyne.NewMainMenu(fileMenu, helpMenu))
+}
+
 func (g *AppGUI) initUIComponents() {
 	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() {
-		g.showSettingsScreen()
+		g.ShowSettingsScreen()
 	})
 
 	g.switchProxy = widget.NewCheck("", func(checked bool) {
@@ -157,7 +177,7 @@ func (g *AppGUI) initUIComponents() {
 	})
 
 	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() {
-		g.showSingleCheckScreen()
+		g.ShowSingleCheckScreen()
 	})
 
 	g.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() {
@@ -235,17 +255,20 @@ func (g *AppGUI) appendLog(level common.LogLevel, text string) {
 func (g *AppGUI) applyTheme(themeName string) {
 	switch strings.ToLower(themeName) {
 	case themeLight:
+		g.isDarkTheme = false
 		g.app.Settings().SetTheme(&forcedVariantTheme{
 			Theme:   theme.DefaultTheme(),
 			variant: theme.VariantLight,
 		})
 	case themeDark:
+		g.isDarkTheme = true
 		g.app.Settings().SetTheme(&forcedVariantTheme{
 			Theme:   theme.DefaultTheme(),
 			variant: theme.VariantDark,
 		})
 	case themeSystem:
 	default:
+		g.isDarkTheme = false
 		g.app.Settings().SetTheme(nil)
 	}
 }
@@ -293,11 +316,42 @@ func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapp
 }
 
 func (g *AppGUI) Run() {
+	g.setupMainMenu()
 	g.showMainScreen()
 
 	g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
+	g.restoreSystemProxyHighlight()
 
 	g.window.ShowAndRun()
+}
+
+func (g *AppGUI) restoreSystemProxyHighlight() {
+	if !g.sysProxyManager.IsSupported() {
+		return
+	}
+
+	host, port, err := g.sysProxyManager.GetActiveProxy()
+	if err != nil {
+		g.appendLog(common.LogLevelWarn, fmt.Sprintf("%s: %v\n", i18n.T("gui.sys_proxy_status_error"), err))
+		return
+	}
+
+	if host != "" && port != "" {
+		g.highlightProxyInList(host, port)
+	}
+}
+
+func (g *AppGUI) highlightProxyInList(host, port string) {
+	g.highlightedRow = -1
+	for i, item := range g.proxyItems {
+		if item.Host == host && item.Port == port {
+			g.highlightedRow = i
+			break
+		}
+	}
+	if g.table != nil {
+		g.table.Refresh()
+	}
 }
 
 func (g *AppGUI) getTargetURL() string {
@@ -307,9 +361,9 @@ func (g *AppGUI) getTargetURL() string {
 	return g.cfg.DestAddr
 }
 
-func Run(cfg *config.Config, logger common.LoggerInterface) {
+func Run(cfg *config.Config, logger common.LoggerInterface, version string) {
 	fyneApp := app.NewWithID(common.AppName)
-	gui := NewAppGUI(fyneApp, cfg, logger)
+	gui := NewAppGUI(fyneApp, cfg, logger, version)
 	gui.Run()
 }
 

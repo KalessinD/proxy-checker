@@ -15,8 +15,8 @@ import (
 )
 
 func (g *AppGUI) showMainScreen() {
-	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() { g.showSettingsScreen() })
-	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() { g.showSingleCheckScreen() })
+	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() { g.ShowSettingsScreen() })
+	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() { g.ShowSingleCheckScreen() })
 	g.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() { go g.runBatchCheck() })
 	g.btnCancel = widget.NewButton(i18n.T("gui.btn_cancel"), func() {
 		if g.cancelFunc != nil {
@@ -242,7 +242,14 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			case 5:
 				text = item.HTTP
 			}
+
 			tc.updateText(text)
+
+			if id.Row == g.highlightedRow {
+				tc.setHighlighted(true, g.isDarkTheme)
+			} else {
+				tc.setHighlighted(false, g.isDarkTheme)
+			}
 		},
 	)
 
@@ -253,8 +260,10 @@ func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	err := g.sysProxyManager.SetProxy(host, port, proxyType)
 	if err != nil {
 		g.appendLog(common.LogLevelError, fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
-	} else {
-		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
-		g.switchProxy.SetChecked(true)
+		return
 	}
+
+	g.switchProxy.SetChecked(true)
+	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
+	g.highlightProxyInList(host, port)
 }

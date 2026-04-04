@@ -158,12 +158,62 @@ func clearProxySubkey(proto string) error {
 	return gsettingsSet(schema, "port", "0")
 }
 
+func (m *linuxProxyManager) GetActiveProxy() (string, string, error) {
+	mode, err := m.GetMode()
+	if err != nil || mode != ProxyModeManual {
+		return "", "", nil
+	}
+
+	httpHost, err := gsettingsGetString("org.gnome.system.proxy.http", "host")
+	if err != nil {
+		return "", "", err
+	}
+	httpPort, err := gsettingsGetString("org.gnome.system.proxy.http", "port")
+	if err != nil {
+		return "", "", err
+	}
+
+	if httpHost != "" && httpPort != "" && httpPort != "0" {
+		return httpHost, httpPort, nil
+	}
+
+	socksHost, err := gsettingsGetString("org.gnome.system.proxy.socks", "host")
+	if err != nil {
+		return "", "", err
+	}
+
+	socksPort, err := gsettingsGetString("org.gnome.system.proxy.socks", "port")
+	if err != nil {
+		return "", "", err
+	}
+
+	if socksHost != "" && socksPort != "" && socksPort != "0" {
+		return socksHost, socksPort, nil
+	}
+
+	return "", "", nil
+}
+
 func setProxySubkey(proto, host, port string) error {
 	schema := "org.gnome.system.proxy." + proto
 	if err := gsettingsSet(schema, "host", host); err != nil {
 		return err
 	}
 	return gsettingsSet(schema, "port", port)
+}
+
+func gsettingsGetString(schema, key string) (string, error) {
+	cmd := exec.Command("gsettings", "get", schema, key)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+
+	val := strings.TrimSpace(out.String())
+	val = strings.Trim(val, "'")
+	return val, nil
 }
 
 func gsettingsSet(schema, key, value string) error {

@@ -14,7 +14,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func (g *AppGUI) showSingleCheckScreen() {
+func (g *AppGUI) ShowSingleCheckScreen() {
 	proxyEntry := widget.NewEntry()
 	proxyEntry.SetPlaceHolder(i18n.T("gui.single.placeholder"))
 

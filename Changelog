@@ -31,3 +31,7 @@ Revision history for Golang Tool to search for a working proxies
     - refactoring
     - cache for each pair source + proxy type
     - logger has been reworked
+
+0.0.15  2026 Apr 04
+    - added row highlighting
+    - added about fialog window

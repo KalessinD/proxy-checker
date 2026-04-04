@@ -15,7 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func (g *AppGUI) showSettingsScreen() {
+func (g *AppGUI) ShowSettingsScreen() {
 	sources := []string{
 		string(common.SourceProxyMania),
 		string(common.SourceTheSpeedX),
@@ -105,6 +105,7 @@ func (g *AppGUI) showSettingsScreen() {
 			g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
 		}
 
+		g.setupMainMenu()
 		g.showMainScreen()
 	})
 
