@@ -2,7 +2,7 @@ package gui
 
 import (
 	"image/color"
-	"os"
+	images "proxy-checker/assets"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 
@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	appIconPath = "assets/images/proxy-checker.png"
-	iconWidth   = 320
-	iconHeight  = 320
+	iconWidth  = 320
+	iconHeight = 320
 )
 
 // ShowAboutDialog creates and displays the About modal popup.
@@ -48,11 +47,11 @@ func (g *AppGUI) ShowAboutDialog() {
 	customDialog.Show()
 }
 
-// loadAboutIcon attempts to load the application icon from the assets directory.
-// If the file is missing, it returns a transparent placeholder to keep the layout intact.
+// loadAboutIcon loads the application icon from the embedded binary data.
+// This ensures the image is always available, regardless of the external file system state.
 func (g *AppGUI) loadAboutIcon() fyne.CanvasObject {
-	if _, err := os.Stat(appIconPath); err != nil {
-		g.appendLog(common.LogLevelWarn, "About dialog: icon not found at "+appIconPath)
+	if len(images.Icon) == 0 {
+		g.appendLog(common.LogLevelWarn, "About dialog: embedded icon data is empty")
 
 		placeholder := canvas.NewRectangle(color.Transparent)
 		placeholder.SetMinSize(fyne.NewSize(iconWidth, iconHeight))
@@ -61,7 +60,8 @@ func (g *AppGUI) loadAboutIcon() fyne.CanvasObject {
 		return placeholder
 	}
 
-	iconImage := canvas.NewImageFromFile(appIconPath)
+	iconResource := fyne.NewStaticResource("proxy-checker.png", images.Icon)
+	iconImage := canvas.NewImageFromResource(iconResource)
 	iconImage.FillMode = canvas.ImageFillContain
 	iconImage.SetMinSize(fyne.NewSize(iconWidth, iconHeight))
 

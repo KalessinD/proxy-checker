@@ -35,3 +35,6 @@ Revision history for Golang Tool to search for a working proxies
 0.0.15  2026 Apr 04
     - added row highlighting
     - added about fialog window
+
+0.0.16  2026 Apr 05
+    - use embeded icon
