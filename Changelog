@@ -38,3 +38,5 @@ Revision history for Golang Tool to search for a working proxies
 
 0.0.16  2026 Apr 05
     - use embeded icon
+    - search via multi sources
+    - sortable columns

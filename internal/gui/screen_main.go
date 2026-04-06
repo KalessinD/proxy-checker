@@ -7,6 +7,7 @@ import (
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
+	"sort"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -82,15 +83,7 @@ func (g *AppGUI) showMainScreen() {
 
 	g.table = g.createResultTable()
 
-	headerObjects := []fyne.CanvasObject{
-		widget.NewLabel(i18n.T("gui.header_source")),
-		widget.NewLabel(i18n.T("gui.header_host")), widget.NewLabel(i18n.T("gui.header_port")), widget.NewLabel(i18n.T("gui.header_type")),
-		widget.NewLabel(i18n.T("gui.header_country")), widget.NewLabel(i18n.T("gui.header_tcp")), widget.NewLabel(i18n.T("gui.header_http")),
-	}
-	if g.sysProxyManager.IsSupported() {
-		headerObjects = append(headerObjects, widget.NewLabel(""))
-	}
-	tableHeader := container.NewGridWithColumns(len(headerObjects), headerObjects...)
+	tableHeader, _ := g.buildSortableHeader(g.sysProxyManager.IsSupported())
 
 	scalableTable := newResizableTable(
 		g.table,
@@ -288,4 +281,100 @@ func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	g.switchProxy.SetChecked(true)
 	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 	g.highlightProxyInList(host, port)
+}
+
+// sortProxyItems sorts the slice of UI wrappers based on the selected column index and direction.
+func sortProxyItems(items []*ProxyItemWrapper, col int, asc bool) {
+	sort.Slice(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		var less bool
+
+		switch col {
+		case 0:
+			less = a.Source < b.Source
+		case 1:
+			less = a.Host < b.Host
+		case 2:
+			less = a.Port < b.Port
+		case 3:
+			less = string(a.Type) < string(b.Type)
+		case 4:
+			less = a.Country < b.Country
+		case 5:
+			less = a.TCP < b.TCP
+		case 6:
+			less = a.HTTP < b.HTTP
+		default:
+			less = false
+		}
+
+		if asc {
+			return less
+		}
+		return !less
+	})
+}
+
+// buildSortableHeader creates a table header with clickable columns for sorting.
+// The sorting state (active column and direction) is managed locally via closures.
+func (g *AppGUI) buildSortableHeader(hasButtonCol bool) (*fyne.Container, func(int, bool)) {
+	baseTexts := []string{
+		i18n.T("gui.header_source"),
+		i18n.T("gui.header_host"),
+		i18n.T("gui.header_port"),
+		i18n.T("gui.header_type"),
+		i18n.T("gui.header_country"),
+		i18n.T("gui.header_tcp"),
+		i18n.T("gui.header_http"),
+	}
+
+	buttons := make([]*widget.Button, len(baseTexts))
+	stateCol := -1
+	stateAsc := true
+
+	updateLabels := func(activeCol int, asc bool) {
+		for i, btn := range buttons {
+			text := baseTexts[i]
+			if i == activeCol {
+				if asc {
+					text += " ▲"
+				} else {
+					text += " ▼"
+				}
+			}
+			btn.SetText(text)
+		}
+	}
+	for idx, txt := range baseTexts {
+		btn := widget.NewButton(txt, func() {
+			if stateCol == idx {
+				stateAsc = !stateAsc
+			} else {
+				stateCol = idx
+				stateAsc = true
+			}
+
+			sortProxyItems(g.proxyItems, idx, stateAsc)
+			updateLabels(stateCol, stateAsc)
+
+			if g.table != nil {
+				g.table.Refresh()
+			}
+		})
+
+		btn.Importance = widget.LowImportance
+		btn.Alignment = widget.ButtonAlignLeading
+		buttons[idx] = btn
+	}
+
+	headerObjects := make([]fyne.CanvasObject, len(buttons))
+	for i, b := range buttons {
+		headerObjects[i] = b
+	}
+
+	if hasButtonCol {
+		headerObjects = append(headerObjects, widget.NewLabel(""))
+	}
+
+	return container.NewGridWithColumns(len(headerObjects), headerObjects...), updateLabels
 }
