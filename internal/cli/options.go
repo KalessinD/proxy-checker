@@ -76,7 +76,7 @@ func ParseFlags(cfg *config.Config, args []string) (*Options, error) {
 	}
 
 	for _, src := range cfg.Sources {
-		if !common.IsKnownSource(src) {
+		if !common.IsKnownProxySource(src) {
 			return nil, fmt.Errorf("%s: %s", i18n.T("cli.err_invalid_source"), src)
 		}
 	}
