@@ -193,7 +193,7 @@ uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown: # The app
 
 run: build # Runs the built app
 	$(NOECHO) $(call print_info,Running application...)
-	@$(BINARY_FULL) -gui
+	$(NOECHO) $(BINARY_FULL) -gui
 
 clean: # Removes binaries and logs
 	$(NOECHO) $(call print_info,Cleaning build artifacts...)
