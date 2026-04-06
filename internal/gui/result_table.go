@@ -96,7 +96,7 @@ func (w *resizableTable) updateColumnWidths(availableWidth float32) {
 	totalTableWidth := availableWidth - rightMargin
 	usableWidth := totalTableWidth - buttonWidth
 
-	proportions := []float32{0.30, 0.08, 0.10, 0.15, 0.185, 0.185}
+	proportions := []float32{0.20, 0.20, 0.07, 0.10, 0.13, 0.15, 0.15}
 
 	w.table.SetColumnWidth(0, usableWidth*proportions[0])
 	w.table.SetColumnWidth(1, usableWidth*proportions[1])
@@ -104,9 +104,10 @@ func (w *resizableTable) updateColumnWidths(availableWidth float32) {
 	w.table.SetColumnWidth(3, usableWidth*proportions[3])
 	w.table.SetColumnWidth(4, usableWidth*proportions[4])
 	w.table.SetColumnWidth(5, usableWidth*proportions[5])
+	w.table.SetColumnWidth(6, usableWidth*proportions[6])
 
 	if w.hasButtonCol {
-		w.table.SetColumnWidth(6, buttonWidth)
+		w.table.SetColumnWidth(7, buttonWidth)
 	}
 }
 

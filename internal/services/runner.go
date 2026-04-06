@@ -9,21 +9,29 @@ import (
 	"proxy-checker/internal/fetcher"
 )
 
-type PipelineCallbacks struct {
-	OnFetched  func(total int)
-	OnProgress func(current, total int)
-}
+type (
+	PipelineCallbacks struct {
+		OnFetched  func(total int)
+		OnProgress func(current, total int)
+	}
+
+	// SourceFetcher binds a Fetcher implementation with its corresponding Source identifier.
+	SourceFetcher struct {
+		Source  common.Source
+		Fetcher fetcher.Fetcher
+	}
+)
 
 func RunPipeline(
 	ctx context.Context,
-	fetcherInstance fetcher.Fetcher,
+	fetchers []SourceFetcher,
 	verifierInstance ProxyVerifier,
 	cfg *config.Config,
 	resolver common.GeoIPResolver,
 	cb PipelineCallbacks,
 ) ([]*ProxyItemFull, error) {
-	if fetcherInstance == nil {
-		return nil, errors.New("pipeline initialization error: fetcher is nil")
+	if len(fetchers) == 0 {
+		return nil, errors.New("pipeline initialization error: fetchers list is empty")
 	}
 	if verifierInstance == nil {
 		return nil, errors.New("pipeline initialization error: verifier is nil")
@@ -38,9 +46,16 @@ func RunPipeline(
 		Lang:     cfg.Lang,
 	}
 
-	allProxies, err := fetcherInstance.Fetch(ctx, settings)
-	if err != nil {
-		return nil, fmt.Errorf("pipeline fetch error: %w", err)
+	var allProxies []*fetcher.ProxyItem
+	for _, f := range fetchers {
+		items, err := f.Fetcher.Fetch(ctx, settings)
+		if err != nil {
+			return nil, fmt.Errorf("pipeline fetch error: %w", err)
+		}
+		for _, item := range items {
+			item.Source = f.Source
+		}
+		allProxies = append(allProxies, items...)
 	}
 
 	if cb.OnFetched != nil {

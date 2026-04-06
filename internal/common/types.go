@@ -1,5 +1,7 @@
 package common
 
+import "strings"
+
 type (
 	Source string
 
@@ -33,4 +35,16 @@ var allowedSources = map[Source]struct{}{
 func IsKnownSource(source Source) bool {
 	_, ok := allowedSources[source]
 	return ok
+}
+
+func SourcesToStrings(sources []Source) []string {
+	result := make([]string, len(sources))
+	for i, src := range sources {
+		result[i] = string(src)
+	}
+	return result
+}
+
+func JoinSources(sources []Source, separator string) string {
+	return strings.Join(SourcesToStrings(sources), separator)
 }

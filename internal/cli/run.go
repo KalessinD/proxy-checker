@@ -50,7 +50,7 @@ func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerIn
 		i18n.T("cli.mode_type"),
 		cfg.Type,
 		i18n.T("cli.mode_source"),
-		cfg.Source,
+		common.JoinSources(cfg.Sources, ", "),
 		i18n.T("cli.mode_rtt"),
 		cfg.RTT,
 		i18n.T("cli.mode_pages"),
@@ -69,18 +69,26 @@ func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerIn
 
 // handleListFetch handles fetching the list only, without validation
 func handleListFetch(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
-	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
+	var allProxies []*fetcher.ProxyItem
+	for _, src := range cfg.Sources {
+		fetcherInstance := fetcher.NewFetcher(src, logger)
 
-	settings := fetcher.Settings{
-		Type:   cfg.Type,
-		MaxRTT: cfg.RTT,
-		Pages:  cfg.Pages,
-	}
+		settings := fetcher.Settings{
+			Type:   cfg.Type,
+			MaxRTT: cfg.RTT,
+			Pages:  cfg.Pages,
+		}
 
-	allProxies, err := fetcherInstance.Fetch(ctx, settings)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.parse_error"), err)
-		return
+		items, err := fetcherInstance.Fetch(ctx, settings)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s [%s]: %v\n", i18n.T("cli.parse_error"), src, err)
+			continue
+		}
+		for _, item := range items {
+			item.Source = src
+		}
+
+		allProxies = append(allProxies, items...)
 	}
 
 	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
@@ -106,11 +114,18 @@ func handleListCheck(ctx context.Context, cfg *config.Config, logger common.Logg
 	}
 
 	verifierInstance := services.NewDefaultVerifier()
-	fetcherInstance := fetcher.NewFetcher(cfg.Source, logger)
+
+	fetchers := make([]services.SourceFetcher, 0, len(cfg.Sources))
+	for _, src := range cfg.Sources {
+		fetchers = append(fetchers, services.SourceFetcher{
+			Source:  src,
+			Fetcher: fetcher.NewFetcher(src, logger),
+		})
+	}
 
 	validProxies, err := services.RunPipeline(
 		ctx,
-		fetcherInstance,
+		fetchers,
 		verifierInstance,
 		cfg,
 		resolver,

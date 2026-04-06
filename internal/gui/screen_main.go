@@ -83,6 +83,7 @@ func (g *AppGUI) showMainScreen() {
 	g.table = g.createResultTable()
 
 	headerObjects := []fyne.CanvasObject{
+		widget.NewLabel(i18n.T("gui.header_source")),
 		widget.NewLabel(i18n.T("gui.header_host")), widget.NewLabel(i18n.T("gui.header_port")), widget.NewLabel(i18n.T("gui.header_type")),
 		widget.NewLabel(i18n.T("gui.header_country")), widget.NewLabel(i18n.T("gui.header_tcp")), widget.NewLabel(i18n.T("gui.header_http")),
 	}
@@ -149,12 +150,19 @@ func (g *AppGUI) runBatchCheck() {
 		g.progressBar.Hide()
 	})
 
-	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
+	sourcesStr := strings.Join(common.SourcesToStrings(g.cfg.Sources), ", ")
+	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), sourcesStr))
 
-	fetcherInstance := fetcher.NewFetcher(g.cfg.Source, g.logger)
+	fetchers := make([]services.SourceFetcher, 0, len(g.cfg.Sources))
+	for _, src := range g.cfg.Sources {
+		fetchers = append(fetchers, services.SourceFetcher{
+			Source:  src,
+			Fetcher: fetcher.NewFetcher(src, g.logger),
+		})
+	}
 	verifierInstance := services.NewDefaultVerifier()
 
-	validProxies, err := services.RunPipeline(ctx, fetcherInstance, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
+	validProxies, err := services.RunPipeline(ctx, fetchers, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
 		OnFetched: func(total int) {
 			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
 		},
@@ -183,19 +191,31 @@ func (g *AppGUI) runBatchCheck() {
 	} else {
 		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
-		if err := g.cache.Save(g.cfg.Source, g.cfg.Type, validProxies, g.cfg.CacheTTL); err != nil {
-			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
-		} else {
-			g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
+		for _, src := range g.cfg.Sources {
+			var srcProxies []*services.ProxyItemFull
+			for _, p := range validProxies {
+				if p.Source == src {
+					srcProxies = append(srcProxies, p)
+				}
+			}
+
+			var err error
+			if len(srcProxies) > 0 {
+				err = g.cache.Save(src, g.cfg.Type, srcProxies, g.cfg.CacheTTL)
+			}
+			if err != nil {
+				g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+			}
 		}
+		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
 	}
 	_ = g.progress.Set(1.0)
 }
 
 func (g *AppGUI) createResultTable() *widget.Table {
-	cols := 6
+	cols := 7
 	if g.sysProxyManager.IsSupported() {
-		cols = 7
+		cols = 8
 	}
 
 	table := widget.NewTable(
@@ -206,7 +226,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			return newTableCell()
 		},
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
-			if id.Row < 0 || id.Row >= len(g.proxyItems) {
+			if id.Row < 0 || id.Row >= len(g.proxyItems) || id.Col >= cols {
 				return
 			}
 
@@ -217,7 +237,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 				return
 			}
 
-			if g.sysProxyManager.IsSupported() && id.Col == 6 {
+			if g.sysProxyManager.IsSupported() && id.Col == 7 {
 				h := item.Host
 				pt := item.Port
 				t := item.Type
@@ -230,16 +250,18 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			var text string
 			switch id.Col {
 			case 0:
-				text = item.Host
+				text = item.Source
 			case 1:
-				text = item.Port
+				text = item.Host
 			case 2:
-				text = string(item.Type)
+				text = item.Port
 			case 3:
-				text = item.Country
+				text = string(item.Type)
 			case 4:
-				text = item.TCP
+				text = item.Country
 			case 5:
+				text = item.TCP
+			case 6:
 				text = item.HTTP
 			}
 
