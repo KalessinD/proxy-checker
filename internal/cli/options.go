@@ -71,11 +71,7 @@ func ParseFlags(cfg *config.Config, args []string) (*Options, error) {
 		}
 	}
 
-	validTypes := map[common.ProxyType]bool{
-		common.ProxySOCKS5: true, common.ProxySOCKS4: true,
-		common.ProxyHTTP: true, common.ProxyHTTPS: true, common.ProxyAll: true,
-	}
-	if !validTypes[cfg.Type] {
+	if !common.IsKnownProxyType(cfg.Type) {
 		return nil, fmt.Errorf("%s: %s", i18n.T("cli.err_invalid_type"), cfg.Type)
 	}
 

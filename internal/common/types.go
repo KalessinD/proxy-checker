@@ -32,6 +32,24 @@ var allowedSources = map[Source]struct{}{
 	SourceProxifly:   {},
 }
 
+func AllowedProxyTypesStrings() []string {
+	return []string{
+		string(ProxyHTTP),
+		string(ProxyHTTPS),
+		string(ProxySOCKS4),
+		string(ProxySOCKS5),
+	}
+}
+
+func IsKnownProxyType(proxyType ProxyType) bool {
+	switch proxyType {
+	case ProxyHTTP, ProxyHTTPS, ProxySOCKS4, ProxySOCKS5, ProxyAll:
+		return true
+	default:
+		return false
+	}
+}
+
 func IsKnownSource(source Source) bool {
 	_, ok := allowedSources[source]
 	return ok

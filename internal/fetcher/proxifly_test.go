@@ -91,13 +91,13 @@ func TestProxiflyProvider_GetFilesByType(t *testing.T) {
 		proxyType common.ProxyType
 		expected  []string
 	}{
-		{name: "SOCKS5", proxyType: common.ProxySOCKS5, expected: []string{fetcher.ProxiflyHSocks5FileName}},
+		{name: "SOCKS5", proxyType: common.ProxySOCKS5, expected: []string{fetcher.ProxiflySocks5FileName}},
 		{name: "HTTP", proxyType: common.ProxyHTTP, expected: []string{fetcher.ProxiflyHTTPFileName}},
 		{name: "All types", proxyType: common.ProxyAll, expected: []string{
 			fetcher.ProxiflyHTTPFileName,
 			fetcher.ProxiflyHTTPSFileName,
-			fetcher.ProxiflySsocks4FileName,
-			fetcher.ProxiflyHSocks5FileName,
+			fetcher.ProxiflySocks4FileName,
+			fetcher.ProxiflySocks5FileName,
 		}},
 	}
 

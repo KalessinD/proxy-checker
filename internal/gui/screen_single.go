@@ -18,11 +18,12 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 	proxyEntry := widget.NewEntry()
 	proxyEntry.SetPlaceHolder(i18n.T("gui.single.placeholder"))
 
-	proxyTypes := []string{"http", "https", "socks4", "socks5", i18n.T("gui.single.type_all")}
+	allTypeTranslation := i18n.T("gui.single.type_all")
+	proxyTypes := append(common.AllowedProxyTypesStrings(), allTypeTranslation)
 	radioType := widget.NewRadioGroup(proxyTypes, nil)
 	currentType := string(g.cfg.Type)
 	if g.cfg.Type == common.ProxyAll {
-		radioType.SetSelected(i18n.T("gui.single.type_all"))
+		radioType.SetSelected(allTypeTranslation)
 	} else {
 		radioType.SetSelected(currentType)
 	}
@@ -36,7 +37,7 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 
 		selectedType := radioType.Selected
 		checkType := selectedType
-		if selectedType == i18n.T("gui.single.type_all") {
+		if selectedType == allTypeTranslation {
 			checkType = "socks5"
 		}
 

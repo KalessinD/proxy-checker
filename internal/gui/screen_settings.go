@@ -250,13 +250,9 @@ func (g *AppGUI) createIgnoreHostsBox() (*fyne.Container, *widget.Entry) {
 }
 
 func (g *AppGUI) createProxyTypeSelector() (*widget.RadioGroup, *fyne.Container) {
-	proxyTypes := []string{
-		string(common.ProxyHTTP),
-		string(common.ProxyHTTPS),
-		string(common.ProxySOCKS4),
-		string(common.ProxySOCKS5),
-		i18n.T("gui.single.type_all"),
-	}
+	allTypeTranslation := i18n.T("gui.single.type_all")
+	proxyTypes := append(common.AllowedProxyTypesStrings(), allTypeTranslation)
+
 	http2Check := widget.NewCheck("", func(checked bool) { g.cfg.CheckHTTP2 = checked })
 	http2Check.SetChecked(g.cfg.CheckHTTP2)
 	http2Box := container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.check_http2")), http2Check)
@@ -264,7 +260,7 @@ func (g *AppGUI) createProxyTypeSelector() (*widget.RadioGroup, *fyne.Container)
 	allValue := i18n.T("gui.single.type_all")
 	radioType := widget.NewRadioGroup(proxyTypes, func(pt string) {
 		proxyType := common.ProxyType(pt)
-		if proxyType == common.ProxyType(allValue) {
+		if pt == allTypeTranslation {
 			g.cfg.Type = common.ProxyAll
 		} else {
 			g.cfg.Type = proxyType

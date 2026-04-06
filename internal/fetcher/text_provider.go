@@ -112,3 +112,22 @@ func (f *TextListFetcher) Fetch(ctx context.Context, settings Settings) ([]*Prox
 
 	return items, nil
 }
+
+// MapProxyTypeToFilenames maps a proxy type to a list of relative file paths.
+// This helper eliminates duplication of the switch-case logic across different text providers.
+func MapProxyTypeToFilenames(proxyType common.ProxyType, httpFile, httpsFile, socks4File, socks5File string) []string {
+	switch proxyType {
+	case common.ProxySOCKS5:
+		return []string{socks5File}
+	case common.ProxySOCKS4:
+		return []string{socks4File}
+	case common.ProxyHTTPS:
+		return []string{httpsFile}
+	case common.ProxyHTTP:
+		return []string{httpFile}
+	case common.ProxyAll:
+		return []string{httpFile, httpsFile, socks4File, socks5File}
+	default:
+		return []string{socks5File}
+	}
+}

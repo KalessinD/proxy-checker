@@ -81,7 +81,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*Pr
 		}
 		visitedURLs[currentURL] = true
 
-		proxies, pageLinks, err := f.fetchSinglePage(ctx, client, currentURL, baseParsedURL)
+		proxies, pageLinks, err := f.fetchSinglePage(ctx, client, currentURL)
 		if err != nil {
 			f.Logger.Warnf("failed to fetch page %s: %v", strings.TrimSpace(currentURL), err)
 			continue
@@ -109,7 +109,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*Pr
 	return allProxies, nil
 }
 
-func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Client, urlStr string, _ *url.URL) ([]*ProxyItem, []string, error) {
+func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Client, urlStr string) ([]*ProxyItem, []string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, nil, err
