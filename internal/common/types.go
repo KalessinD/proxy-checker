@@ -50,7 +50,7 @@ func IsKnownProxyType(proxyType ProxyType) bool {
 	}
 }
 
-func IsKnownSource(source Source) bool {
+func IsKnownProxySource(source Source) bool {
 	_, ok := allowedSources[source]
 	return ok
 }
