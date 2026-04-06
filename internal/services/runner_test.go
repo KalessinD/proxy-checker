@@ -196,9 +196,15 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 
 	var fetchedTotal int
 	var progressCalls []int
+	var progressMutex sync.Mutex
+
 	cb := services.PipelineCallbacks{
-		OnFetched:  func(total int) { fetchedTotal = total },
-		OnProgress: func(current, _ int) { progressCalls = append(progressCalls, current) },
+		OnFetched: func(total int) { fetchedTotal = total },
+		OnProgress: func(current, _ int) {
+			progressMutex.Lock()
+			defer progressMutex.Unlock()
+			progressCalls = append(progressCalls, current)
+		},
 	}
 
 	ctx := t.Context()

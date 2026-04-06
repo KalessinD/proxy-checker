@@ -40,6 +40,8 @@ ECHO := echo -e
 NOECHO := @
 
 GO_PACKAGES := $(shell go list ./... 2>/dev/null | grep -v '/mocks')
+GO_PACKAGES_RACE_TESTS := $(shell go list ./... 2>/dev/null | grep -vE '/mocks|/gui|/cmd')
+GO_PACKAGES_NO_RACE_TESTS := $(shell go list ./... 2>/dev/null | grep -v '/mocks' | grep -E '/gui|/cmd')
 GO_COVERAGE_REPORT := $(TMPDIR)/$(APP_NAME)-coverage.out
 
 OS := $(shell uname -s)
@@ -95,7 +97,8 @@ sort-lang-files: # Sorts keys in lang files
 test: # Runs golang tests
 	$(NOECHO) $(call print_info,"Running tests: golang")
 	$(NOECHO) $(GO) clean -testcache
-	$(NOECHO) $(GO) test -v -cover ./... # -race
+	$(NOECHO) $(GO) test -v -cover -race $(GO_PACKAGES_RACE_TESTS)
+	$(NOECHO) $(GO) test -v -cover $(GO_PACKAGES_NO_RACE_TESTS)
 
 coverage: # Runs tests and shows total coverage
 	$(NOECHO) $(call print_info,"Running tests with coverage")
