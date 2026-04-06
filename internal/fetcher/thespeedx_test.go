@@ -91,12 +91,15 @@ func TestTheSpeedXProvider_GetFilesByType(t *testing.T) {
 	}{
 		{name: "SOCKS5", proxyType: common.ProxySOCKS5, expected: []string{fetcher.ThespeedxSocks5FileName}},
 		{name: "HTTP", proxyType: common.ProxyHTTP, expected: []string{fetcher.ThespeedxHTTPFileName}},
+		{name: "HTTPS", proxyType: common.ProxyHTTPS, expected: []string{fetcher.ThespeedxHTTPSFileName}},
+		{name: "SOCKS4", proxyType: common.ProxySOCKS4, expected: []string{fetcher.ThespeedxSocks4FileName}},
 		{name: "All types", proxyType: common.ProxyAll, expected: []string{
 			fetcher.ThespeedxHTTPFileName,
 			fetcher.ThespeedxHTTPSFileName,
 			fetcher.ThespeedxSocks4FileName,
 			fetcher.ThespeedxSocks5FileName,
 		}},
+		{name: "Unknown type fallback", proxyType: common.ProxyType("unknown_proto"), expected: []string{fetcher.ThespeedxSocks5FileName}},
 	}
 
 	for _, tt := range tests {

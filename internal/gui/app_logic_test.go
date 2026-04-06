@@ -100,3 +100,62 @@ func TestDeduplicateItems(t *testing.T) {
 	assert.Equal(t, "1.1.1.1", result[0].Host)
 	assert.Equal(t, "2.2.2.2", result[1].Host)
 }
+
+func TestGetTargetURL_CustomTarget(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	// When custom target is active, it must override config
+	g.isCustomTarget = true
+	g.customTargetURL = "custom.com"
+
+	actualURL := g.getTargetURL()
+	assert.Equal(t, "custom.com", actualURL, "Must return custom URL when isCustomTarget is true")
+
+	// When custom target is inactive, it must return config value
+	g.isCustomTarget = false
+	g.cfg.DestAddr = "default.com"
+
+	actualURL = g.getTargetURL()
+	assert.Equal(t, "default.com", actualURL, "Must return config DestAddr when isCustomTarget is false")
+}
+
+func TestHighlightProxyInList_Found(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080"},
+		{Host: "2.2.2.2", Port: "3128"},
+		{Host: "3.3.3.3", Port: "1080"},
+	}
+
+	g.highlightProxyInList("2.2.2.2", "3128")
+
+	assert.Equal(t, 1, g.highlightedRow, "Must update highlightedRow to the correct index")
+}
+
+func TestHighlightProxyInList_NotFound(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080"},
+	}
+
+	g.highlightProxyInList("9.9.9.9", "9999")
+
+	assert.Equal(t, -1, g.highlightedRow, "Must set highlightedRow to -1 if proxy is not found")
+}
