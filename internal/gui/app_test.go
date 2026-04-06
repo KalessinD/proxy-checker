@@ -49,7 +49,7 @@ func TestNewAppGUI_SingleScreen(_ *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowSettingsScreen()
+	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowSingleCheckScreen()
 }
 
 func TestNewAppGUI_SettingseScreen(_ *testing.T) {
