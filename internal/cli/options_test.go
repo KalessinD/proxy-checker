@@ -22,7 +22,7 @@ func TestParseFlags(t *testing.T) {
 	baseConfig := func() *config.Config {
 		return &config.Config{
 			Type:       common.ProxySOCKS5,
-			Source:     common.SourceProxyMania,
+			Sources:    []common.Source{common.SourceProxyMania},
 			Timeout:    10 * time.Second,
 			Workers:    512,
 			RTT:        150,
@@ -122,6 +122,21 @@ func TestParseFlags(t *testing.T) {
 				assert.Equal(t, 10*time.Second, cfg.Timeout)
 				assert.Equal(t, 512, cfg.Workers)
 				assert.Equal(t, common.ProxySOCKS5, cfg.Type)
+				assert.Equal(t, []common.Source{common.SourceProxyMania}, cfg.Sources)
+			},
+		},
+		{
+			name:            "Error on invalid source in comma-separated list",
+			args:            []string{"-proxies-stat", "-source", "proxymania,yandex"},
+			wantErr:         true,
+			expectedErrText: "Invalid source: yandex",
+		},
+		{
+			name:    "Valid multiple comma-separated sources",
+			args:    []string{"-proxies-stat", "-source", "proxymania, thespeedx"},
+			wantErr: false,
+			assertOptions: func(t *testing.T, _ *cli.Options, cfg *config.Config) {
+				assert.Equal(t, []common.Source{common.SourceProxyMania, common.SourceTheSpeedX}, cfg.Sources)
 			},
 		},
 	}

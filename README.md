@@ -19,7 +19,6 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 - **High Performance:** 
   - Highly concurrent checking using worker pools.
   - Strict `context.Context` timeout management (prevents goroutine leaks on cancellation, even with SOCK5).
-  - HTTP Keep-Alive connection pooling for faster subsequent checks.
 - **System Integration (Linux/GNOME):** One-click application of a working proxy to the OS system settings directly from the GUI.
 - **Flexible Targeting:** Test proxies against predefined targets (Google, YouTube, ChatGPT, Telegram) or any custom URL.
 - **Clean Architecture:** Strict separation of concerns (`CLI`, `GUI`, `Services`, `Fetchers`, `Config`). Strongly typed domain models.
@@ -33,7 +32,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 ## Installation & Building
 
 ### Prerequisites
-- Go 1.25 or higher
+- Go 1.26 or higher
 - Make (optional, for using the Makefile)
 - C compiler (GCC/Clang) and development libraries (required by Fyne for GUI compilation)
 
@@ -83,7 +82,7 @@ Simply run the executable. By default, it launches the graphical interface.
 1. Open **Settings** (top-right menu) to configure the proxy source, type, timeouts, threads, and target website.
 2. Click **"Проверить по источнику*" (Check by source) to fetch and validate proxies.
 3. View real-time logs and progress.
-4. Once finished, use the **"Паверкатии"** (Apply) button in the table to set the selected proxy as your system proxy (GNOME-based desktops).
+4. Once finished, use the **Apply** button in the table to set the selected proxy as your system proxy (GNOME-based desktops).
 
 ### CLI Mode
 
@@ -110,13 +109,17 @@ The CLI is designed for quick checks and pipeline scripting.
 | :-- | :-- | :-- |
 | `-gui` | Run in graphical interface mode | `false` |
 | `-proxy` | Address of a single proxy to check (`host:port`) | - |
-| `-dest` | Target URL to check the proxy against | `https://google.com` |
-| `-type` | Proxy type (`http`, `https`, `socs4`, `sock�`, `all`) | `sock�` |
+| `-dest` | Target URL to check the proxy against | `google.com` |
+| `-type` | Proxy type (`http`, `https`, `socks4`, `socks5`, `all`) | `socks5` |
 | `-proxies-stat` | Enable mode to fetch proxy lists | `false` |
 | `-check` | Must be used with `-proxies-stat`. Performs actual validation | `false` |
 | `-source` | Source for fetching (`proxymania`, `thespeedx`) | `proxymania` |
-| `-rtt` | Max response time in ms for `proxymaniap source | `150` |
+| `-rtt` | Max response time in ms for `proxymania` source | `150` |
 | `-pages` | Number of pages to parse from `proxymania` | `4` |
+| `-geoip-db` | Path to GeoIP database file (.mmdb) | - |
+| `-http2` | Check HTTP/2 support (recommended only for https/socks5) | `false` |
+| `-lang` | Interface language (`ru`, `en`) | `en` |
+| `-log` | Path to the log file | `/tmp/proxy-checker.log` |
 | `-workers` | Number of concurrent checking threads | `256` |
 | `-timeout` | Timeout for a single proxy check | `10s` |
 

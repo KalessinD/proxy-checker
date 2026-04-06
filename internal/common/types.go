@@ -1,5 +1,7 @@
 package common
 
+import "strings"
+
 type (
 	Source string
 
@@ -30,7 +32,37 @@ var allowedSources = map[Source]struct{}{
 	SourceProxifly:   {},
 }
 
+func AllowedProxyTypesStrings() []string {
+	return []string{
+		string(ProxyHTTP),
+		string(ProxyHTTPS),
+		string(ProxySOCKS4),
+		string(ProxySOCKS5),
+	}
+}
+
+func IsKnownProxyType(proxyType ProxyType) bool {
+	switch proxyType {
+	case ProxyHTTP, ProxyHTTPS, ProxySOCKS4, ProxySOCKS5, ProxyAll:
+		return true
+	default:
+		return false
+	}
+}
+
 func IsKnownSource(source Source) bool {
 	_, ok := allowedSources[source]
 	return ok
+}
+
+func SourcesToStrings(sources []Source) []string {
+	result := make([]string, len(sources))
+	for i, src := range sources {
+		result[i] = string(src)
+	}
+	return result
+}
+
+func JoinSources(sources []Source, separator string) string {
+	return strings.Join(SourcesToStrings(sources), separator)
 }

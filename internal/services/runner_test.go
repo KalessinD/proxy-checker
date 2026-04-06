@@ -74,7 +74,7 @@ func (m *mockPipelineVerifier) Verify(ctx context.Context, proxyAddr, _, _ strin
 func basePipelineConfig() *config.Config {
 	return &config.Config{
 		Type:       common.ProxySOCKS5,
-		Source:     common.SourceProxyMania,
+		Sources:    []common.Source{common.SourceProxyMania},
 		Timeout:    5 * time.Second,
 		Workers:    2,
 		DestAddr:   "google.com",
@@ -88,11 +88,14 @@ func TestRunPipeline_FetcherReturnsError(t *testing.T) {
 		err: errors.New("network error"),
 	}
 	mockVerifier := &mockPipelineVerifier{}
+	fetchers := []services.SourceFetcher{
+		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
+	}
 
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, mockFetcher, mockVerifier, cfg, nil, services.PipelineCallbacks{})
+	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, services.PipelineCallbacks{})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pipeline fetch error")
@@ -106,9 +109,16 @@ func TestRunPipeline_NilDependencies(t *testing.T) {
 
 	_, err := services.RunPipeline(ctx, nil, &mockPipelineVerifier{}, cfg, nil, services.PipelineCallbacks{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "fetcher is nil")
+	assert.Contains(t, err.Error(), "fetchers list is empty")
 
-	_, err = services.RunPipeline(ctx, &mockPipelineFetcher{}, nil, cfg, nil, services.PipelineCallbacks{})
+	_, err = services.RunPipeline(
+		ctx,
+		[]services.SourceFetcher{{Source: common.SourceProxyMania, Fetcher: &mockPipelineFetcher{}}},
+		nil,
+		cfg,
+		nil,
+		services.PipelineCallbacks{},
+	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "verifier is nil")
 }
@@ -118,6 +128,9 @@ func TestRunPipeline_FetcherReturnsEmptyList(t *testing.T) {
 		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): {}},
 	}
 	mockVerifier := &mockPipelineVerifier{}
+	fetchers := []services.SourceFetcher{
+		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
+	}
 
 	var fetchedTotal int
 	cb := services.PipelineCallbacks{
@@ -127,7 +140,7 @@ func TestRunPipeline_FetcherReturnsEmptyList(t *testing.T) {
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, mockFetcher, mockVerifier, cfg, nil, cb)
+	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, cb)
 
 	require.NoError(t, err)
 	assert.Empty(t, validProxies)
@@ -148,10 +161,14 @@ func TestRunPipeline_AllProxiesInvalid(t *testing.T) {
 		},
 	}
 
+	fetchers := []services.SourceFetcher{
+		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
+	}
+
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, mockFetcher, mockVerifier, cfg, nil, services.PipelineCallbacks{})
+	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, services.PipelineCallbacks{})
 
 	require.NoError(t, err)
 	assert.Empty(t, validProxies, "Invalid proxies must be filtered out")
@@ -173,6 +190,10 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 		},
 	}
 
+	fetchers := []services.SourceFetcher{
+		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
+	}
+
 	var fetchedTotal int
 	var progressCalls []int
 	cb := services.PipelineCallbacks{
@@ -183,7 +204,7 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, mockFetcher, mockVerifier, cfg, nil, cb)
+	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, cb)
 
 	require.NoError(t, err)
 	require.Len(t, validProxies, 2, "Both valid proxies must be returned")
@@ -196,18 +217,65 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 	assert.Equal(t, "1.1.1.1", validProxies[1].Host)
 }
 
+func TestRunPipeline_MultipleFetchersAggregatesResults(t *testing.T) {
+	items1 := []*fetcher.ProxyItem{
+		{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5},
+	}
+	items2 := []*fetcher.ProxyItem{
+		{Host: "2.2.2.2", Port: "8080", Type: common.ProxySOCKS5},
+	}
+
+	mockFetcher1 := &mockPipelineFetcher{
+		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): items1},
+	}
+	mockFetcher2 := &mockPipelineFetcher{
+		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): items2},
+	}
+
+	fetchers := []services.SourceFetcher{
+		{Source: common.SourceProxyMania, Fetcher: mockFetcher1},
+		{Source: common.SourceTheSpeedX, Fetcher: mockFetcher2},
+	}
+
+	mockVerifier := &mockPipelineVerifier{
+		responses: map[string]services.Result{
+			"1.1.1.1:8080": {ReqLatency: 10 * time.Millisecond, StatusCode: 200},
+			"2.2.2.2:8080": {ReqLatency: 20 * time.Millisecond, StatusCode: 200},
+		},
+	}
+
+	var fetchedTotal int
+	cb := services.PipelineCallbacks{
+		OnFetched: func(total int) { fetchedTotal = total },
+	}
+
+	ctx := t.Context()
+	cfg := basePipelineConfig()
+
+	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, cb)
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, fetchedTotal, "OnFetched must receive aggregated count from all fetchers")
+	require.Len(t, validProxies, 2, "Must aggregate and validate items from multiple fetchers")
+	assert.Equal(t, "1.1.1.1", validProxies[0].Host)
+	assert.Equal(t, "2.2.2.2", validProxies[1].Host)
+}
+
 func TestRunPipeline_StopsOnContextCancellation(t *testing.T) {
 	mockFetcher := &mockPipelineFetcher{
 		blockChan: make(chan struct{}),
 	}
 	mockVerifier := &mockPipelineVerifier{}
+	fetchers := []services.SourceFetcher{
+		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
+	}
 
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	done := make(chan []*services.ProxyItemFull)
 	go func() {
-		res, _ := services.RunPipeline(ctx, mockFetcher, mockVerifier, basePipelineConfig(), nil, services.PipelineCallbacks{})
+		res, _ := services.RunPipeline(ctx, fetchers, mockVerifier, basePipelineConfig(), nil, services.PipelineCallbacks{})
 		done <- res
 	}()
 

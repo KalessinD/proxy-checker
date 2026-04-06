@@ -23,7 +23,7 @@ func TestMapToWrapper_Success(t *testing.T) {
 
 	inputItems := []*services.ProxyItemFull{
 		{
-			ProxyItem:   services.ProxyItem{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5, Country: "US"},
+			ProxyItem:   services.ProxyItem{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5, Country: "US", Source: common.SourceProxyMania},
 			CheckResult: services.Result{ProxyLatencyStr: "10ms", ReqLatencyStr: "20ms"},
 		},
 		{
@@ -36,6 +36,7 @@ func TestMapToWrapper_Success(t *testing.T) {
 
 	require.Len(t, wrappers, 2, "Must map exactly 2 items")
 
+	assert.Equal(t, "proxymania", wrappers[0].Source)
 	assert.Equal(t, "1.1.1.1", wrappers[0].Host)
 	assert.Equal(t, "8080", wrappers[0].Port)
 	assert.Equal(t, common.ProxySOCKS5, wrappers[0].Type)
@@ -77,4 +78,25 @@ func TestApplyTheme_NoPanics(t *testing.T) {
 			}, "Applying theme must not panic on any string input")
 		})
 	}
+}
+
+func TestDeduplicateItems(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	items := []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080"}},
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080"}},
+		{ProxyItem: services.ProxyItem{Host: "2.2.2.2", Port: "8080"}},
+	}
+
+	result := g.deduplicateItems(items)
+
+	require.Len(t, result, 2, "Must remove exact duplicates based on Host:Port")
+	assert.Equal(t, "1.1.1.1", result[0].Host)
+	assert.Equal(t, "2.2.2.2", result[1].Host)
 }

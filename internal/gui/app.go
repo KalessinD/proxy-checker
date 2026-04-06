@@ -29,6 +29,7 @@ const (
 
 type (
 	ProxyItemWrapper struct {
+		Source  string           `json:"source"`
 		Host    string           `json:"host"`
 		Port    string           `json:"port"`
 		Type    common.ProxyType `json:"type"`
@@ -273,16 +274,22 @@ func (g *AppGUI) applyTheme(themeName string) {
 	}
 }
 
-// loadCacheForSource loads data from cache for the specified source and proxy type.
-// If the cache is empty or expired, it clears the current list.
-func (g *AppGUI) loadCacheForSource(source common.Source, proxyType common.ProxyType) {
-	cachedItems, err := g.cache.Load(source, proxyType)
-	if err != nil {
-		g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
-		return
+// loadCacheForSources loads and merges data from cache for the specified sources and proxy type.
+func (g *AppGUI) loadCacheForSources(sources []common.Source, proxyType common.ProxyType) {
+	var allCachedItems []*services.ProxyItemFull
+
+	for _, src := range sources {
+		cachedItems, err := g.cache.Load(src, proxyType)
+		if err != nil {
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+			continue
+		}
+		allCachedItems = append(allCachedItems, cachedItems...)
 	}
 
-	if len(cachedItems) == 0 {
+	deduped := g.deduplicateItems(allCachedItems)
+
+	if len(deduped) == 0 {
 		fyne.Do(func() {
 			g.proxyItems = []*ProxyItemWrapper{}
 			if g.table != nil {
@@ -292,7 +299,7 @@ func (g *AppGUI) loadCacheForSource(source common.Source, proxyType common.Proxy
 		return
 	}
 
-	items := g.mapToWrapper(cachedItems)
+	items := g.mapToWrapper(deduped)
 
 	fyne.Do(func() {
 		g.proxyItems = items
@@ -301,14 +308,31 @@ func (g *AppGUI) loadCacheForSource(source common.Source, proxyType common.Proxy
 		}
 	})
 
-	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(cachedItems)))
+	if len(deduped) > 0 {
+		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_cache_loaded"), len(deduped)))
+	}
+}
+
+// deduplicateItems removes duplicate proxies based on Host:Port combination.
+func (g *AppGUI) deduplicateItems(items []*services.ProxyItemFull) []*services.ProxyItemFull {
+	seen := make(map[string]struct{})
+	var result []*services.ProxyItemFull
+	for _, item := range items {
+		key := item.Host + ":" + item.Port
+		if _, exists := seen[key]; !exists {
+			seen[key] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
 func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapper {
 	wrappers := make([]*ProxyItemWrapper, len(items))
 	for i, item := range items {
 		wrappers[i] = &ProxyItemWrapper{
-			Host: item.Host, Port: item.Port, Type: item.Type, Country: item.Country,
+			Source: string(item.Source),
+			Host:   item.Host, Port: item.Port, Type: item.Type, Country: item.Country,
 			TCP: item.CheckResult.ProxyLatencyStr, HTTP: item.CheckResult.ReqLatencyStr,
 		}
 	}
@@ -319,7 +343,7 @@ func (g *AppGUI) Run() {
 	g.setupMainMenu()
 	g.showMainScreen()
 
-	g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
+	g.loadCacheForSources(g.cfg.Sources, g.cfg.Type)
 	g.restoreSystemProxyHighlight()
 
 	g.window.ShowAndRun()

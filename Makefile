@@ -23,6 +23,9 @@ LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
 
 GOLANGCI_LINT ?= golangci-lint
 
+MV := mv
+JQ := jq
+CAT := cat
 CP := cp
 CHMOD := chmod
 INSTALL := install
@@ -70,7 +73,8 @@ endif
         install-windows install-macos install-freebsd install-unknown \
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
         lint lint-vet lint-golangci lint-golangci-fix \
-		test coverage coverage-html
+		test coverage coverage-html \
+		sort-lang-files
 
 all: clean lint test build
 
@@ -79,6 +83,13 @@ help: # Shows help message
 	sort | \
 	while read -r l; do \
 		printf "\033[1;36m$$(echo $$l | cut -f 1 -d':')\033[00m:$$(echo $$l | cut -f 2- -d'#')\n"; \
+	done
+
+sort-lang-files: # Sorts keys in lang files
+	$(NOECHO) $(call print_info,"Searching for language files")
+	$(NOECHO) for file in $$(find internal/common/i18n/ -name '*.json' -type f); do \
+		$(call print_info,"Sorting keys in $${file}"); \
+		$(CAT) $${file} | $(JQ) '.' --sort-keys > $${file}.bak && $(MV) $${file}.bak $${file}; \
 	done
 
 test: # Runs golang tests

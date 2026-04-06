@@ -7,6 +7,7 @@ import (
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/services"
+	"sort"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -82,14 +83,7 @@ func (g *AppGUI) showMainScreen() {
 
 	g.table = g.createResultTable()
 
-	headerObjects := []fyne.CanvasObject{
-		widget.NewLabel(i18n.T("gui.header_host")), widget.NewLabel(i18n.T("gui.header_port")), widget.NewLabel(i18n.T("gui.header_type")),
-		widget.NewLabel(i18n.T("gui.header_country")), widget.NewLabel(i18n.T("gui.header_tcp")), widget.NewLabel(i18n.T("gui.header_http")),
-	}
-	if g.sysProxyManager.IsSupported() {
-		headerObjects = append(headerObjects, widget.NewLabel(""))
-	}
-	tableHeader := container.NewGridWithColumns(len(headerObjects), headerObjects...)
+	tableHeader, _ := g.buildSortableHeader(g.sysProxyManager.IsSupported())
 
 	scalableTable := newResizableTable(
 		g.table,
@@ -149,12 +143,19 @@ func (g *AppGUI) runBatchCheck() {
 		g.progressBar.Hide()
 	})
 
-	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), g.cfg.Source))
+	sourcesStr := strings.Join(common.SourcesToStrings(g.cfg.Sources), ", ")
+	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s...\n", i18n.T("gui.log_fetching"), sourcesStr))
 
-	fetcherInstance := fetcher.NewFetcher(g.cfg.Source, g.logger)
+	fetchers := make([]services.SourceFetcher, 0, len(g.cfg.Sources))
+	for _, src := range g.cfg.Sources {
+		fetchers = append(fetchers, services.SourceFetcher{
+			Source:  src,
+			Fetcher: fetcher.NewFetcher(src, g.logger),
+		})
+	}
 	verifierInstance := services.NewDefaultVerifier()
 
-	validProxies, err := services.RunPipeline(ctx, fetcherInstance, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
+	validProxies, err := services.RunPipeline(ctx, fetchers, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
 		OnFetched: func(total int) {
 			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
 		},
@@ -183,19 +184,31 @@ func (g *AppGUI) runBatchCheck() {
 	} else {
 		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
 
-		if err := g.cache.Save(g.cfg.Source, g.cfg.Type, validProxies, g.cfg.CacheTTL); err != nil {
-			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
-		} else {
-			g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
+		for _, src := range g.cfg.Sources {
+			var srcProxies []*services.ProxyItemFull
+			for _, p := range validProxies {
+				if p.Source == src {
+					srcProxies = append(srcProxies, p)
+				}
+			}
+
+			var err error
+			if len(srcProxies) > 0 {
+				err = g.cache.Save(src, g.cfg.Type, srcProxies, g.cfg.CacheTTL)
+			}
+			if err != nil {
+				g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+			}
 		}
+		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
 	}
 	_ = g.progress.Set(1.0)
 }
 
 func (g *AppGUI) createResultTable() *widget.Table {
-	cols := 6
+	cols := 7
 	if g.sysProxyManager.IsSupported() {
-		cols = 7
+		cols = 8
 	}
 
 	table := widget.NewTable(
@@ -206,7 +219,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			return newTableCell()
 		},
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
-			if id.Row < 0 || id.Row >= len(g.proxyItems) {
+			if id.Row < 0 || id.Row >= len(g.proxyItems) || id.Col >= cols {
 				return
 			}
 
@@ -217,7 +230,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 				return
 			}
 
-			if g.sysProxyManager.IsSupported() && id.Col == 6 {
+			if g.sysProxyManager.IsSupported() && id.Col == 7 {
 				h := item.Host
 				pt := item.Port
 				t := item.Type
@@ -230,16 +243,18 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			var text string
 			switch id.Col {
 			case 0:
-				text = item.Host
+				text = item.Source
 			case 1:
-				text = item.Port
+				text = item.Host
 			case 2:
-				text = string(item.Type)
+				text = item.Port
 			case 3:
-				text = item.Country
+				text = string(item.Type)
 			case 4:
-				text = item.TCP
+				text = item.Country
 			case 5:
+				text = item.TCP
+			case 6:
 				text = item.HTTP
 			}
 
@@ -266,4 +281,100 @@ func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	g.switchProxy.SetChecked(true)
 	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 	g.highlightProxyInList(host, port)
+}
+
+// sortProxyItems sorts the slice of UI wrappers based on the selected column index and direction.
+func sortProxyItems(items []*ProxyItemWrapper, col int, asc bool) {
+	sort.Slice(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		var less bool
+
+		switch col {
+		case 0:
+			less = a.Source < b.Source
+		case 1:
+			less = a.Host < b.Host
+		case 2:
+			less = a.Port < b.Port
+		case 3:
+			less = string(a.Type) < string(b.Type)
+		case 4:
+			less = a.Country < b.Country
+		case 5:
+			less = a.TCP < b.TCP
+		case 6:
+			less = a.HTTP < b.HTTP
+		default:
+			less = false
+		}
+
+		if asc {
+			return less
+		}
+		return !less
+	})
+}
+
+// buildSortableHeader creates a table header with clickable columns for sorting.
+// The sorting state (active column and direction) is managed locally via closures.
+func (g *AppGUI) buildSortableHeader(hasButtonCol bool) (*fyne.Container, func(int, bool)) {
+	baseTexts := []string{
+		i18n.T("gui.header_source"),
+		i18n.T("gui.header_host"),
+		i18n.T("gui.header_port"),
+		i18n.T("gui.header_type"),
+		i18n.T("gui.header_country"),
+		i18n.T("gui.header_tcp"),
+		i18n.T("gui.header_http"),
+	}
+
+	buttons := make([]*widget.Button, len(baseTexts))
+	stateCol := -1
+	stateAsc := true
+
+	updateLabels := func(activeCol int, asc bool) {
+		for i, btn := range buttons {
+			text := baseTexts[i]
+			if i == activeCol {
+				if asc {
+					text += " ▲"
+				} else {
+					text += " ▼"
+				}
+			}
+			btn.SetText(text)
+		}
+	}
+	for idx, txt := range baseTexts {
+		btn := widget.NewButton(txt, func() {
+			if stateCol == idx {
+				stateAsc = !stateAsc
+			} else {
+				stateCol = idx
+				stateAsc = true
+			}
+
+			sortProxyItems(g.proxyItems, idx, stateAsc)
+			updateLabels(stateCol, stateAsc)
+
+			if g.table != nil {
+				g.table.Refresh()
+			}
+		})
+
+		btn.Importance = widget.LowImportance
+		btn.Alignment = widget.ButtonAlignLeading
+		buttons[idx] = btn
+	}
+
+	headerObjects := make([]fyne.CanvasObject, len(buttons))
+	for i, b := range buttons {
+		headerObjects[i] = b
+	}
+
+	if hasButtonCol {
+		headerObjects = append(headerObjects, widget.NewLabel(""))
+	}
+
+	return container.NewGridWithColumns(len(headerObjects), headerObjects...), updateLabels
 }

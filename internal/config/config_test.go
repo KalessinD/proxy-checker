@@ -16,7 +16,7 @@ func TestDefaultConfig_Values(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	assert.Equal(t, common.ProxySOCKS5, cfg.Type)
-	assert.Equal(t, common.SourceProxyMania, cfg.Source)
+	assert.Equal(t, []common.Source{common.SourceProxyMania}, cfg.Sources)
 	assert.Equal(t, 10*time.Second, cfg.Timeout)
 	assert.Equal(t, 256, cfg.Workers)
 	assert.Equal(t, "google.com", cfg.DestAddr)
@@ -32,6 +32,7 @@ func TestSaveToFile_Success(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Lang = "ru"
 	cfg.Workers = 128
+	cfg.Sources = []common.Source{common.SourceProxyMania, common.SourceTheSpeedX}
 
 	err := cfg.SaveToFile()
 	require.NoError(t, err)
@@ -42,6 +43,7 @@ func TestSaveToFile_Success(t *testing.T) {
 
 	assert.Contains(t, string(data), "lang = \"ru\"")
 	assert.Contains(t, string(data), "workers = 128")
+	assert.Contains(t, string(data), "sources = [\"proxymania\", \"thespeedx\"]")
 }
 
 func TestEnsureConfigExists(t *testing.T) {
@@ -101,7 +103,7 @@ func TestLoad_SuccessfulLoad(t *testing.T) {
 timeout = "5s"
 workers = 32
 dest_addr = "yahoo.com"
-source = "thespeedx"
+sources = ["thespeedx", "proxifly"]
 lang = "ru"`
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
 
@@ -111,7 +113,7 @@ lang = "ru"`
 	assert.Equal(t, 5*time.Second, loadedCfg.Timeout)
 	assert.Equal(t, 32, loadedCfg.Workers)
 	assert.Equal(t, "yahoo.com", loadedCfg.DestAddr)
-	assert.Equal(t, common.SourceTheSpeedX, loadedCfg.Source)
+	assert.Equal(t, []common.Source{common.SourceTheSpeedX, common.SourceProxifly}, loadedCfg.Sources)
 	assert.Equal(t, "ru", loadedCfg.Lang)
 }
 

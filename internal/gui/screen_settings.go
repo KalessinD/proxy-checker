@@ -16,19 +16,10 @@ import (
 )
 
 func (g *AppGUI) ShowSettingsScreen() {
-	sources := []string{
-		string(common.SourceProxyMania),
-		string(common.SourceTheSpeedX),
-		string(common.SourceProxifly),
-	}
-
-	oldSource := g.cfg.Source
+	oldSources := g.cfg.Sources
 	oldProxyType := g.cfg.Type
 
-	selectSource := widget.NewSelect(sources, func(s string) {
-		g.cfg.Source = common.Source(s)
-	})
-	selectSource.SetSelected(string(g.cfg.Source))
+	selectSourceCheckAll, sourceChecks := g.createSourceCheckboxes()
 
 	geoipEntry := widget.NewEntry()
 	geoipEntry.SetPlaceHolder("/path/to/GeoLite2-Country.mmdb")
@@ -54,7 +45,7 @@ func (g *AppGUI) ShowSettingsScreen() {
 
 	ignoreHostsBox, ignoreHostsEntry := g.createIgnoreHostsBox()
 	proxyTypeSelector, http2Box := g.createProxyTypeSelector()
-	dynamicBox := g.createDynamicFieldsBox(selectSource)
+	dynamicBox := g.createDynamicFieldsBox()
 	selectTarget, customEntry, customBox := g.buildTargetSelector()
 
 	g.restoreTargetSelectorState(selectTarget, customEntry, customBox)
@@ -65,7 +56,14 @@ func (g *AppGUI) ShowSettingsScreen() {
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.lang")), selectLang),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.type")), proxyTypeSelector),
 		http2Box,
-		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.source")), selectSource),
+		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.sources")), selectSourceCheckAll),
+		container.NewGridWithColumns(2, container.NewHBox(), func() fyne.CanvasObject {
+			objs := make([]fyne.CanvasObject, len(sourceChecks))
+			for i, c := range sourceChecks {
+				objs[i] = c
+			}
+			return container.NewGridWithColumns(2, objs...)
+		}()),
 		dynamicBox,
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.workers")), g.createWorkersSelector()),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.timeout")), g.createTimeoutSelector()),
@@ -80,7 +78,11 @@ func (g *AppGUI) ShowSettingsScreen() {
 
 	btnSave := widget.NewButton(i18n.T("gui.btn_save"), func() {
 		g.cfg.GeoIPDBPath = geoipEntry.Text
+
+		g.syncSourcesFromChecks(sourceChecks)
+		g.syncDynamicFieldsVisibility()
 		g.initGeoIP(g.cfg.GeoIPDBPath)
+
 		if g.isGeoIPAvailable {
 			g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.geoip_loaded")+"\n")
 		} else if g.cfg.GeoIPDBPath != "" {
@@ -101,8 +103,8 @@ func (g *AppGUI) ShowSettingsScreen() {
 			g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.saved")+"\n")
 		}
 
-		if oldSource != g.cfg.Source || oldProxyType != g.cfg.Type {
-			g.loadCacheForSource(g.cfg.Source, g.cfg.Type)
+		if !sourcesEqual(oldSources, g.cfg.Sources) || oldProxyType != g.cfg.Type {
+			g.loadCacheForSources(g.cfg.Sources, g.cfg.Type)
 		}
 
 		g.setupMainMenu()
@@ -117,7 +119,108 @@ func (g *AppGUI) ShowSettingsScreen() {
 		btnSave,
 	)
 
-	g.window.SetContent(container.NewBorder(nil, buttonsBox, nil, nil, settingsContent))
+	g.window.SetContent(container.NewBorder(nil, buttonsBox, nil, nil, container.NewScroll(settingsContent)))
+}
+
+// createSourceCheckboxes builds "Select all" and individual source checkboxes.
+func (g *AppGUI) createSourceCheckboxes() (*widget.Check, []*widget.Check) {
+	availableSources := []common.Source{common.SourceProxyMania, common.SourceTheSpeedX, common.SourceProxifly}
+	checks := make([]*widget.Check, 0, len(availableSources))
+
+	var updating bool
+
+	for _, src := range availableSources {
+		c := widget.NewCheck(string(src), nil)
+		isSelected := false
+		for _, s := range g.cfg.Sources {
+			if s == src {
+				isSelected = true
+				break
+			}
+		}
+		c.SetChecked(isSelected)
+
+		checks = append(checks, c)
+	}
+
+	selectAllCheck := widget.NewCheck(i18n.T("gui.settings.sources_select_all"), nil)
+	allChecked := len(g.cfg.Sources) == len(availableSources)
+	selectAllCheck.SetChecked(allChecked)
+
+	selectAllCheck.OnChanged = func(checked bool) {
+		if updating {
+			return
+		}
+		updating = true
+		defer func() { updating = false }()
+
+		for _, c := range checks {
+			c.SetChecked(checked)
+		}
+	}
+
+	for _, c := range checks {
+		c.OnChanged = func(bool) {
+			if updating {
+				return
+			}
+			updating = true
+			defer func() { updating = false }()
+
+			isAllSelected := true
+			for _, ch := range checks {
+				if !ch.Checked {
+					isAllSelected = false
+					break
+				}
+			}
+			selectAllCheck.SetChecked(isAllSelected)
+		}
+	}
+
+	return selectAllCheck, checks
+}
+
+// syncSourcesFromChecks reads the state of checkboxes and updates the config.
+func (g *AppGUI) syncSourcesFromChecks(checks []*widget.Check) {
+	var sources []common.Source
+	for _, c := range checks {
+		if c.Checked {
+			sources = append(sources, common.Source(c.Text))
+		}
+	}
+	if len(sources) == 0 {
+		sources = []common.Source{common.SourceProxyMania}
+		for _, c := range checks {
+			if c.Text == string(common.SourceProxyMania) {
+				c.SetChecked(true)
+				break
+			}
+		}
+	}
+	g.cfg.Sources = sources
+}
+
+// syncDynamicFieldsVisibility updates the visibility of RTT and Pages fields based on current config.
+func (g *AppGUI) syncDynamicFieldsVisibility() {
+	for _, src := range g.cfg.Sources {
+		if src == common.SourceProxyMania {
+			return
+		}
+	}
+}
+
+// sourcesEqual is a helper to compare two slices of sources.
+func sourcesEqual(a, b []common.Source) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (g *AppGUI) createIgnoreHostsBox() (*fyne.Container, *widget.Entry) {
@@ -147,13 +250,9 @@ func (g *AppGUI) createIgnoreHostsBox() (*fyne.Container, *widget.Entry) {
 }
 
 func (g *AppGUI) createProxyTypeSelector() (*widget.RadioGroup, *fyne.Container) {
-	proxyTypes := []string{
-		string(common.ProxyHTTP),
-		string(common.ProxyHTTPS),
-		string(common.ProxySOCKS4),
-		string(common.ProxySOCKS5),
-		i18n.T("gui.single.type_all"),
-	}
+	allTypeTranslation := i18n.T("gui.single.type_all")
+	proxyTypes := append(common.AllowedProxyTypesStrings(), allTypeTranslation)
+
 	http2Check := widget.NewCheck("", func(checked bool) { g.cfg.CheckHTTP2 = checked })
 	http2Check.SetChecked(g.cfg.CheckHTTP2)
 	http2Box := container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.check_http2")), http2Check)
@@ -161,7 +260,7 @@ func (g *AppGUI) createProxyTypeSelector() (*widget.RadioGroup, *fyne.Container)
 	allValue := i18n.T("gui.single.type_all")
 	radioType := widget.NewRadioGroup(proxyTypes, func(pt string) {
 		proxyType := common.ProxyType(pt)
-		if proxyType == common.ProxyType(allValue) {
+		if pt == allTypeTranslation {
 			g.cfg.Type = common.ProxyAll
 		} else {
 			g.cfg.Type = proxyType
@@ -216,7 +315,7 @@ func (g *AppGUI) createTimeoutSelector() *widget.Select {
 	return selectTimeout
 }
 
-func (g *AppGUI) createDynamicFieldsBox(selectSource *widget.Select) *fyne.Container {
+func (g *AppGUI) createDynamicFieldsBox() *fyne.Container {
 	rttOptions := []string{}
 	for i := 50; i <= 500; i += 50 {
 		rttOptions = append(rttOptions, strconv.Itoa(i))
@@ -248,17 +347,16 @@ func (g *AppGUI) createDynamicFieldsBox(selectSource *widget.Select) *fyne.Conta
 		container.NewGridWithColumns(2, pagesLabel, selectPages),
 	)
 
-	toggleDynamicFields := func(source string) {
-		if source == string(common.SourceProxyMania) {
-			dynamicBox.Show()
-		} else {
-			dynamicBox.Hide()
+	needsDynamic := false
+	for _, src := range g.cfg.Sources {
+		if src == common.SourceProxyMania {
+			needsDynamic = true
+			break
 		}
 	}
-	toggleDynamicFields(string(g.cfg.Source))
-	selectSource.OnChanged = func(s string) {
-		g.cfg.Source = common.Source(s)
-		toggleDynamicFields(s)
+
+	if !needsDynamic {
+		dynamicBox.Hide()
 	}
 	return dynamicBox
 }

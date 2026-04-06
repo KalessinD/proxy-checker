@@ -14,6 +14,7 @@ type (
 		Type    common.ProxyType `json:"type"`
 		RTT     string           `json:"rtt"`
 		RTTms   int              `json:"rtt_ms"`
+		Source  common.Source    `json:"source"`
 	}
 
 	Settings struct {

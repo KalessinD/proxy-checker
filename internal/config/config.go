@@ -14,7 +14,7 @@ type Config struct {
 	Timeout     time.Duration    `toml:"timeout"`
 	Workers     int              `toml:"workers"`
 	DestAddr    string           `toml:"dest_addr"`
-	Source      common.Source    `toml:"source"`
+	Sources     []common.Source  `toml:"sources"`
 	RTT         int              `toml:"rtt"`
 	Pages       int              `toml:"pages"`
 	Theme       string           `toml:"theme"`
@@ -32,7 +32,7 @@ func DefaultConfig() *Config {
 		Theme:      "system",
 		MinWidth:   900,
 		MinHeight:  400,
-		Source:     common.SourceProxyMania,
+		Sources:    []common.Source{common.SourceProxyMania},
 		Type:       common.ProxySOCKS5,
 		Timeout:    10 * time.Second,
 		Workers:    256,
@@ -75,8 +75,15 @@ func Load() (*Config, error) {
 		return cfg, nil
 	}
 
+	cfg.Sources = nil
+
 	if _, err := toml.DecodeFile(path, cfg); err != nil {
 		return nil, err
+	}
+
+	// Ensure we always have at least one source to prevent empty state errors
+	if len(cfg.Sources) == 0 {
+		cfg.Sources = []common.Source{common.SourceProxyMania}
 	}
 
 	return cfg, nil
