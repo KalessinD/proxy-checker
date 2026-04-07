@@ -80,7 +80,6 @@ func (g *AppGUI) ShowSettingsScreen() {
 		g.cfg.GeoIPDBPath = geoipEntry.Text
 
 		g.syncSourcesFromChecks(sourceChecks)
-		g.syncDynamicFieldsVisibility()
 		g.initGeoIP(g.cfg.GeoIPDBPath)
 
 		if g.isGeoIPAvailable {
@@ -199,15 +198,6 @@ func (g *AppGUI) syncSourcesFromChecks(checks []*widget.Check) {
 		}
 	}
 	g.cfg.Sources = sources
-}
-
-// syncDynamicFieldsVisibility updates the visibility of RTT and Pages fields based on current config.
-func (g *AppGUI) syncDynamicFieldsVisibility() {
-	for _, src := range g.cfg.Sources {
-		if src == common.SourceProxyMania {
-			return
-		}
-	}
 }
 
 // sourcesEqual is a helper to compare two slices of sources.
