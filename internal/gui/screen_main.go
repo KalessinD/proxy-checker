@@ -82,6 +82,9 @@ func (g *AppGUI) showMainScreen() {
 	})
 	g.countryFilterSelect.PlaceHolder = i18n.T("gui.header_country")
 
+	g.updateCountryFilterOptions()
+	g.applyCountryFilter(g.countryFilterSelect.Selected)
+
 	filterContainer := container.NewHBox(
 		widget.NewLabel(i18n.T("gui.header_country")+":"),
 		g.countryFilterSelect,

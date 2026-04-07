@@ -451,12 +451,14 @@ func (g *AppGUI) updateCountryFilterOptions() {
 		return
 	}
 
+	currentlySelected := g.countryFilterSelect.Selected
+
 	countrySet := make(map[string]struct{})
 	for _, item := range g.proxyItems {
 		countrySet[item.Country] = struct{}{}
 	}
 
-	countries := make([]string, 0, len(countrySet))
+	countries := make([]string, 0, len(countrySet)+1)
 	for country := range countrySet {
 		countries = append(countries, country)
 	}
@@ -464,7 +466,21 @@ func (g *AppGUI) updateCountryFilterOptions() {
 
 	options := append([]string{i18n.T("gui.filter_all")}, countries...)
 	g.countryFilterSelect.Options = options
-	g.countryFilterSelect.SetSelected(i18n.T("gui.filter_all"))
+
+	// Restore previous selection if it is still valid, otherwise fallback to "All"
+	isSelectedValid := false
+	for _, opt := range options {
+		if opt == currentlySelected {
+			isSelectedValid = true
+			break
+		}
+	}
+	if isSelectedValid {
+		g.countryFilterSelect.SetSelected(currentlySelected)
+	} else {
+		g.countryFilterSelect.SetSelected(i18n.T("gui.filter_all"))
+	}
+
 	g.countryFilterSelect.Refresh()
 }
 
