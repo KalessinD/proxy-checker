@@ -66,9 +66,12 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: /tmp/proxy-checker-coverage.out
+          fail_on_error: true
           fail_ci_if_error: false
           flags: unittests
           verbose: true
+          required: 50
+        continue-on-error: true
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
