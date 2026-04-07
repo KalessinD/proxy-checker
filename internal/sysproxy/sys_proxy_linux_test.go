@@ -61,3 +61,9 @@ func TestIsGnomeDesktop(t *testing.T) {
 		})
 	}
 }
+
+func TestIsDebianBased_OsReleaseFile(t *testing.T) {
+	assert.NotPanics(t, func() {
+		sysproxy.IsDebianBased()
+	})
+}

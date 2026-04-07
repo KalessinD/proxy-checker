@@ -19,7 +19,7 @@ func newLinuxProxyManager() SystemProxyManager {
 }
 
 func (m *linuxProxyManager) IsSupported() bool {
-	return isDebianBased() && IsGnomeDesktop() && isGsettingsAvailable()
+	return IsDebianBased() && IsGnomeDesktop() && isGsettingsAvailable()
 }
 
 func (m *linuxProxyManager) GetMode() (string, error) {
@@ -109,7 +109,7 @@ func isGsettingsAvailable() bool {
 	return err == nil
 }
 
-func isDebianBased() bool {
+func IsDebianBased() bool {
 	if _, err := os.Stat("/etc/debian_version"); err == nil {
 		return true
 	}

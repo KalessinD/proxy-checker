@@ -3,6 +3,8 @@ package services_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"proxy-checker/internal/services"
 	"sync"
 	"sync/atomic"
@@ -156,4 +158,42 @@ func TestNewDefaultVerifier_Verify_DelegatesToChecker(t *testing.T) {
 
 	res := verifier.Verify(ctx, "127.0.0.1:9999", "google.com", "http", false)
 	assert.Error(t, res.Error, "Canceled context must cause an error")
+}
+
+func TestProxyChecker_CheckProxy_HTTPSuccess(t *testing.T) {
+	// Setting up a mock HTTP server that responds successfully
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}))
+	defer testServer.Close()
+
+	checker := services.NewProxyChecker()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	res := checker.CheckProxy(ctx, testServer.Listener.Addr().String(), "", "http", false)
+
+	require.NoError(t, res.Error, "Valid HTTP request must not return error")
+	assert.Equal(t, http.StatusOK, res.StatusCode, "Status code must be 200")
+	assert.True(t, res.SupportsHTTP, "SupportsHTTP flag must be true")
+	assert.GreaterOrEqual(t, res.ProxyLatency.Milliseconds(), int64(0), "TCP latency must be >= 0")
+	assert.GreaterOrEqual(t, res.ReqLatency.Milliseconds(), int64(0), "HTTP latency must be >= 0")
+	assert.NotEmpty(t, res.ProxyLatencyStr, "String representation must not be empty")
+	assert.NotEmpty(t, res.ReqLatencyStr, "String representation must not be empty")
+}
+
+func TestProxyChecker_CheckProxy_ConnectionRefused(t *testing.T) {
+	checker := services.NewProxyChecker()
+
+	// Port 1 on localhost is usually closed/refused by default
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+
+	res := checker.CheckProxy(ctx, "127.0.0.1:1", "", "http", false)
+
+	require.Error(t, res.Error, "Connection refused must return an error")
+	assert.Contains(t, res.Error.Error(), "TCP", "Error message must mention TCP")
+	assert.Equal(t, int64(0), res.ProxyLatency.Milliseconds(), "Failed TCP must have 0 latency")
+	assert.Equal(t, int64(0), res.ReqLatency.Milliseconds(), "Failed HTTP must have 0 latency")
 }
