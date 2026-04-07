@@ -166,7 +166,7 @@ func TestHighlightProxyInList_NotFound(t *testing.T) {
 	assert.Equal(t, -1, g.highlightedRow, "Must set highlightedRow to -1 if proxy is not found")
 }
 
-func TestUpdateCountryFilterOptions_ExtractsUniqueCountries(t *testing.T) {
+func TestRebuildFilterSelectOptions_ExtractsUniqueValues(t *testing.T) {
 	testApp := test.NewTempApp(t)
 	defer testApp.Quit()
 
@@ -175,14 +175,16 @@ func TestUpdateCountryFilterOptions_ExtractsUniqueCountries(t *testing.T) {
 	g := NewAppGUI(testApp, cfg, logger, "dev")
 
 	g.proxyItems = []*ProxyItemWrapper{
-		{Host: "1.1.1.1", Port: "8080", Country: "US"},
-		{Host: "2.2.2.2", Port: "8080", Country: "GB"},
-		{Host: "3.3.3.3", Port: "8080", Country: "US"},
-		{Host: "4.4.4.4", Port: "8080", Country: i18n.T("common.na")},
+		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
+		{Host: "2.2.2.2", Port: "8080", Country: "GB", Source: "thespeedx"},
+		{Host: "3.3.3.3", Port: "8080", Country: "US", Source: "proxymania"},
+		{Host: "4.4.4.4", Port: "8080", Country: i18n.T("common.na"), Source: "thespeedx"},
 	}
 	g.countryFilterSelect = widget.NewSelect(nil, nil)
 
-	g.updateCountryFilterOptions()
+	g.rebuildFilterSelectOptions(g.countryFilterSelect, g.proxyItems, func(item *ProxyItemWrapper) string {
+		return item.Country
+	}, i18n.T("gui.filter_all"))
 
 	assert.Contains(t, g.countryFilterSelect.Options, i18n.T("gui.filter_all"))
 	assert.Contains(t, g.countryFilterSelect.Options, "US")
@@ -195,7 +197,7 @@ func TestUpdateCountryFilterOptions_ExtractsUniqueCountries(t *testing.T) {
 	assert.Equal(t, 0, allIndex, "'All' must be the first option")
 }
 
-func TestApplyCountryFilter_AllOption(t *testing.T) {
+func TestApplyCombinedFilters_AllOption(t *testing.T) {
 	testApp := test.NewTempApp(t)
 	defer testApp.Quit()
 
@@ -204,17 +206,19 @@ func TestApplyCountryFilter_AllOption(t *testing.T) {
 	g := NewAppGUI(testApp, cfg, logger, "dev")
 
 	g.proxyItems = []*ProxyItemWrapper{
-		{Host: "1.1.1.1", Port: "8080", Country: "US"},
-		{Host: "2.2.2.2", Port: "8080", Country: "GB"},
+		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
+		{Host: "2.2.2.2", Port: "8080", Country: "GB", Source: "thespeedx"},
 	}
 	g.filteredProxyItems = g.proxyItems
 
-	g.applyCountryFilter(i18n.T("gui.filter_all"))
+	g.activeSourceFilter = i18n.T("gui.filter_all")
+	g.activeCountryFilter = i18n.T("gui.filter_all")
+	g.applyCombinedFilters()
 
 	assert.Len(t, g.filteredProxyItems, 2, "All items must be present when 'All' is selected")
 }
 
-func TestApplyCountryFilter_SpecificCountry(t *testing.T) {
+func TestApplyCombinedFilters_SingleCriteria(t *testing.T) {
 	testApp := test.NewTempApp(t)
 	defer testApp.Quit()
 
@@ -223,13 +227,15 @@ func TestApplyCountryFilter_SpecificCountry(t *testing.T) {
 	g := NewAppGUI(testApp, cfg, logger, "dev")
 
 	g.proxyItems = []*ProxyItemWrapper{
-		{Host: "1.1.1.1", Port: "8080", Country: "US"},
-		{Host: "2.2.2.2", Port: "8080", Country: "GB"},
-		{Host: "3.3.3.3", Port: "8080", Country: "US"},
+		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
+		{Host: "2.2.2.2", Port: "8080", Country: "GB", Source: "thespeedx"},
+		{Host: "3.3.3.3", Port: "8080", Country: "US", Source: "thespeedx"},
 	}
 	g.filteredProxyItems = g.proxyItems
 
-	g.applyCountryFilter("US")
+	g.activeSourceFilter = i18n.T("gui.filter_all")
+	g.activeCountryFilter = "US"
+	g.applyCombinedFilters()
 
 	require.Len(t, g.filteredProxyItems, 2, "Only US items must remain")
 	assert.Equal(t, "1.1.1.1", g.filteredProxyItems[0].Host)
@@ -256,6 +262,31 @@ func TestHighlightProxyInList_FilteredScenarios(t *testing.T) {
 	// Scenario 2: Proxy is filtered out
 	g.highlightProxyInList("9.9.9.9", "9999")
 	assert.Equal(t, -1, g.highlightedRow, "Must reset highlighting if proxy is not in filtered list")
+}
+
+func TestApplyCombinedFilters_MultipleCriteria(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
+		{Host: "2.2.2.2", Port: "8080", Country: "US", Source: "thespeedx"},
+		{Host: "3.3.3.3", Port: "8080", Country: "GB", Source: "proxymania"},
+		{Host: "4.4.4.4", Port: "8080", Country: "GB", Source: "thespeedx"},
+	}
+	g.filteredProxyItems = g.proxyItems
+
+	// Filter by US AND proxymania
+	g.activeSourceFilter = "proxymania"
+	g.activeCountryFilter = "US"
+	g.applyCombinedFilters()
+
+	require.Len(t, g.filteredProxyItems, 1, "Must return exactly one proxy matching both filters")
+	assert.Equal(t, "1.1.1.1", g.filteredProxyItems[0].Host)
 }
 
 // indexOf is a test helper to find the index of a string in a slice.

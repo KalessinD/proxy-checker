@@ -52,6 +52,10 @@ type (
 
 		filteredProxyItems  []*ProxyItemWrapper
 		countryFilterSelect *widget.Select
+		sourceFilterSelect  *widget.Select
+
+		activeCountryFilter string
+		activeSourceFilter  string
 
 		progressBar *widget.ProgressBar
 		table       *widget.Table
@@ -119,16 +123,18 @@ func (g *AppGUI) initGeoIP(customPath string) {
 
 func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface, version string) *AppGUI {
 	gui := &AppGUI{
-		app:                fyneApp,
-		window:             fyneApp.NewWindow(common.AppName),
-		cfg:                cfg,
-		logger:             logger,
-		progress:           binding.NewFloat(),
-		proxyItems:         make([]*ProxyItemWrapper, 0),
-		filteredProxyItems: make([]*ProxyItemWrapper, 0),
-		cache:              cache.NewFileStorage(logger),
-		sysProxyManager:    sysproxy.NewSystemProxyManager(),
-		version:            version,
+		app:                 fyneApp,
+		window:              fyneApp.NewWindow(common.AppName),
+		cfg:                 cfg,
+		logger:              logger,
+		progress:            binding.NewFloat(),
+		proxyItems:          make([]*ProxyItemWrapper, 0),
+		filteredProxyItems:  make([]*ProxyItemWrapper, 0),
+		activeCountryFilter: i18n.T("gui.filter_all"),
+		activeSourceFilter:  i18n.T("gui.filter_all"),
+		cache:               cache.NewFileStorage(logger),
+		sysProxyManager:     sysproxy.NewSystemProxyManager(),
+		version:             version,
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
@@ -437,69 +443,82 @@ func (g *AppGUI) restoreTargetSelectorState(targetSelect *widget.Select, customE
 	}
 }
 
-// resetAndApplyFilter updates the list of available countries in the filter
-// and applies the default "All" filter state.
+// resetAndApplyFilter updates the lists of available options for both filter
+// dropdowns based on the current master proxy list and applies the filters.
 func (g *AppGUI) resetAndApplyFilter() {
-	g.updateCountryFilterOptions()
-	g.applyCountryFilter(i18n.T("gui.filter_all"))
+	g.rebuildFilterSelectOptions(g.sourceFilterSelect, g.proxyItems, func(item *ProxyItemWrapper) string {
+		return item.Source
+	}, g.activeSourceFilter)
+
+	g.rebuildFilterSelectOptions(g.countryFilterSelect, g.proxyItems, func(item *ProxyItemWrapper) string {
+		return item.Country
+	}, g.activeCountryFilter)
+
+	g.activeSourceFilter = g.sourceFilterSelect.Selected
+	g.activeCountryFilter = g.countryFilterSelect.Selected
+
+	g.applyCombinedFilters()
 }
 
-// updateCountryFilterOptions extracts unique countries from the current proxy
-// list and updates the dropdown options.
-func (g *AppGUI) updateCountryFilterOptions() {
-	if g.countryFilterSelect == nil {
+// rebuildFilterSelectOptions extracts unique values from the proxy list using
+// the provided extractor function, updates the select widget options,
+// and restores the previously active selection if it remains valid.
+func (g *AppGUI) rebuildFilterSelectOptions(
+	selectWidget *widget.Select,
+	items []*ProxyItemWrapper,
+	extractor func(*ProxyItemWrapper) string,
+	activeFilter string,
+) {
+	if selectWidget == nil {
 		return
 	}
-
-	currentlySelected := g.countryFilterSelect.Selected
-
-	countrySet := make(map[string]struct{})
-	for _, item := range g.proxyItems {
-		countrySet[item.Country] = struct{}{}
+	uniqueValues := make(map[string]struct{})
+	for _, item := range items {
+		uniqueValues[extractor(item)] = struct{}{}
 	}
 
-	countries := make([]string, 0, len(countrySet)+1)
-	for country := range countrySet {
-		countries = append(countries, country)
+	values := make([]string, 0, len(uniqueValues))
+	for val := range uniqueValues {
+		values = append(values, val)
 	}
-	sort.Strings(countries)
+	sort.Strings(values)
 
-	options := append([]string{i18n.T("gui.filter_all")}, countries...)
-	g.countryFilterSelect.Options = options
+	options := append([]string{i18n.T("gui.filter_all")}, values...)
+	selectWidget.Options = options
 
-	// Restore previous selection if it is still valid, otherwise fallback to "All"
-	isSelectedValid := false
+	isValid := false
 	for _, opt := range options {
-		if opt == currentlySelected {
-			isSelectedValid = true
+		if opt == activeFilter {
+			isValid = true
 			break
 		}
 	}
-	if isSelectedValid {
-		g.countryFilterSelect.SetSelected(currentlySelected)
+
+	if isValid {
+		selectWidget.SetSelected(activeFilter)
 	} else {
-		g.countryFilterSelect.SetSelected(i18n.T("gui.filter_all"))
+		selectWidget.SetSelected(i18n.T("gui.filter_all"))
 	}
 
-	g.countryFilterSelect.Refresh()
+	selectWidget.Refresh()
 }
 
-// applyCountryFilter filters the master proxy list by the selected country
-// and updates the highlighting index accordingly.
-func (g *AppGUI) applyCountryFilter(selectedCountry string) {
-	if selectedCountry == i18n.T("gui.filter_all") || selectedCountry == "" {
-		g.filteredProxyItems = g.proxyItems
-	} else {
-		filtered := make([]*ProxyItemWrapper, 0)
-		for _, item := range g.proxyItems {
-			if item.Country == selectedCountry {
-				filtered = append(filtered, item)
-			}
+// applyCombinedFilters filters the master proxy list by the active source and
+// country selections and updates the highlighting index accordingly.
+func (g *AppGUI) applyCombinedFilters() {
+	filterAll := i18n.T("gui.filter_all")
+
+	filtered := make([]*ProxyItemWrapper, 0)
+	for _, item := range g.proxyItems {
+		matchSource := g.activeSourceFilter == filterAll || g.activeSourceFilter == "" || item.Source == g.activeSourceFilter
+		matchCountry := g.activeCountryFilter == filterAll || g.activeCountryFilter == "" || item.Country == g.activeCountryFilter
+
+		if matchSource && matchCountry {
+			filtered = append(filtered, item)
 		}
-		g.filteredProxyItems = filtered
 	}
 
-	// Re-evaluate highlighting for the new filtered subset
+	g.filteredProxyItems = filtered
 	g.updateHighlightingForFilteredItems()
 
 	if g.table != nil {

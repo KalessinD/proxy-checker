@@ -50,3 +50,4 @@ Revision history for Golang Tool to search for a working proxies
 
 0.0.19  2026 Apr 06
     - adding filter by country
+    - adding filter by source
