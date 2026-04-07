@@ -69,8 +69,7 @@ jobs:
           fail_ci_if_error: false
           flags: unittests
           verbose: true
-          # required: 50
-          report_type: test_results
+          # report_type: test_results # to upload junit.xml
         continue-on-error: true
 
   release:
