@@ -272,6 +272,8 @@ func TestApplyCombinedFilters_MultipleCriteria(t *testing.T) {
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 	g := NewAppGUI(testApp, cfg, logger, "dev")
 
+	g.countryFilterSelect = widget.NewSelect(nil, nil)
+
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
 		{Host: "2.2.2.2", Port: "8080", Country: "US", Source: "thespeedx"},
@@ -287,6 +289,76 @@ func TestApplyCombinedFilters_MultipleCriteria(t *testing.T) {
 
 	require.Len(t, g.filteredProxyItems, 1, "Must return exactly one proxy matching both filters")
 	assert.Equal(t, "1.1.1.1", g.filteredProxyItems[0].Host)
+}
+
+func TestSyncDependentFilter_ResetsInvalidSelection(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.countryFilterSelect = widget.NewSelect(nil, nil)
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
+		{Host: "2.2.2.2", Port: "8080", Country: "GB", Source: "thespeedx"},
+	}
+	g.filteredProxyItems = g.proxyItems
+
+	// Setup: User previously selected "US", but now filters by "thespeedx" (which only has "GB")
+	g.activeSourceFilter = "thespeedx"
+	g.activeCountryFilter = "US"
+	g.applyCombinedFilters()
+
+	require.Len(t, g.filteredProxyItems, 0, "Combined filter must leave 0 items if country is missing in the selected source")
+
+	// Sync country dropdown. "US" is no longer valid in the empty filtered list.
+	g.syncDependentFilter(
+		g.countryFilterSelect,
+		g.filteredProxyItems,
+		func(item *ProxyItemWrapper) string { return item.Country },
+		&g.activeCountryFilter,
+	)
+
+	// Assert that the dependent filter was automatically reset to "All"
+	assert.Equal(t, i18n.T("gui.filter_all"), g.activeCountryFilter, "Must reset to All if selection becomes invalid")
+
+	// Assert that the table was re-filtered correctly with the new "All" state (thespeedx + All)
+	require.Len(t, g.filteredProxyItems, 1, "Table must contain the thespeedx item when country is reset to All")
+}
+
+func TestSyncDependentFilter_KeepsValidSelection(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.countryFilterSelect = widget.NewSelect(nil, nil)
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
+		{Host: "2.2.2.2", Port: "8080", Country: "US", Source: "thespeedx"},
+	}
+	g.filteredProxyItems = g.proxyItems
+
+	// Setup: Both filters active, but "US" exists in both sources
+	g.activeSourceFilter = "proxymania"
+	g.activeCountryFilter = "US"
+	g.applyCombinedFilters()
+
+	// Sync country dropdown. "US" is still valid in the filtered list.
+	g.syncDependentFilter(
+		g.countryFilterSelect,
+		g.filteredProxyItems,
+		func(item *ProxyItemWrapper) string { return item.Country },
+		&g.activeCountryFilter,
+	)
+
+	assert.Equal(t, "US", g.activeCountryFilter, "Must keep selection if it remains valid")
 }
 
 // indexOf is a test helper to find the index of a string in a slice.

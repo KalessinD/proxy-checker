@@ -66,10 +66,11 @@ type (
 
 		sysProxyManager sysproxy.SystemProxyManager
 
-		highlightedRow   int
-		isDarkTheme      bool
-		isGeoIPAvailable bool
-		geoIPResolver    common.GeoIPResolver
+		highlightedRow    int
+		isUpdatingFilters bool
+		isDarkTheme       bool
+		isGeoIPAvailable  bool
+		geoIPResolver     common.GeoIPResolver
 
 		customTargetURL string
 		isCustomTarget  bool
@@ -446,6 +447,9 @@ func (g *AppGUI) restoreTargetSelectorState(targetSelect *widget.Select, customE
 // resetAndApplyFilter updates the lists of available options for both filter
 // dropdowns based on the current master proxy list and applies the filters.
 func (g *AppGUI) resetAndApplyFilter() {
+	g.isUpdatingFilters = true
+	defer func() { g.isUpdatingFilters = false }()
+
 	g.rebuildFilterSelectOptions(g.sourceFilterSelect, g.proxyItems, func(item *ProxyItemWrapper) string {
 		return item.Source
 	}, g.activeSourceFilter)
@@ -484,7 +488,7 @@ func (g *AppGUI) rebuildFilterSelectOptions(
 	sort.Strings(values)
 
 	options := append([]string{i18n.T("gui.filter_all")}, values...)
-	selectWidget.Options = options
+	selectWidget.SetOptions(options)
 
 	isValid := false
 	for _, opt := range options {
@@ -547,4 +551,94 @@ func (g *AppGUI) updateHighlightingForFilteredItems() {
 			break
 		}
 	}
+}
+
+// filterBySource returns a list of proxy items filtered only by the specified source.
+// This is used to build the correct list of options for the dependent (country) filter.
+func (g *AppGUI) filterBySource(source string) []*ProxyItemWrapper {
+	filterAll := i18n.T("gui.filter_all")
+	var result []*ProxyItemWrapper
+	for _, item := range g.proxyItems {
+		if source == filterAll || source == "" || item.Source == source {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+// filterByCountry returns a list of proxy items filtered only by the specified country.
+// This is used to build the correct list of options for the dependent (source) filter.
+func (g *AppGUI) filterByCountry(country string) []*ProxyItemWrapper {
+	filterAll := i18n.T("gui.filter_all")
+	var result []*ProxyItemWrapper
+	for _, item := range g.proxyItems {
+		if country == filterAll || country == "" || item.Country == country {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+// handleSourceFilterChange updates the active source filter and synchronizes
+// the country filter options based on items belonging ONLY to the new source.
+func (g *AppGUI) handleSourceFilterChange(selected string) {
+	if g.isUpdatingFilters {
+		return
+	}
+	g.activeSourceFilter = selected
+
+	// Get items filtered ONLY by the new source to extract all available countries
+	sourceOnlyItems := g.filterBySource(g.activeSourceFilter)
+
+	g.syncDependentFilter(
+		g.countryFilterSelect,
+		sourceOnlyItems,
+		func(item *ProxyItemWrapper) string { return item.Country },
+		&g.activeCountryFilter,
+	)
+}
+
+// handleCountryFilterChange updates the active country filter and synchronizes
+// the source filter options based on items belonging ONLY to the new country.
+func (g *AppGUI) handleCountryFilterChange(selected string) {
+	if g.isUpdatingFilters {
+		return
+	}
+	g.activeCountryFilter = selected
+
+	// Get items filtered ONLY by the new country to extract all available sources
+	countryOnlyItems := g.filterByCountry(g.activeCountryFilter)
+
+	g.syncDependentFilter(
+		g.sourceFilterSelect,
+		countryOnlyItems,
+		func(item *ProxyItemWrapper) string { return item.Source },
+		&g.activeSourceFilter,
+	)
+}
+
+// syncDependentFilter rebuilds the options for a filter dropdown based on the
+// provided intermediate list. If the previously selected option is no longer
+// available, it resets the filter to "All". It always triggers applyCombinedFilters
+// at the end to ensure the table reflects the final primary + dependent state.
+func (g *AppGUI) syncDependentFilter(
+	selectWidget *widget.Select,
+	intermediateItems []*ProxyItemWrapper,
+	extractor func(*ProxyItemWrapper) string,
+	activeFilter *string,
+) {
+	g.isUpdatingFilters = true
+	defer func() { g.isUpdatingFilters = false }()
+
+	g.rebuildFilterSelectOptions(selectWidget, intermediateItems, extractor, *activeFilter)
+
+	newSelected := selectWidget.Selected
+	if newSelected != *activeFilter {
+		*activeFilter = newSelected
+	}
+
+	// Always re-apply combined filters to update the table.
+	// This is required even if the dependent selection didn't change,
+	// because the primary filter (e.g., Source) might have changed.
+	g.applyCombinedFilters()
 }

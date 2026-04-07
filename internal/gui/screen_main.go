@@ -78,14 +78,12 @@ func (g *AppGUI) showMainScreen() {
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
 	g.sourceFilterSelect = widget.NewSelect([]string{i18n.T("gui.filter_all")}, func(selected string) {
-		g.activeSourceFilter = selected
-		g.applyCombinedFilters()
+		g.handleSourceFilterChange(selected)
 	})
 	g.sourceFilterSelect.PlaceHolder = i18n.T("gui.header_source")
 
 	g.countryFilterSelect = widget.NewSelect([]string{i18n.T("gui.filter_all")}, func(selected string) {
-		g.activeCountryFilter = selected
-		g.applyCombinedFilters()
+		g.handleCountryFilterChange(selected)
 	})
 	g.countryFilterSelect.PlaceHolder = i18n.T("gui.header_country")
 
