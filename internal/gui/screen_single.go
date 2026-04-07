@@ -75,13 +75,13 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 				Country: "N/A",
 				TCP:     res.ProxyLatencyStr,
 				HTTP:    res.ReqLatencyStr,
+				TCPMs:   res.ProxyLatency.Milliseconds(),
+				HTTPMs:  res.ReqLatency.Milliseconds(),
 			}
 
 			fyne.Do(func() {
 				g.proxyItems = []*ProxyItemWrapper{item}
-				if g.table != nil {
-					g.table.Refresh()
-				}
+				g.resetAndApplyFilter()
 			})
 			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.single.log_done"), res.StatusCode))
 			_ = g.progress.Set(1.0)

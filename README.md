@@ -12,6 +12,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 - **Dual Interface:** 
   - **Native GUI:** Built with [Fyne v2](https://fyne.io/). Features an adaptive, scalable data table, real-time logs, and progress tracking.
    - **CLI:** Perfect for automation, scripting, and integration with other tools.
+- **Interactive Filtering:** Filter results in the GUI table by source and country without re-running checks.
 - **Multiple Parsing Sources:** 
   - `proxymania.su`: Parses interactive pages with filtering by response time (RTT) and protocol. Supports pagination.
   - `thespeedx: Fetches raw lists directly from GitHub repositories.

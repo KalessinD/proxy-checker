@@ -62,13 +62,15 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: /tmp/proxy-checker-coverage.out
           fail_ci_if_error: false
           flags: unittests
           verbose: true
+          # report_type: test_results # to upload junit.xml
+        continue-on-error: true
 
   release:
     needs: autotests

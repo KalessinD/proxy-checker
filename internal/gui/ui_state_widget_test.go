@@ -113,7 +113,7 @@ func TestCreateProxyTypeSelector_SetsAllType(t *testing.T) {
 }
 
 func TestTableCell_UpdateText(t *testing.T) {
-	cell := newTableCell()
+	cell := newTableCell(nil)
 	cell.updateText("192.168.1.1")
 
 	assert.True(t, cell.label.Visible(), "Label must be visible on text update")
@@ -121,7 +121,7 @@ func TestTableCell_UpdateText(t *testing.T) {
 }
 
 func TestTableCell_UpdateButton(t *testing.T) {
-	cell := newTableCell()
+	cell := newTableCell(nil)
 	var buttonClicked bool
 	cell.updateButton(func() { buttonClicked = true })
 

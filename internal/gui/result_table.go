@@ -13,9 +13,11 @@ import (
 type (
 	tableCell struct {
 		widget.BaseWidget
-		label *widget.Label
-		btn   *widget.Button
-		bg    *canvas.Rectangle
+
+		label     *widget.Label
+		btn       *widget.Button
+		bg        *canvas.Rectangle
+		clipboard fyne.Clipboard
 	}
 
 	resizableTable struct {
@@ -28,20 +30,17 @@ type (
 	}
 )
 
-func newTableCell() *tableCell {
-	c := &tableCell{
-		label: widget.NewLabel(""),
-		btn:   widget.NewButton(i18n.T("gui.btn_apply"), nil),
-		bg:    canvas.NewRectangle(color.Transparent),
+func newTableCell(clipboard fyne.Clipboard) *tableCell {
+	cell := &tableCell{
+		label:     widget.NewLabel(""),
+		btn:       widget.NewButton(i18n.T("gui.btn_apply"), nil),
+		bg:        canvas.NewRectangle(color.Transparent),
+		clipboard: clipboard,
 	}
-	c.label.Truncation = fyne.TextTruncateClip
-	c.btn.Hide()
-	c.ExtendBaseWidget(c)
-	return c
-}
-
-func (c *tableCell) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(container.NewStack(c.bg, c.label, c.btn))
+	cell.label.Truncation = fyne.TextTruncateClip
+	cell.btn.Hide()
+	cell.ExtendBaseWidget(cell)
+	return cell
 }
 
 func (c *tableCell) updateText(text string) {
@@ -123,4 +122,26 @@ func (c *tableCell) setHighlighted(isHighlighted bool, isDarkVariant bool) {
 		c.bg.FillColor = color.Transparent
 	}
 	c.bg.Refresh()
+}
+
+// TappedSecondary handles the right-click event to show the copy context menu.
+func (c *tableCell) TappedSecondary(pe *fyne.PointEvent) {
+	if c.label.Text == "" || c.btn.Visible() {
+		return
+	}
+	copyItem := fyne.NewMenuItem(i18n.T("gui.ctx_copy"), func() {
+		if c.clipboard != nil {
+			c.clipboard.SetContent(c.label.Text)
+		}
+	})
+
+	menu := fyne.NewMenu("", copyItem)
+	canvas := fyne.CurrentApp().Driver().CanvasForObject(c)
+	if canvas != nil {
+		widget.NewPopUpMenu(menu, canvas).ShowAtPosition(pe.AbsolutePosition)
+	}
+}
+
+func (c *tableCell) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(container.NewStack(c.bg, c.label, c.btn))
 }

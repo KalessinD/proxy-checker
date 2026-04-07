@@ -10,6 +10,7 @@ import (
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
 	"proxy-checker/internal/sysproxy"
+	"sort"
 	"strings"
 	"sync"
 
@@ -36,6 +37,8 @@ type (
 		Country string           `json:"country"`
 		TCP     string           `json:"tcp"`
 		HTTP    string           `json:"http"`
+		TCPMs   int64            `json:"tcp_ms"`
+		HTTPMs  int64            `json:"http_ms"`
 	}
 
 	AppGUI struct {
@@ -49,6 +52,13 @@ type (
 		progress   binding.Float
 		proxyItems []*ProxyItemWrapper
 
+		filteredProxyItems  []*ProxyItemWrapper
+		countryFilterSelect *widget.Select
+		sourceFilterSelect  *widget.Select
+
+		activeCountryFilter string
+		activeSourceFilter  string
+
 		progressBar *widget.ProgressBar
 		table       *widget.Table
 
@@ -58,10 +68,11 @@ type (
 
 		sysProxyManager sysproxy.SystemProxyManager
 
-		highlightedRow   int
-		isDarkTheme      bool
-		isGeoIPAvailable bool
-		geoIPResolver    common.GeoIPResolver
+		highlightedRow    int
+		isUpdatingFilters bool
+		isDarkTheme       bool
+		isGeoIPAvailable  bool
+		geoIPResolver     common.GeoIPResolver
 
 		customTargetURL string
 		isCustomTarget  bool
@@ -115,15 +126,18 @@ func (g *AppGUI) initGeoIP(customPath string) {
 
 func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface, version string) *AppGUI {
 	gui := &AppGUI{
-		app:             fyneApp,
-		window:          fyneApp.NewWindow(common.AppName),
-		cfg:             cfg,
-		logger:          logger,
-		progress:        binding.NewFloat(),
-		proxyItems:      make([]*ProxyItemWrapper, 0),
-		cache:           cache.NewFileStorage(logger),
-		sysProxyManager: sysproxy.NewSystemProxyManager(),
-		version:         version,
+		app:                 fyneApp,
+		window:              fyneApp.NewWindow(common.AppName),
+		cfg:                 cfg,
+		logger:              logger,
+		progress:            binding.NewFloat(),
+		proxyItems:          make([]*ProxyItemWrapper, 0),
+		filteredProxyItems:  make([]*ProxyItemWrapper, 0),
+		activeCountryFilter: i18n.T("gui.filter_all"),
+		activeSourceFilter:  i18n.T("gui.filter_all"),
+		cache:               cache.NewFileStorage(logger),
+		sysProxyManager:     sysproxy.NewSystemProxyManager(),
+		version:             version,
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
@@ -292,9 +306,7 @@ func (g *AppGUI) loadCacheForSources(sources []common.Source, proxyType common.P
 	if len(deduped) == 0 {
 		fyne.Do(func() {
 			g.proxyItems = []*ProxyItemWrapper{}
-			if g.table != nil {
-				g.table.Refresh()
-			}
+			g.resetAndApplyFilter()
 		})
 		return
 	}
@@ -303,9 +315,7 @@ func (g *AppGUI) loadCacheForSources(sources []common.Source, proxyType common.P
 
 	fyne.Do(func() {
 		g.proxyItems = items
-		if g.table != nil {
-			g.table.Refresh()
-		}
+		g.resetAndApplyFilter()
 	})
 
 	if len(deduped) > 0 {
@@ -334,6 +344,8 @@ func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapp
 			Source: string(item.Source),
 			Host:   item.Host, Port: item.Port, Type: item.Type, Country: item.Country,
 			TCP: item.CheckResult.ProxyLatencyStr, HTTP: item.CheckResult.ReqLatencyStr,
+			TCPMs:  item.CheckResult.ProxyLatency.Milliseconds(),
+			HTTPMs: item.CheckResult.ReqLatency.Milliseconds(),
 		}
 	}
 	return wrappers
@@ -367,7 +379,7 @@ func (g *AppGUI) restoreSystemProxyHighlight() {
 
 func (g *AppGUI) highlightProxyInList(host, port string) {
 	g.highlightedRow = -1
-	for i, item := range g.proxyItems {
+	for i, item := range g.filteredProxyItems {
 		if item.Host == host && item.Port == port {
 			g.highlightedRow = i
 			break
@@ -434,4 +446,203 @@ func (g *AppGUI) restoreTargetSelectorState(targetSelect *widget.Select, customE
 	} else if g.cfg.DestAddr != "" {
 		targetSelect.SetSelected(g.cfg.DestAddr)
 	}
+}
+
+// resetAndApplyFilter updates the lists of available options for both filter
+// dropdowns based on the current master proxy list and applies the filters.
+func (g *AppGUI) resetAndApplyFilter() {
+	g.isUpdatingFilters = true
+	defer func() { g.isUpdatingFilters = false }()
+
+	g.rebuildFilterSelectOptions(g.sourceFilterSelect, g.proxyItems, func(item *ProxyItemWrapper) string {
+		return item.Source
+	}, g.activeSourceFilter)
+
+	g.rebuildFilterSelectOptions(g.countryFilterSelect, g.proxyItems, func(item *ProxyItemWrapper) string {
+		return item.Country
+	}, g.activeCountryFilter)
+
+	g.activeSourceFilter = g.sourceFilterSelect.Selected
+	g.activeCountryFilter = g.countryFilterSelect.Selected
+
+	g.applyCombinedFilters()
+}
+
+// rebuildFilterSelectOptions extracts unique values from the proxy list using
+// the provided extractor function, updates the select widget options,
+// and restores the previously active selection if it remains valid.
+func (g *AppGUI) rebuildFilterSelectOptions(
+	selectWidget *widget.Select,
+	items []*ProxyItemWrapper,
+	extractor func(*ProxyItemWrapper) string,
+	activeFilter string,
+) {
+	if selectWidget == nil {
+		return
+	}
+	uniqueValues := make(map[string]struct{})
+	for _, item := range items {
+		uniqueValues[extractor(item)] = struct{}{}
+	}
+
+	values := make([]string, 0, len(uniqueValues))
+	for val := range uniqueValues {
+		values = append(values, val)
+	}
+	sort.Strings(values)
+
+	options := append([]string{i18n.T("gui.filter_all")}, values...)
+	selectWidget.SetOptions(options)
+
+	isValid := false
+	for _, opt := range options {
+		if opt == activeFilter {
+			isValid = true
+			break
+		}
+	}
+
+	if isValid {
+		selectWidget.SetSelected(activeFilter)
+	} else {
+		selectWidget.SetSelected(i18n.T("gui.filter_all"))
+	}
+
+	selectWidget.Refresh()
+}
+
+// applyCombinedFilters filters the master proxy list by the active source and
+// country selections and updates the highlighting index accordingly.
+func (g *AppGUI) applyCombinedFilters() {
+	filterAll := i18n.T("gui.filter_all")
+
+	filtered := make([]*ProxyItemWrapper, 0)
+	for _, item := range g.proxyItems {
+		matchSource := g.activeSourceFilter == filterAll || g.activeSourceFilter == "" || item.Source == g.activeSourceFilter
+		matchCountry := g.activeCountryFilter == filterAll || g.activeCountryFilter == "" || item.Country == g.activeCountryFilter
+
+		if matchSource && matchCountry {
+			filtered = append(filtered, item)
+		}
+	}
+
+	g.filteredProxyItems = filtered
+	g.updateHighlightingForFilteredItems()
+
+	if g.table != nil {
+		g.table.Refresh()
+	}
+}
+
+// updateHighlightingForFilteredItems adjusts the highlighted row index
+// based on the currently active system proxy and the filtered list.
+func (g *AppGUI) updateHighlightingForFilteredItems() {
+	if !g.sysProxyManager.IsSupported() {
+		g.highlightedRow = -1
+		return
+	}
+
+	host, port, err := g.sysProxyManager.GetActiveProxy()
+	if err != nil || host == "" || port == "" {
+		g.highlightedRow = -1
+		return
+	}
+
+	g.highlightedRow = -1
+	for i, item := range g.filteredProxyItems {
+		if item.Host == host && item.Port == port {
+			g.highlightedRow = i
+			break
+		}
+	}
+}
+
+// filterBySource returns a list of proxy items filtered only by the specified source.
+// This is used to build the correct list of options for the dependent (country) filter.
+func (g *AppGUI) filterBySource(source string) []*ProxyItemWrapper {
+	filterAll := i18n.T("gui.filter_all")
+	var result []*ProxyItemWrapper
+	for _, item := range g.proxyItems {
+		if source == filterAll || source == "" || item.Source == source {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+// filterByCountry returns a list of proxy items filtered only by the specified country.
+// This is used to build the correct list of options for the dependent (source) filter.
+func (g *AppGUI) filterByCountry(country string) []*ProxyItemWrapper {
+	filterAll := i18n.T("gui.filter_all")
+	var result []*ProxyItemWrapper
+	for _, item := range g.proxyItems {
+		if country == filterAll || country == "" || item.Country == country {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+// handleSourceFilterChange updates the active source filter and synchronizes
+// the country filter options based on items belonging ONLY to the new source.
+func (g *AppGUI) handleSourceFilterChange(selected string) {
+	if g.isUpdatingFilters {
+		return
+	}
+	g.activeSourceFilter = selected
+
+	// Get items filtered ONLY by the new source to extract all available countries
+	sourceOnlyItems := g.filterBySource(g.activeSourceFilter)
+
+	g.syncDependentFilter(
+		g.countryFilterSelect,
+		sourceOnlyItems,
+		func(item *ProxyItemWrapper) string { return item.Country },
+		&g.activeCountryFilter,
+	)
+}
+
+// handleCountryFilterChange updates the active country filter and synchronizes
+// the source filter options based on items belonging ONLY to the new country.
+func (g *AppGUI) handleCountryFilterChange(selected string) {
+	if g.isUpdatingFilters {
+		return
+	}
+	g.activeCountryFilter = selected
+
+	// Get items filtered ONLY by the new country to extract all available sources
+	countryOnlyItems := g.filterByCountry(g.activeCountryFilter)
+
+	g.syncDependentFilter(
+		g.sourceFilterSelect,
+		countryOnlyItems,
+		func(item *ProxyItemWrapper) string { return item.Source },
+		&g.activeSourceFilter,
+	)
+}
+
+// syncDependentFilter rebuilds the options for a filter dropdown based on the
+// provided intermediate list. If the previously selected option is no longer
+// available, it resets the filter to "All". It always triggers applyCombinedFilters
+// at the end to ensure the table reflects the final primary + dependent state.
+func (g *AppGUI) syncDependentFilter(
+	selectWidget *widget.Select,
+	intermediateItems []*ProxyItemWrapper,
+	extractor func(*ProxyItemWrapper) string,
+	activeFilter *string,
+) {
+	g.isUpdatingFilters = true
+	defer func() { g.isUpdatingFilters = false }()
+
+	g.rebuildFilterSelectOptions(selectWidget, intermediateItems, extractor, *activeFilter)
+
+	newSelected := selectWidget.Selected
+	if newSelected != *activeFilter {
+		*activeFilter = newSelected
+	}
+
+	// Always re-apply combined filters to update the table.
+	// This is required even if the dependent selection didn't change,
+	// because the primary filter (e.g., Source) might have changed.
+	g.applyCombinedFilters()
 }

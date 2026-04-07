@@ -77,7 +77,27 @@ func (g *AppGUI) showMainScreen() {
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_logs")))
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
+	g.sourceFilterSelect = widget.NewSelect([]string{i18n.T("gui.filter_all")}, func(selected string) {
+		g.handleSourceFilterChange(selected)
+	})
+	g.sourceFilterSelect.PlaceHolder = i18n.T("gui.header_source")
+
+	g.countryFilterSelect = widget.NewSelect([]string{i18n.T("gui.filter_all")}, func(selected string) {
+		g.handleCountryFilterChange(selected)
+	})
+	g.countryFilterSelect.PlaceHolder = i18n.T("gui.header_country")
+
+	g.resetAndApplyFilter()
+
+	filterContainer := container.NewHBox(
+		widget.NewLabel(i18n.T("gui.header_source")+":"),
+		g.sourceFilterSelect,
+		widget.NewLabel(i18n.T("gui.header_country")+":"),
+		g.countryFilterSelect,
+	)
+
 	topBox.Add(logArea)
+	topBox.Add(filterContainer)
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_progress")))
 	topBox.Add(progressBar)
 
@@ -174,9 +194,7 @@ func (g *AppGUI) runBatchCheck() {
 
 	fyne.Do(func() {
 		g.proxyItems = guiItems
-		if g.table != nil {
-			g.table.Refresh()
-		}
+		g.resetAndApplyFilter()
 	})
 
 	if ctx.Err() != nil {
@@ -201,8 +219,26 @@ func (g *AppGUI) runBatchCheck() {
 			}
 		}
 		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
+
+		g.sendNotificationIfNotActive(
+			i18n.T("gui.notify_scan_done_title"),
+			fmt.Sprintf("%s: %d", i18n.T("gui.log_done"), len(validProxies)),
+		)
 	}
 	_ = g.progress.Set(1.0)
+}
+
+// Send system notification only if the window is not in focus
+func (g *AppGUI) sendNotificationIfNotActive(title, message string) {
+	if g.window.Canvas().Focused() == nil {
+		g.sendSystemNotification(title, message)
+	}
+}
+
+// sendSystemNotification safely sends a system notification.
+func (g *AppGUI) sendSystemNotification(title, content string) {
+	notification := fyne.NewNotification(title, content)
+	fyne.CurrentApp().SendNotification(notification)
 }
 
 func (g *AppGUI) createResultTable() *widget.Table {
@@ -213,17 +249,17 @@ func (g *AppGUI) createResultTable() *widget.Table {
 
 	table := widget.NewTable(
 		func() (int, int) {
-			return len(g.proxyItems), cols
+			return len(g.filteredProxyItems), cols
 		},
 		func() fyne.CanvasObject {
-			return newTableCell()
+			return newTableCell(g.app.Clipboard())
 		},
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
-			if id.Row < 0 || id.Row >= len(g.proxyItems) || id.Col >= cols {
+			if id.Row < 0 || id.Row >= len(g.filteredProxyItems) || id.Col >= cols {
 				return
 			}
 
-			item := g.proxyItems[id.Row]
+			item := g.filteredProxyItems[id.Row]
 
 			tc, ok := cell.(*tableCell)
 			if !ok {
@@ -301,9 +337,9 @@ func sortProxyItems(items []*ProxyItemWrapper, col int, asc bool) {
 		case 4:
 			less = a.Country < b.Country
 		case 5:
-			less = a.TCP < b.TCP
+			less = a.TCPMs < b.TCPMs
 		case 6:
-			less = a.HTTP < b.HTTP
+			less = a.HTTPMs < b.HTTPMs
 		default:
 			less = false
 		}
@@ -354,7 +390,7 @@ func (g *AppGUI) buildSortableHeader(hasButtonCol bool) (*fyne.Container, func(i
 				stateAsc = true
 			}
 
-			sortProxyItems(g.proxyItems, idx, stateAsc)
+			sortProxyItems(g.filteredProxyItems, idx, stateAsc)
 			updateLabels(stateCol, stateAsc)
 
 			if g.table != nil {
