@@ -67,6 +67,7 @@
   "gui.btn_save": "Сохранить",
   "gui.btn_settings": "Настройки",
   "gui.err_proxy_not_supported": "Системный прокси не поддерживается на данной ОС.",
+  "gui.filter_all": "Все",
   "gui.header_country": "Страна",
   "gui.header_host": "Хост",
   "gui.header_http": "HTTP",

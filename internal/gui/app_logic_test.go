@@ -3,11 +3,13 @@ package gui
 
 import (
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -138,6 +140,8 @@ func TestHighlightProxyInList_Found(t *testing.T) {
 		{Host: "3.3.3.3", Port: "1080"},
 	}
 
+	g.filteredProxyItems = g.proxyItems
+
 	g.highlightProxyInList("2.2.2.2", "3128")
 
 	assert.Equal(t, 1, g.highlightedRow, "Must update highlightedRow to the correct index")
@@ -155,7 +159,111 @@ func TestHighlightProxyInList_NotFound(t *testing.T) {
 		{Host: "1.1.1.1", Port: "8080"},
 	}
 
+	g.filteredProxyItems = g.proxyItems
+
 	g.highlightProxyInList("9.9.9.9", "9999")
 
 	assert.Equal(t, -1, g.highlightedRow, "Must set highlightedRow to -1 if proxy is not found")
+}
+
+func TestUpdateCountryFilterOptions_ExtractsUniqueCountries(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080", Country: "US"},
+		{Host: "2.2.2.2", Port: "8080", Country: "GB"},
+		{Host: "3.3.3.3", Port: "8080", Country: "US"},
+		{Host: "4.4.4.4", Port: "8080", Country: i18n.T("common.na")},
+	}
+	g.countryFilterSelect = widget.NewSelect(nil, nil)
+
+	g.updateCountryFilterOptions()
+
+	assert.Contains(t, g.countryFilterSelect.Options, i18n.T("gui.filter_all"))
+	assert.Contains(t, g.countryFilterSelect.Options, "US")
+	assert.Contains(t, g.countryFilterSelect.Options, "GB")
+	assert.Contains(t, g.countryFilterSelect.Options, i18n.T("common.na"))
+	assert.Equal(t, i18n.T("gui.filter_all"), g.countryFilterSelect.Selected)
+
+	// Verify sorting
+	allIndex := indexOf(g.countryFilterSelect.Options, i18n.T("gui.filter_all"))
+	assert.Equal(t, 0, allIndex, "'All' must be the first option")
+}
+
+func TestApplyCountryFilter_AllOption(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080", Country: "US"},
+		{Host: "2.2.2.2", Port: "8080", Country: "GB"},
+	}
+	g.filteredProxyItems = g.proxyItems
+
+	g.applyCountryFilter(i18n.T("gui.filter_all"))
+
+	assert.Len(t, g.filteredProxyItems, 2, "All items must be present when 'All' is selected")
+}
+
+func TestApplyCountryFilter_SpecificCountry(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.proxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080", Country: "US"},
+		{Host: "2.2.2.2", Port: "8080", Country: "GB"},
+		{Host: "3.3.3.3", Port: "8080", Country: "US"},
+	}
+	g.filteredProxyItems = g.proxyItems
+
+	g.applyCountryFilter("US")
+
+	require.Len(t, g.filteredProxyItems, 2, "Only US items must remain")
+	assert.Equal(t, "1.1.1.1", g.filteredProxyItems[0].Host)
+	assert.Equal(t, "3.3.3.3", g.filteredProxyItems[1].Host)
+}
+
+func TestHighlightProxyInList_FilteredScenarios(t *testing.T) {
+	testApp := test.NewTempApp(t)
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+	g := NewAppGUI(testApp, cfg, logger, "dev")
+
+	g.filteredProxyItems = []*ProxyItemWrapper{
+		{Host: "1.1.1.1", Port: "8080"},
+		{Host: "2.2.2.2", Port: "3128"},
+	}
+
+	// Scenario 1: Proxy is in the filtered list
+	g.highlightProxyInList("2.2.2.2", "3128")
+	assert.Equal(t, 1, g.highlightedRow, "Must highlight correct index in filtered list")
+
+	// Scenario 2: Proxy is filtered out
+	g.highlightProxyInList("9.9.9.9", "9999")
+	assert.Equal(t, -1, g.highlightedRow, "Must reset highlighting if proxy is not in filtered list")
+}
+
+// indexOf is a test helper to find the index of a string in a slice.
+func indexOf(slice []string, item string) int {
+	for i, v := range slice {
+		if v == item {
+			return i
+		}
+	}
+	return -1
 }

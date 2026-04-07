@@ -77,7 +77,18 @@ func (g *AppGUI) showMainScreen() {
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_logs")))
 	logArea := newMinSizeWidget(g.logScroll, fyne.NewSize(0, 150))
 
+	g.countryFilterSelect = widget.NewSelect([]string{i18n.T("gui.filter_all")}, func(selected string) {
+		g.applyCountryFilter(selected)
+	})
+	g.countryFilterSelect.PlaceHolder = i18n.T("gui.header_country")
+
+	filterContainer := container.NewHBox(
+		widget.NewLabel(i18n.T("gui.header_country")+":"),
+		g.countryFilterSelect,
+	)
+
 	topBox.Add(logArea)
+	topBox.Add(filterContainer)
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_progress")))
 	topBox.Add(progressBar)
 
@@ -174,9 +185,7 @@ func (g *AppGUI) runBatchCheck() {
 
 	fyne.Do(func() {
 		g.proxyItems = guiItems
-		if g.table != nil {
-			g.table.Refresh()
-		}
+		g.resetAndApplyFilter()
 	})
 
 	if ctx.Err() != nil {
@@ -213,17 +222,17 @@ func (g *AppGUI) createResultTable() *widget.Table {
 
 	table := widget.NewTable(
 		func() (int, int) {
-			return len(g.proxyItems), cols
+			return len(g.filteredProxyItems), cols
 		},
 		func() fyne.CanvasObject {
 			return newTableCell()
 		},
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
-			if id.Row < 0 || id.Row >= len(g.proxyItems) || id.Col >= cols {
+			if id.Row < 0 || id.Row >= len(g.filteredProxyItems) || id.Col >= cols {
 				return
 			}
 
-			item := g.proxyItems[id.Row]
+			item := g.filteredProxyItems[id.Row]
 
 			tc, ok := cell.(*tableCell)
 			if !ok {
@@ -354,7 +363,7 @@ func (g *AppGUI) buildSortableHeader(hasButtonCol bool) (*fyne.Container, func(i
 				stateAsc = true
 			}
 
-			sortProxyItems(g.proxyItems, idx, stateAsc)
+			sortProxyItems(g.filteredProxyItems, idx, stateAsc)
 			updateLabels(stateCol, stateAsc)
 
 			if g.table != nil {

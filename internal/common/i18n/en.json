@@ -68,6 +68,7 @@
   "gui.btn_save": "Save",
   "gui.btn_settings": "Settings",
   "gui.err_proxy_not_supported": "System proxy is not supported on this OS.",
+  "gui.filter_all": "All",
   "gui.header_country": "Country",
   "gui.header_host": "Host",
   "gui.header_http": "HTTP",

@@ -10,6 +10,7 @@ import (
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
 	"proxy-checker/internal/sysproxy"
+	"sort"
 	"strings"
 	"sync"
 
@@ -48,6 +49,9 @@ type (
 
 		progress   binding.Float
 		proxyItems []*ProxyItemWrapper
+
+		filteredProxyItems  []*ProxyItemWrapper
+		countryFilterSelect *widget.Select
 
 		progressBar *widget.ProgressBar
 		table       *widget.Table
@@ -115,15 +119,16 @@ func (g *AppGUI) initGeoIP(customPath string) {
 
 func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface, version string) *AppGUI {
 	gui := &AppGUI{
-		app:             fyneApp,
-		window:          fyneApp.NewWindow(common.AppName),
-		cfg:             cfg,
-		logger:          logger,
-		progress:        binding.NewFloat(),
-		proxyItems:      make([]*ProxyItemWrapper, 0),
-		cache:           cache.NewFileStorage(logger),
-		sysProxyManager: sysproxy.NewSystemProxyManager(),
-		version:         version,
+		app:                fyneApp,
+		window:             fyneApp.NewWindow(common.AppName),
+		cfg:                cfg,
+		logger:             logger,
+		progress:           binding.NewFloat(),
+		proxyItems:         make([]*ProxyItemWrapper, 0),
+		filteredProxyItems: make([]*ProxyItemWrapper, 0),
+		cache:              cache.NewFileStorage(logger),
+		sysProxyManager:    sysproxy.NewSystemProxyManager(),
+		version:            version,
 	}
 
 	gui.window.Resize(fyne.NewSize(800, 600))
@@ -292,9 +297,7 @@ func (g *AppGUI) loadCacheForSources(sources []common.Source, proxyType common.P
 	if len(deduped) == 0 {
 		fyne.Do(func() {
 			g.proxyItems = []*ProxyItemWrapper{}
-			if g.table != nil {
-				g.table.Refresh()
-			}
+			g.resetAndApplyFilter()
 		})
 		return
 	}
@@ -303,9 +306,7 @@ func (g *AppGUI) loadCacheForSources(sources []common.Source, proxyType common.P
 
 	fyne.Do(func() {
 		g.proxyItems = items
-		if g.table != nil {
-			g.table.Refresh()
-		}
+		g.resetAndApplyFilter()
 	})
 
 	if len(deduped) > 0 {
@@ -367,7 +368,7 @@ func (g *AppGUI) restoreSystemProxyHighlight() {
 
 func (g *AppGUI) highlightProxyInList(host, port string) {
 	g.highlightedRow = -1
-	for i, item := range g.proxyItems {
+	for i, item := range g.filteredProxyItems {
 		if item.Host == host && item.Port == port {
 			g.highlightedRow = i
 			break
@@ -433,5 +434,82 @@ func (g *AppGUI) restoreTargetSelectorState(targetSelect *widget.Select, customE
 		customBox.Show()
 	} else if g.cfg.DestAddr != "" {
 		targetSelect.SetSelected(g.cfg.DestAddr)
+	}
+}
+
+// resetAndApplyFilter updates the list of available countries in the filter
+// and applies the default "All" filter state.
+func (g *AppGUI) resetAndApplyFilter() {
+	g.updateCountryFilterOptions()
+	g.applyCountryFilter(i18n.T("gui.filter_all"))
+}
+
+// updateCountryFilterOptions extracts unique countries from the current proxy
+// list and updates the dropdown options.
+func (g *AppGUI) updateCountryFilterOptions() {
+	if g.countryFilterSelect == nil {
+		return
+	}
+
+	countrySet := make(map[string]struct{})
+	for _, item := range g.proxyItems {
+		countrySet[item.Country] = struct{}{}
+	}
+
+	countries := make([]string, 0, len(countrySet))
+	for country := range countrySet {
+		countries = append(countries, country)
+	}
+	sort.Strings(countries)
+
+	options := append([]string{i18n.T("gui.filter_all")}, countries...)
+	g.countryFilterSelect.Options = options
+	g.countryFilterSelect.SetSelected(i18n.T("gui.filter_all"))
+	g.countryFilterSelect.Refresh()
+}
+
+// applyCountryFilter filters the master proxy list by the selected country
+// and updates the highlighting index accordingly.
+func (g *AppGUI) applyCountryFilter(selectedCountry string) {
+	if selectedCountry == i18n.T("gui.filter_all") || selectedCountry == "" {
+		g.filteredProxyItems = g.proxyItems
+	} else {
+		filtered := make([]*ProxyItemWrapper, 0)
+		for _, item := range g.proxyItems {
+			if item.Country == selectedCountry {
+				filtered = append(filtered, item)
+			}
+		}
+		g.filteredProxyItems = filtered
+	}
+
+	// Re-evaluate highlighting for the new filtered subset
+	g.updateHighlightingForFilteredItems()
+
+	if g.table != nil {
+		g.table.Refresh()
+	}
+}
+
+// updateHighlightingForFilteredItems adjusts the highlighted row index
+// based on the currently active system proxy and the filtered list.
+func (g *AppGUI) updateHighlightingForFilteredItems() {
+	if !g.sysProxyManager.IsSupported() {
+		g.highlightedRow = -1
+		return
+	}
+
+	host, port, err := g.sysProxyManager.GetActiveProxy()
+	if err != nil || host == "" || port == "" {
+		g.highlightedRow = -1
+		return
+	}
+
+	g.highlightedRow = -1
+	for i, item := range g.filteredProxyItems {
+		if item.Host == host && item.Port == port {
+			g.highlightedRow = i
+			break
+		}
 	}
 }
