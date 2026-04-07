@@ -37,6 +37,8 @@ type (
 		Country string           `json:"country"`
 		TCP     string           `json:"tcp"`
 		HTTP    string           `json:"http"`
+		TCPMs   int64            `json:"tcp_ms"`
+		HTTPMs  int64            `json:"http_ms"`
 	}
 
 	AppGUI struct {
@@ -342,6 +344,8 @@ func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapp
 			Source: string(item.Source),
 			Host:   item.Host, Port: item.Port, Type: item.Type, Country: item.Country,
 			TCP: item.CheckResult.ProxyLatencyStr, HTTP: item.CheckResult.ReqLatencyStr,
+			TCPMs:  item.CheckResult.ProxyLatency.Milliseconds(),
+			HTTPMs: item.CheckResult.ReqLatency.Milliseconds(),
 		}
 	}
 	return wrappers

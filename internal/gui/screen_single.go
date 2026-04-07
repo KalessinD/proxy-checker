@@ -75,6 +75,8 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 				Country: "N/A",
 				TCP:     res.ProxyLatencyStr,
 				HTTP:    res.ReqLatencyStr,
+				TCPMs:   res.ProxyLatency.Milliseconds(),
+				HTTPMs:  res.ReqLatency.Milliseconds(),
 			}
 
 			fyne.Do(func() {

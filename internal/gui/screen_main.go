@@ -219,8 +219,26 @@ func (g *AppGUI) runBatchCheck() {
 			}
 		}
 		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
+
+		g.sendNotificationIfNotActive(
+			i18n.T("gui.notify_scan_done_title"),
+			fmt.Sprintf("%s: %d", i18n.T("gui.log_done"), len(validProxies)),
+		)
 	}
 	_ = g.progress.Set(1.0)
+}
+
+// Send system notification only if the window is not in focus
+func (g *AppGUI) sendNotificationIfNotActive(title, message string) {
+	if g.window.Canvas().Focused() == nil {
+		g.sendSystemNotification(title, message)
+	}
+}
+
+// sendSystemNotification safely sends a system notification.
+func (g *AppGUI) sendSystemNotification(title, content string) {
+	notification := fyne.NewNotification(title, content)
+	fyne.CurrentApp().SendNotification(notification)
 }
 
 func (g *AppGUI) createResultTable() *widget.Table {
@@ -234,7 +252,7 @@ func (g *AppGUI) createResultTable() *widget.Table {
 			return len(g.filteredProxyItems), cols
 		},
 		func() fyne.CanvasObject {
-			return newTableCell()
+			return newTableCell(g.app.Clipboard())
 		},
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
 			if id.Row < 0 || id.Row >= len(g.filteredProxyItems) || id.Col >= cols {
@@ -319,9 +337,9 @@ func sortProxyItems(items []*ProxyItemWrapper, col int, asc bool) {
 		case 4:
 			less = a.Country < b.Country
 		case 5:
-			less = a.TCP < b.TCP
+			less = a.TCPMs < b.TCPMs
 		case 6:
-			less = a.HTTP < b.HTTP
+			less = a.HTTPMs < b.HTTPMs
 		default:
 			less = false
 		}

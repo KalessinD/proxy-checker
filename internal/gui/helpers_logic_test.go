@@ -59,12 +59,26 @@ func TestSortProxyItems_ByDifferentColumns(t *testing.T) {
 			sortCol:       3,
 			expectedFirst: "http",
 		},
+		{
+			name:          "Sort by TCP latency numerically",
+			items:         []*ProxyItemWrapper{{TCP: "1000ms", TCPMs: 1000}, {TCP: "18ms", TCPMs: 18}},
+			sortCol:       5,
+			expectedFirst: "18ms",
+		},
+		{
+			name:          "Sort by HTTP latency numerically",
+			items:         []*ProxyItemWrapper{{HTTP: "2000ms", HTTPMs: 2000}, {HTTP: "150ms", HTTPMs: 150}},
+			sortCol:       6,
+			expectedFirst: "150ms",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sortProxyItems(tt.items, tt.sortCol, true)
-			assert.Equal(t, tt.expectedFirst, tt.items[0].Host+tt.items[0].Port+string(tt.items[0].Type)+tt.items[0].Source)
+
+			combined := tt.items[0].Host + tt.items[0].Port + string(tt.items[0].Type) + tt.items[0].Source + tt.items[0].TCP + tt.items[0].HTTP
+			assert.Contains(t, combined, tt.expectedFirst)
 		})
 	}
 }
