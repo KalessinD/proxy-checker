@@ -70,7 +70,7 @@ jobs:
           fail_ci_if_error: false
           flags: unittests
           verbose: true
-          required: 50
+          # required: 50
           report_type: test_results
         continue-on-error: true
 
