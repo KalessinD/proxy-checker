@@ -62,7 +62,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: /tmp/proxy-checker-coverage.out
@@ -71,14 +71,8 @@ jobs:
           flags: unittests
           verbose: true
           required: 50
+          report_type: test_results
         continue-on-error: true
-
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
 
   release:
     needs: autotests
