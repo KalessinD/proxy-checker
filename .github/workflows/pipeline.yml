@@ -70,6 +70,13 @@ jobs:
           flags: unittests
           verbose: true
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
   release:
     needs: autotests
     if: startsWith(github.ref, 'refs/tags/v') # starts only on tags with leading "v"
