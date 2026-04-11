@@ -37,6 +37,3 @@ func TestApplySystemProxy_Error(t *testing.T) {
 	assert.False(t, app.switchProxy.Checked, "System proxy switch must remain unchecked on error")
 	assert.Equal(t, -1, app.highlightedRow, "No row must be highlighted on error")
 }
-
-// g.NewAppGUI
-// defaultPipelineRunner.Run
