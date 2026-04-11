@@ -8,6 +8,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/oschwald/maxminddb-golang v1.13.1
+	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.52.0
 )
@@ -15,6 +16,9 @@ require (
 require (
 	github.com/oschwald/maxminddb-golang/v2 v2.1.1 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
+	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/tools v0.42.0 // indirect
 )
 
 require (

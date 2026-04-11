@@ -15,7 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func (g *AppGUI) showMainScreen() {
+func (g *AppGUI) ShowMainScreen() {
 	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() { g.ShowSettingsScreen() })
 	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() { g.ShowSingleCheckScreen() })
 	g.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() { go g.runBatchCheck() })

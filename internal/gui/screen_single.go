@@ -46,7 +46,7 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 			return
 		}
 
-		g.showMainScreen()
+		g.ShowMainScreen()
 		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s -> %s (%s)...\n", i18n.T("gui.single.log_checking"), addr, target, checkType))
 		_ = g.progress.Set(0)
 
@@ -89,7 +89,7 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 	})
 
 	btnBack := widget.NewButton(i18n.T("gui.btn_back"), func() {
-		g.showMainScreen()
+		g.ShowMainScreen()
 	})
 
 	buttonsBox := container.NewHBox(btnBack, layout.NewSpacer(), btnRun)

@@ -14,10 +14,10 @@ import (
 	"syscall"
 )
 
-func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
+func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface, runner services.PipelineRunner) {
 	switch {
 	case opts.ProxiesStat:
-		handleProxiesList(cfg, opts, logger)
+		handleProxiesList(cfg, opts, logger, runner)
 	case opts.ProxyAddr != "":
 		handleSingleCheck(cfg, opts, logger)
 	default:
@@ -43,7 +43,7 @@ func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterfa
 	fmt.Printf("%s: TCP: %s, HTTP: %s, %s: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, i18n.T("cli.status_label"), res.StatusCode)
 }
 
-func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
+func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface, runner services.PipelineRunner) {
 	fmt.Printf(
 		"%s %s: %s, %s: %s, %s: %d, %s: %d\n",
 		i18n.T("cli.mode_start"),
@@ -63,7 +63,7 @@ func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerIn
 	if !opts.Check {
 		handleListFetch(ctx, cfg, logger)
 	} else {
-		handleListCheck(ctx, cfg, logger)
+		handleListCheck(ctx, cfg, logger, runner)
 	}
 }
 
@@ -96,7 +96,7 @@ func handleListFetch(ctx context.Context, cfg *config.Config, logger common.Logg
 }
 
 // handleListCheck handles fetching and validation of the list
-func handleListCheck(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
+func handleListCheck(ctx context.Context, cfg *config.Config, logger common.LoggerInterface, runner services.PipelineRunner) {
 	fmt.Printf("%s (Workers: %d)...\n", i18n.T("cli.starting_workers"), cfg.Workers)
 
 	var resolver common.GeoIPResolver
@@ -123,7 +123,7 @@ func handleListCheck(ctx context.Context, cfg *config.Config, logger common.Logg
 		})
 	}
 
-	validProxies, err := services.RunPipeline(
+	validProxies, err := runner.Run(
 		ctx,
 		fetchers,
 		verifierInstance,

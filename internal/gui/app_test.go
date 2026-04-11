@@ -6,6 +6,8 @@ import (
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
+	"proxy-checker/internal/services"
+	"proxy-checker/internal/sysproxy"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
@@ -25,19 +27,19 @@ func TestNewAppGUI_Base(t *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	appGUI := gui.NewAppGUI(testApp, cfg, logger, "dev")
+	appGUI := gui.NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
 
 	assert.NotNil(t, appGUI)
 }
 
-func TestNewAppGUI_MainScreen(_ *testing.T) {
+func TestNewAppGUI_Run(_ *testing.T) {
 	testApp := test.NewApp()
 	defer testApp.Quit()
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	appGUI := gui.NewAppGUI(testApp, cfg, logger, "dev")
+	appGUI := gui.NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
 
 	appGUI.Run()
 }
@@ -49,7 +51,9 @@ func TestNewAppGUI_SingleScreen(_ *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowSingleCheckScreen()
+	app := gui.NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+
+	app.ShowSingleCheckScreen()
 }
 
 func TestNewAppGUI_SettingseScreen(_ *testing.T) {
@@ -59,7 +63,9 @@ func TestNewAppGUI_SettingseScreen(_ *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowSettingsScreen()
+	app := gui.NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+
+	app.ShowSettingsScreen()
 }
 
 func TestNewAppGUI_AboutScreen(_ *testing.T) {
@@ -69,5 +75,19 @@ func TestNewAppGUI_AboutScreen(_ *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
 
-	gui.NewAppGUI(testApp, cfg, logger, "dev").ShowAboutDialog()
+	app := gui.NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+
+	app.ShowAboutDialog()
+}
+
+func TestNewAppGUI_MainScreen(_ *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	cfg := config.DefaultConfig()
+	logger := common.NewZapLogger(zap.NewNop().Sugar())
+
+	app := gui.NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+
+	app.ShowMainScreen()
 }

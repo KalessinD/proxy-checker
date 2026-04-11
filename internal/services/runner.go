@@ -15,12 +15,44 @@ type (
 		OnProgress func(current, total int)
 	}
 
+	// defaultPipelineRunner is the concrete implementation of PipelineRunner.
+	defaultPipelineRunner struct{}
+
+	// PipelineRunner defines an interface for executing the proxy fetching and checking pipeline.
+	// This allows decoupling GUI/CLI from the concrete implementation for testability.
+	PipelineRunner interface {
+		Run(ctx context.Context,
+			fetchers []SourceFetcher,
+			verifierInstance ProxyVerifier,
+			cfg *config.Config,
+			resolver common.GeoIPResolver,
+			cb PipelineCallbacks,
+		) ([]*ProxyItemFull, error)
+	}
+
 	// SourceFetcher binds a Fetcher implementation with its corresponding Source identifier.
 	SourceFetcher struct {
 		Source  common.Source
 		Fetcher fetcher.Fetcher
 	}
 )
+
+// NewDefaultPipelineRunner creates a standard PipelineRunner.
+func NewDefaultPipelineRunner() PipelineRunner {
+	return &defaultPipelineRunner{}
+}
+
+// Run executes the pipeline using the package-level RunPipeline function.
+func (r *defaultPipelineRunner) Run(
+	ctx context.Context,
+	fetchers []SourceFetcher,
+	verifierInstance ProxyVerifier,
+	cfg *config.Config,
+	resolver common.GeoIPResolver,
+	cb PipelineCallbacks,
+) ([]*ProxyItemFull, error) {
+	return RunPipeline(ctx, fetchers, verifierInstance, cfg, resolver, cb)
+}
 
 func RunPipeline(
 	ctx context.Context,

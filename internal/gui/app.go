@@ -52,6 +52,7 @@ type (
 		progress   binding.Float
 		proxyItems []*ProxyItemWrapper
 
+		pipelineRunner      services.PipelineRunner
 		filteredProxyItems  []*ProxyItemWrapper
 		countryFilterSelect *widget.Select
 		sourceFilterSelect  *widget.Select
@@ -124,7 +125,14 @@ func (g *AppGUI) initGeoIP(customPath string) {
 	}
 }
 
-func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterface, version string) *AppGUI {
+func NewAppGUI(
+	fyneApp fyne.App,
+	cfg *config.Config,
+	logger common.LoggerInterface,
+	version string,
+	pipelineRunner services.PipelineRunner,
+	sysProxyManager sysproxy.SystemProxyManager,
+) *AppGUI {
 	gui := &AppGUI{
 		app:                 fyneApp,
 		window:              fyneApp.NewWindow(common.AppName),
@@ -135,8 +143,9 @@ func NewAppGUI(fyneApp fyne.App, cfg *config.Config, logger common.LoggerInterfa
 		filteredProxyItems:  make([]*ProxyItemWrapper, 0),
 		activeCountryFilter: i18n.T("gui.filter_all"),
 		activeSourceFilter:  i18n.T("gui.filter_all"),
+		pipelineRunner:      pipelineRunner,
 		cache:               cache.NewFileStorage(logger),
-		sysProxyManager:     sysproxy.NewSystemProxyManager(),
+		sysProxyManager:     sysProxyManager,
 		version:             version,
 	}
 
@@ -354,7 +363,7 @@ func (g *AppGUI) mapToWrapper(items []*services.ProxyItemFull) []*ProxyItemWrapp
 
 func (g *AppGUI) Run() {
 	g.setupMainMenu()
-	g.showMainScreen()
+	g.ShowMainScreen()
 
 	g.loadCacheForSources(g.cfg.Sources, g.cfg.Type)
 	g.restoreSystemProxyHighlight()
@@ -398,9 +407,9 @@ func (g *AppGUI) getTargetURL() string {
 	return g.cfg.DestAddr
 }
 
-func Run(cfg *config.Config, logger common.LoggerInterface, version string) {
+func Run(cfg *config.Config, logger common.LoggerInterface, version string, pipelineRunner services.PipelineRunner) {
 	fyneApp := app.NewWithID(common.AppName)
-	gui := NewAppGUI(fyneApp, cfg, logger, version)
+	gui := NewAppGUI(fyneApp, cfg, logger, version, pipelineRunner, sysproxy.NewSystemProxyManager())
 	gui.Run()
 }
 

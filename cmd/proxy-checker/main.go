@@ -8,6 +8,7 @@ import (
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/gui"
+	"proxy-checker/internal/services"
 	"strings"
 )
 
@@ -41,7 +42,8 @@ func main() {
 	setupLanguage(cfg)
 
 	if isGUI {
-		gui.Run(cfg, logger, Version)
+		runner := services.NewDefaultPipelineRunner()
+		gui.Run(cfg, logger, Version, runner)
 		return
 	}
 
@@ -50,7 +52,8 @@ func main() {
 		fatal(err)
 	}
 
-	cli.Run(cfg, opts, logger)
+	runner := services.NewDefaultPipelineRunner()
+	cli.Run(cfg, opts, logger, runner)
 }
 
 func setupLanguage(cfg *config.Config) {
