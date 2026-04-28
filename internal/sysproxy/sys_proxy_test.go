@@ -19,8 +19,6 @@ func TestMain(m *testing.M) {
 func TestNewSystemProxyManager_ReturnsValidInterface(t *testing.T) {
 	manager := sysproxy.NewSystemProxyManager()
 	require.NotNil(t, manager, "Factory always must return the interface|")
-
-	var _ sysproxy.SystemProxyManager = manager
 }
 
 func TestNoopProxyManager_Behavior(t *testing.T) {

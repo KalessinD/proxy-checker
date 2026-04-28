@@ -247,11 +247,12 @@ func (g *AppGUI) appendLog(level common.LogLevel, text string) {
 	g.logRichText.Segments = append(g.logRichText.Segments, newSegment)
 
 	if cleanText != "" {
-		switch {
-		case level == common.LogLevelError:
+		switch level {
+		case common.LogLevelError:
 			g.logger.Error(cleanText)
-		case level == common.LogLevelWarn:
+		case common.LogLevelWarn:
 			g.logger.Warn(cleanText)
+		case common.LogLevelInfo:
 		default:
 			g.logger.Info(cleanText)
 		}

@@ -36,8 +36,12 @@ jobs:
 
       - name: Installing Golang tools
         run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
-
+          # go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+          apt-get update && \
+          DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends --no-install-suggests ca-certificates curl gcc g++ make
+          curl -sSfL https://golangci-lint.run/install.sh | sh -s v2.11.4
+          mkdir -p $(go env GOPATH)/bin
+          mv bin/* $(go env GOPATH)/bin
       - name: Checkout code
         uses: actions/checkout@v4
 
