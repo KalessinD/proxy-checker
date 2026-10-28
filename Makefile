@@ -23,6 +23,8 @@ LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
 
 GOLANGCI_LINT ?= golangci-lint
 
+MOCKGEN ?= mockgen
+
 MV := mv
 JQ := jq
 CAT := cat
@@ -76,7 +78,7 @@ endif
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
         lint lint-vet lint-golangci lint-golangci-fix \
 		test coverage coverage-html \
-		sort-lang-files
+		sort-lang-files generate-mocks
 
 all: clean lint test build
 
@@ -93,6 +95,16 @@ sort-lang-files: # Sorts keys in lang files
 		$(call print_info,"Sorting keys in $${file}"); \
 		$(CAT) $${file} | $(JQ) '.' --sort-keys > $${file}.bak && $(MV) $${file}.bak $${file}; \
 	done
+
+generate-mocks: # Regenerates mockgen mocks from go:generate directives
+	$(NOECHO) if ! command -v $(MOCKGEN) > /dev/null 2>&1; then \
+		$(call print_error,"Error: $(MOCKGEN) binary not found in PATH."); \
+		$(call print_error,"Install it first: go install go.uber.org/mock/mockgen@latest"); \
+		exit 1; \
+	fi
+	$(NOECHO) $(call print_info,"Regenerating mocks via go generate ./...")
+	$(NOECHO) $(GO) generate ./...
+	$(NOECHO) $(call print_success,"Mocks regenerated successfully.")
 
 test: # Runs golang tests
 	$(NOECHO) $(call print_info,"Running tests: golang")
