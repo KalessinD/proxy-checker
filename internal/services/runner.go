@@ -17,11 +17,22 @@ type (
 		OnProgress func(current, total int)
 	}
 
+	// PipelineConfig is the narrow projection of the application configuration
+	// relevant to the pipeline. It decouples the pipeline from the full config.
+	PipelineConfig struct {
+		// CheckParams carries the network-validation settings (promoted fields).
+		CheckParams
+
+		RTT   int
+		Pages int
+		Lang  string
+	}
+
 	// PipelineParams groups all required dependencies and configuration for running the pipeline.
 	PipelineParams struct {
 		Fetchers []SourceFetcher
 		Verifier ProxyVerifier
-		Config   *config.Config
+		Config   *PipelineConfig
 		Resolver common.GeoIPResolver
 	}
 
@@ -34,12 +45,34 @@ type (
 		Run(ctx context.Context, params PipelineParams, cb PipelineCallbacks) ([]*ProxyItemFull, error)
 	}
 
-	// SourceFetcher binds a Fetcher implementation with its corresponding Source identifier.
+	// SourceFetcher binds a ProxySource implementation with its corresponding Source identifier.
 	SourceFetcher struct {
 		Source  common.Source
-		Fetcher fetcher.Fetcher
+		Fetcher ProxySource
+	}
+
+	// ProxySource defines the port for retrieving raw proxy items from an
+	// external source. It is implemented by fetcher adapters.
+	ProxySource interface {
+		Fetch(ctx context.Context, settings fetcher.Settings) ([]*fetcher.ProxyItem, error)
 	}
 )
+
+// NewPipelineConfig projects the application configuration onto the narrow pipeline DTO.
+func NewPipelineConfig(cfg *config.Config) *PipelineConfig {
+	return &PipelineConfig{
+		CheckParams: CheckParams{
+			DestAddr:   cfg.DestAddr,
+			Type:       cfg.Type,
+			Timeout:    cfg.Timeout,
+			Workers:    cfg.Workers,
+			CheckHTTP2: cfg.CheckHTTP2,
+		},
+		RTT:   cfg.RTT,
+		Pages: cfg.Pages,
+		Lang:  cfg.Lang,
+	}
+}
 
 // NewDefaultPipelineRunner creates a standard PipelineRunner.
 func NewDefaultPipelineRunner() PipelineRunner {
@@ -98,13 +131,9 @@ func RunPipeline(ctx context.Context, params PipelineParams, cb PipelineCallback
 	validProxies := checker.CheckBatch(
 		ctx,
 		allProxies,
-		params.Config.DestAddr,
-		params.Config.Type,
-		params.Config.Timeout,
-		params.Config.Workers,
-		params.Config.CheckHTTP2,
-		cb.OnProgress,
+		&params.Config.CheckParams,
 		params.Verifier,
+		cb.OnProgress,
 	)
 
 	return validProxies, nil

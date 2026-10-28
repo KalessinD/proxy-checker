@@ -65,7 +65,13 @@ func TestCheckBatch_FiltersInvalidProxies(t *testing.T) {
 
 	checker := services.NewProxyChecker()
 	ctx := t.Context()
-	validProxies := checker.CheckBatch(ctx, items, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
+	validProxies := checker.CheckBatch(
+		ctx,
+		items,
+		&services.CheckParams{DestAddr: "google.com", Type: "socks5", Timeout: 5 * time.Second, Workers: 2, CheckHTTP2: false},
+		mock,
+		nil,
+	)
 
 	require.Len(t, validProxies, 2, "Only valid proxies must remain")
 	assert.Equal(t, "3.3.3.3", validProxies[0].Host, "The fastest proxy must be first")
@@ -90,7 +96,13 @@ func TestCheckBatch_StopsOnContextCancellation(t *testing.T) {
 
 	done := make(chan []*services.ProxyItemFull)
 	go func() {
-		done <- checker.CheckBatch(ctx, items, "google.com", "socks5", 10*time.Second, 2, false, nil, mock)
+		done <- checker.CheckBatch(
+			ctx,
+			items,
+			&services.CheckParams{DestAddr: "google.com", Type: "socks5", Timeout: 10 * time.Second, Workers: 2, CheckHTTP2: false},
+			mock,
+			nil,
+		)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
@@ -109,7 +121,13 @@ func TestCheckBatch_EmptyList(t *testing.T) {
 	mock := &mockVerifier{}
 	checker := services.NewProxyChecker()
 	ctx := t.Context()
-	validProxies := checker.CheckBatch(ctx, []*services.ProxyItem{}, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
+	validProxies := checker.CheckBatch(
+		ctx,
+		[]*services.ProxyItem{},
+		&services.CheckParams{DestAddr: "google.com", Type: "socks5", Timeout: 5 * time.Second, Workers: 2, CheckHTTP2: false},
+		mock,
+		nil,
+	)
 
 	assert.Empty(t, validProxies, "Empty list must return an empty slice")
 }
@@ -130,10 +148,9 @@ func TestResolveSchema_DefaultBehavior(t *testing.T) {
 		{name: "SOCKS4 mode WITH force HTTP2", proxyMode: "socks4", forceHTTP2: true, expectedSchema: "https://"},
 	}
 
-	checker := services.NewProxyChecker()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualSchema := checker.ResolveSchema(tt.proxyMode, tt.forceHTTP2)
+			actualSchema := services.ResolveSchema(tt.proxyMode, tt.forceHTTP2)
 			assert.Equal(t, tt.expectedSchema, actualSchema)
 		})
 	}

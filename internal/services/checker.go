@@ -44,40 +44,65 @@ type (
 		CheckResult Result `json:",inline"`
 	}
 
-	ProxyChecker struct{}
+	// CheckParams is the narrow DTO of the network-validation settings shared
+	// by the checker and the pipeline configuration.
+	CheckParams struct {
+		DestAddr   string
+		Type       common.ProxyType
+		Timeout    time.Duration
+		Workers    int
+		CheckHTTP2 bool
+	}
+
+	defaultChecker struct{}
 
 	defaultVerifier struct {
-		checker *ProxyChecker
+		checker *defaultChecker
 	}
 )
 
-func NewProxyChecker() *ProxyChecker {
-	return &ProxyChecker{}
+// ProxyChecker defines the port for network validation of proxies
+// (single and batch). It knows nothing about where proxies came from.
+type ProxyChecker interface {
+	CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result
+	CheckBatch(
+		ctx context.Context,
+		proxiesList []*ProxyItem,
+		params *CheckParams,
+		verifier ProxyVerifier,
+		progressCallback func(current, total int),
+	) []*ProxyItemFull
+}
+
+func NewProxyChecker() ProxyChecker {
+	return &defaultChecker{}
 }
 
 func NewDefaultVerifier() ProxyVerifier {
-	return &defaultVerifier{checker: NewProxyChecker()}
+	return &defaultVerifier{checker: &defaultChecker{}}
 }
 
 func (v *defaultVerifier) Verify(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
 	return v.checker.checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
 }
 
-func (pc *ProxyChecker) CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+func (pc *defaultChecker) CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
 	return pc.checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
 }
 
-func (pc *ProxyChecker) CheckBatch(
+func (pc *defaultChecker) CheckBatch(
 	ctx context.Context,
 	proxiesList []*ProxyItem,
-	dest string,
-	mode common.ProxyType,
-	timeout time.Duration,
-	workers int,
-	checkHTTP2 bool,
-	progressCallback func(current, total int),
+	params *CheckParams,
 	verifier ProxyVerifier,
+	progressCallback func(current, total int),
 ) []*ProxyItemFull {
+	dest := params.DestAddr
+	mode := params.Type
+	timeout := params.Timeout
+	workers := params.Workers
+	checkHTTP2 := params.CheckHTTP2
+
 	jobs := make(chan *ProxyItem, len(proxiesList))
 	results := make(chan *ProxyItemFull, len(proxiesList))
 
@@ -153,7 +178,8 @@ func (pc *ProxyChecker) CheckBatch(
 	return validProxies
 }
 
-func (pc *ProxyChecker) ResolveSchema(mode string, forceHTTP2 bool) string {
+// ResolveSchema maps the proxy mode to the schema used for the validation request.
+func ResolveSchema(mode string, forceHTTP2 bool) string {
 	if forceHTTP2 {
 		return httpsSchema
 	}
@@ -172,7 +198,7 @@ func (pc *ProxyChecker) ResolveSchema(mode string, forceHTTP2 bool) string {
 	}
 }
 
-func (pc *ProxyChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+func (pc *defaultChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
 	var res Result
 
 	dialTimeout := 10 * time.Second
@@ -204,7 +230,7 @@ func (pc *ProxyChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, mod
 	target = strings.TrimPrefix(target, "http://")
 	target = strings.TrimPrefix(target, "https://")
 
-	schema := pc.ResolveSchema(mode, checkHTTP2)
+	schema := ResolveSchema(mode, checkHTTP2)
 	target = schema + target
 
 	if mode == "socks4" && checkHTTP2 {

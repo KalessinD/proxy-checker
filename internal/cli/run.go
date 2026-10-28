@@ -126,7 +126,7 @@ func handleListCheck(ctx context.Context, cfg *config.Config, logger common.Logg
 	pipelineParams := services.PipelineParams{
 		Fetchers: fetchers,
 		Verifier: verifierInstance,
-		Config:   cfg,
+		Config:   services.NewPipelineConfig(cfg),
 		Resolver: resolver,
 	}
 

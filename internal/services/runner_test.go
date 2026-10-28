@@ -24,9 +24,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// basePipelineConfig builds a fully populated config used in pipeline tests.
-func basePipelineConfig() *config.Config {
-	return &config.Config{
+// basePipelineConfig builds the narrow pipeline config used in pipeline tests.
+func basePipelineConfig() *services.PipelineConfig {
+	return services.NewPipelineConfig(&config.Config{
 		Type:       common.ProxySOCKS5,
 		Sources:    []common.Source{common.SourceProxyMania},
 		Timeout:    5 * time.Second,
@@ -34,11 +34,11 @@ func basePipelineConfig() *config.Config {
 		DestAddr:   "google.com",
 		CheckHTTP2: false,
 		Lang:       "en",
-	}
+	})
 }
 
 // expectedFetchSettings computes the exact settings RunPipeline must pass to fetchers.
-func expectedFetchSettings(cfg *config.Config) fetcher.Settings {
+func expectedFetchSettings(cfg *services.PipelineConfig) fetcher.Settings {
 	return fetcher.Settings{
 		Type:     cfg.Type,
 		MaxRTT:   cfg.RTT,
