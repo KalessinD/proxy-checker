@@ -123,21 +123,21 @@ func handleListCheck(ctx context.Context, cfg *config.Config, logger common.Logg
 		})
 	}
 
-	validProxies, err := runner.Run(
-		ctx,
-		fetchers,
-		verifierInstance,
-		cfg,
-		resolver,
-		services.PipelineCallbacks{
-			OnFetched: func(total int) {
-				fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), total)
-			},
-			OnProgress: func(current, total int) {
-				fmt.Printf("%s: %d/%d\n", i18n.T("cli.progress"), current, total)
-			},
+	pipelineParams := services.PipelineParams{
+		Fetchers: fetchers,
+		Verifier: verifierInstance,
+		Config:   cfg,
+		Resolver: resolver,
+	}
+
+	validProxies, err := runner.Run(ctx, pipelineParams, services.PipelineCallbacks{
+		OnFetched: func(total int) {
+			fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), total)
 		},
-	)
+		OnProgress: func(current, total int) {
+			fmt.Printf("%s: %d/%d\n", i18n.T("cli.progress"), current, total)
+		},
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.pipeline_error"), err)
 		return

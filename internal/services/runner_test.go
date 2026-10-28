@@ -95,7 +95,11 @@ func TestRunPipeline_FetcherReturnsError(t *testing.T) {
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, services.PipelineCallbacks{})
+	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
+		Fetchers: fetchers,
+		Verifier: mockVerifier,
+		Config:   cfg,
+	}, services.PipelineCallbacks{})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pipeline fetch error")
@@ -107,20 +111,36 @@ func TestRunPipeline_NilDependencies(t *testing.T) {
 	cfg := basePipelineConfig()
 	ctx := t.Context()
 
-	_, err := services.RunPipeline(ctx, nil, &mockPipelineVerifier{}, cfg, nil, services.PipelineCallbacks{})
+	_, err := services.RunPipeline(ctx, services.PipelineParams{
+		Verifier: &mockPipelineVerifier{},
+		Config:   cfg,
+	}, services.PipelineCallbacks{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "fetchers list is empty")
 
 	_, err = services.RunPipeline(
 		ctx,
-		[]services.SourceFetcher{{Source: common.SourceProxyMania, Fetcher: &mockPipelineFetcher{}}},
-		nil,
-		cfg,
-		nil,
+		services.PipelineParams{
+			Fetchers: []services.SourceFetcher{{Source: common.SourceProxyMania, Fetcher: &mockPipelineFetcher{}}},
+			Verifier: nil,
+			Config:   cfg,
+		},
 		services.PipelineCallbacks{},
 	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "verifier is nil")
+
+	_, err = services.RunPipeline(
+		ctx,
+		services.PipelineParams{
+			Fetchers: []services.SourceFetcher{{Source: common.SourceProxyMania, Fetcher: &mockPipelineFetcher{}}},
+			Verifier: &mockPipelineVerifier{},
+			Config:   nil,
+		},
+		services.PipelineCallbacks{},
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "config is nil")
 }
 
 func TestRunPipeline_FetcherReturnsEmptyList(t *testing.T) {
@@ -140,7 +160,11 @@ func TestRunPipeline_FetcherReturnsEmptyList(t *testing.T) {
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, cb)
+	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
+		Fetchers: fetchers,
+		Verifier: mockVerifier,
+		Config:   cfg,
+	}, cb)
 
 	require.NoError(t, err)
 	assert.Empty(t, validProxies)
@@ -168,7 +192,11 @@ func TestRunPipeline_AllProxiesInvalid(t *testing.T) {
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, services.PipelineCallbacks{})
+	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
+		Fetchers: fetchers,
+		Verifier: mockVerifier,
+		Config:   cfg,
+	}, services.PipelineCallbacks{})
 
 	require.NoError(t, err)
 	assert.Empty(t, validProxies, "Invalid proxies must be filtered out")
@@ -210,7 +238,11 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, cb)
+	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
+		Fetchers: fetchers,
+		Verifier: mockVerifier,
+		Config:   cfg,
+	}, cb)
 
 	require.NoError(t, err)
 	require.Len(t, validProxies, 2, "Both valid proxies must be returned")
@@ -258,7 +290,11 @@ func TestRunPipeline_MultipleFetchersAggregatesResults(t *testing.T) {
 	ctx := t.Context()
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, fetchers, mockVerifier, cfg, nil, cb)
+	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
+		Fetchers: fetchers,
+		Verifier: mockVerifier,
+		Config:   cfg,
+	}, cb)
 
 	require.NoError(t, err)
 	assert.Equal(t, 2, fetchedTotal, "OnFetched must receive aggregated count from all fetchers")
@@ -281,8 +317,12 @@ func TestRunPipeline_StopsOnContextCancellation(t *testing.T) {
 
 	done := make(chan []*services.ProxyItemFull)
 	go func() {
-		res, _ := services.RunPipeline(ctx, fetchers, mockVerifier, basePipelineConfig(), nil, services.PipelineCallbacks{})
-		done <- res
+		pipelineResult, _ := services.RunPipeline(ctx, services.PipelineParams{
+			Fetchers: fetchers,
+			Verifier: mockVerifier,
+			Config:   basePipelineConfig(),
+		}, services.PipelineCallbacks{})
+		done <- pipelineResult
 	}()
 
 	select {

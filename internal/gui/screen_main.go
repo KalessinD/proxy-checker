@@ -175,7 +175,14 @@ func (g *AppGUI) runBatchCheck() {
 	}
 	verifierInstance := services.NewDefaultVerifier()
 
-	validProxies, err := services.RunPipeline(ctx, fetchers, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
+	pipelineParams := services.PipelineParams{
+		Fetchers: fetchers,
+		Verifier: verifierInstance,
+		Config:   g.cfg,
+		Resolver: g.geoIPResolver,
+	}
+
+	validProxies, err := g.pipelineRunner.Run(ctx, pipelineParams, services.PipelineCallbacks{
 		OnFetched: func(total int) {
 			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
 		},
