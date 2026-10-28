@@ -9,6 +9,8 @@ import (
 	"proxy-checker/internal/fetcher"
 )
 
+//go:generate mockgen -destination=../../internal/mocks/mock_services.go -package=mocks proxy-checker/internal/services PipelineRunner,ProxyVerifier
+
 type (
 	PipelineCallbacks struct {
 		OnFetched  func(total int)

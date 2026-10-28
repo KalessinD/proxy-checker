@@ -28,6 +28,9 @@ type (
 	}
 )
 
+//go:generate mockgen -destination=../../internal/mocks/mock_cache.go -package=mocks proxy-checker/internal/cache StorageInterface
+
+// StorageInterface defines the persistence contract consumed by the GUI layer.
 type StorageInterface interface {
 	Load(source common.Source, proxyType common.ProxyType) ([]*services.ProxyItemFull, error)
 	Save(source common.Source, proxyType common.ProxyType, items []*services.ProxyItemFull, ttl int) error

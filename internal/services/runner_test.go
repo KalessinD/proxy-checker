@@ -8,14 +8,15 @@ import (
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/fetcher"
+	"proxy-checker/internal/mocks"
 	"proxy-checker/internal/services"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestMain(m *testing.M) {
@@ -23,54 +24,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-type mockPipelineFetcher struct {
-	mu        sync.Mutex
-	responses map[string][]*fetcher.ProxyItem
-	err       error
-	callCount int32
-	blockChan chan struct{}
-}
-
-func (m *mockPipelineFetcher) Fetch(ctx context.Context, settings fetcher.Settings) ([]*fetcher.ProxyItem, error) {
-	if m.blockChan != nil {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-m.blockChan:
-			return nil, errors.New("blocked by test")
-		}
-	}
-
-	atomic.AddInt32(&m.callCount, 1)
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	key := string(settings.Type)
-	if items, ok := m.responses[key]; ok {
-		return items, nil
-	}
-	return []*fetcher.ProxyItem{}, nil
-}
-
-type mockPipelineVerifier struct {
-	responses map[string]services.Result
-}
-
-func (m *mockPipelineVerifier) Verify(ctx context.Context, proxyAddr, _, _ string, _ bool) services.Result {
-	if ctx.Err() != nil {
-		return services.Result{Error: ctx.Err()}
-	}
-	if res, ok := m.responses[proxyAddr]; ok {
-		return res
-	}
-	return services.Result{Error: errors.New("mock: unexpected address")}
-}
-
+// basePipelineConfig builds a fully populated config used in pipeline tests.
 func basePipelineConfig() *config.Config {
 	return &config.Config{
 		Type:       common.ProxySOCKS5,
@@ -83,168 +37,176 @@ func basePipelineConfig() *config.Config {
 	}
 }
 
-func TestRunPipeline_FetcherReturnsError(t *testing.T) {
-	mockFetcher := &mockPipelineFetcher{
-		err: errors.New("network error"),
+// expectedFetchSettings computes the exact settings RunPipeline must pass to fetchers.
+func expectedFetchSettings(cfg *config.Config) fetcher.Settings {
+	return fetcher.Settings{
+		Type:     cfg.Type,
+		MaxRTT:   cfg.RTT,
+		Pages:    cfg.Pages,
+		Timeout:  int(cfg.Timeout),
+		Resolver: nil,
+		Lang:     cfg.Lang,
 	}
-	mockVerifier := &mockPipelineVerifier{}
-	fetchers := []services.SourceFetcher{
-		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
-	}
+}
 
-	ctx := t.Context()
+// expectVerify registers a verifier expectation for a single proxy address.
+func expectVerify(
+	ctrl *gomock.Controller,
+	proxyAddr string,
+	result services.Result,
+) *mocks.MockProxyVerifier {
+	verifierMock := mocks.NewMockProxyVerifier(ctrl)
+	verifierMock.EXPECT().
+		Verify(gomock.Any(), proxyAddr, "google.com", "socks5", false).
+		Return(result)
+	return verifierMock
+}
+
+func TestRunPipeline_FetcherReturnsError(t *testing.T) {
+	ctrl := gomock.NewController(t)
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
-		Fetchers: fetchers,
-		Verifier: mockVerifier,
+	fetcherMock := mocks.NewMockFetcher(ctrl)
+	fetcherMock.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return(nil, errors.New("network error"))
+
+	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: fetcherMock},
+		},
+		Verifier: mocks.NewMockProxyVerifier(ctrl),
 		Config:   cfg,
 	}, services.PipelineCallbacks{})
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pipeline fetch error")
+	require.Error(t, pipelineErr)
+	assert.Contains(t, pipelineErr.Error(), "pipeline fetch error")
 	assert.Nil(t, validProxies)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&mockFetcher.callCount))
 }
 
 func TestRunPipeline_NilDependencies(t *testing.T) {
+	ctrl := gomock.NewController(t)
 	cfg := basePipelineConfig()
 	ctx := t.Context()
 
-	_, err := services.RunPipeline(ctx, services.PipelineParams{
-		Verifier: &mockPipelineVerifier{},
+	_, pipelineErr := services.RunPipeline(ctx, services.PipelineParams{
+		Verifier: mocks.NewMockProxyVerifier(ctrl),
 		Config:   cfg,
 	}, services.PipelineCallbacks{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "fetchers list is empty")
+	require.Error(t, pipelineErr)
+	assert.Contains(t, pipelineErr.Error(), "fetchers list is empty")
 
-	_, err = services.RunPipeline(
-		ctx,
-		services.PipelineParams{
-			Fetchers: []services.SourceFetcher{{Source: common.SourceProxyMania, Fetcher: &mockPipelineFetcher{}}},
-			Verifier: nil,
-			Config:   cfg,
+	_, pipelineErr = services.RunPipeline(ctx, services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: mocks.NewMockFetcher(ctrl)},
 		},
-		services.PipelineCallbacks{},
-	)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "verifier is nil")
+		Verifier: nil,
+		Config:   cfg,
+	}, services.PipelineCallbacks{})
+	require.Error(t, pipelineErr)
+	assert.Contains(t, pipelineErr.Error(), "verifier is nil")
 
-	_, err = services.RunPipeline(
-		ctx,
-		services.PipelineParams{
-			Fetchers: []services.SourceFetcher{{Source: common.SourceProxyMania, Fetcher: &mockPipelineFetcher{}}},
-			Verifier: &mockPipelineVerifier{},
-			Config:   nil,
+	_, pipelineErr = services.RunPipeline(ctx, services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: mocks.NewMockFetcher(ctrl)},
 		},
-		services.PipelineCallbacks{},
-	)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "config is nil")
+		Verifier: mocks.NewMockProxyVerifier(ctrl),
+		Config:   nil,
+	}, services.PipelineCallbacks{})
+	require.Error(t, pipelineErr)
+	assert.Contains(t, pipelineErr.Error(), "config is nil")
 }
 
 func TestRunPipeline_FetcherReturnsEmptyList(t *testing.T) {
-	mockFetcher := &mockPipelineFetcher{
-		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): {}},
-	}
-	mockVerifier := &mockPipelineVerifier{}
-	fetchers := []services.SourceFetcher{
-		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
-	}
-
-	var fetchedTotal int
-	cb := services.PipelineCallbacks{
-		OnFetched: func(total int) { fetchedTotal = total },
-	}
-
-	ctx := t.Context()
+	ctrl := gomock.NewController(t)
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
-		Fetchers: fetchers,
-		Verifier: mockVerifier,
-		Config:   cfg,
-	}, cb)
+	fetcherMock := mocks.NewMockFetcher(ctrl)
+	fetcherMock.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return([]*fetcher.ProxyItem{}, nil)
 
-	require.NoError(t, err)
+	var fetchedTotal int
+	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: fetcherMock},
+		},
+		Verifier: mocks.NewMockProxyVerifier(ctrl),
+		Config:   cfg,
+	}, services.PipelineCallbacks{
+		OnFetched: func(total int) { fetchedTotal = total },
+	})
+
+	require.NoError(t, pipelineErr)
 	assert.Empty(t, validProxies)
 	assert.Equal(t, 0, fetchedTotal)
 }
 
 func TestRunPipeline_AllProxiesInvalid(t *testing.T) {
-	items := []*fetcher.ProxyItem{
-		{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5},
-	}
-
-	mockFetcher := &mockPipelineFetcher{
-		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): items},
-	}
-	mockVerifier := &mockPipelineVerifier{
-		responses: map[string]services.Result{
-			"1.1.1.1:8080": {Error: errors.New("timeout")},
-		},
-	}
-
-	fetchers := []services.SourceFetcher{
-		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
-	}
-
-	ctx := t.Context()
+	ctrl := gomock.NewController(t)
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
-		Fetchers: fetchers,
-		Verifier: mockVerifier,
+	fetcherMock := mocks.NewMockFetcher(ctrl)
+	fetcherMock.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return([]*fetcher.ProxyItem{
+			{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5},
+		}, nil)
+
+	verifierMock := expectVerify(ctrl, "1.1.1.1:8080", services.Result{Error: errors.New("timeout")})
+
+	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: fetcherMock},
+		},
+		Verifier: verifierMock,
 		Config:   cfg,
 	}, services.PipelineCallbacks{})
 
-	require.NoError(t, err)
+	require.NoError(t, pipelineErr)
 	assert.Empty(t, validProxies, "Invalid proxies must be filtered out")
 }
 
 func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
-	items := []*fetcher.ProxyItem{
-		{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5},
-		{Host: "2.2.2.2", Port: "8080", Type: common.ProxySOCKS5},
-	}
+	ctrl := gomock.NewController(t)
+	cfg := basePipelineConfig()
 
-	mockFetcher := &mockPipelineFetcher{
-		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): items},
-	}
-	mockVerifier := &mockPipelineVerifier{
-		responses: map[string]services.Result{
-			"1.1.1.1:8080": {ReqLatency: 50 * time.Millisecond, StatusCode: 200},
-			"2.2.2.2:8080": {ReqLatency: 10 * time.Millisecond, StatusCode: 200},
-		},
-	}
+	fetcherMock := mocks.NewMockFetcher(ctrl)
+	fetcherMock.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return([]*fetcher.ProxyItem{
+			{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5},
+			{Host: "2.2.2.2", Port: "8080", Type: common.ProxySOCKS5},
+		}, nil)
 
-	fetchers := []services.SourceFetcher{
-		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
-	}
+	verifierMock := mocks.NewMockProxyVerifier(ctrl)
+	verifierMock.EXPECT().
+		Verify(gomock.Any(), "1.1.1.1:8080", "google.com", "socks5", false).
+		Return(services.Result{ReqLatency: 50 * time.Millisecond, StatusCode: 200})
+	verifierMock.EXPECT().
+		Verify(gomock.Any(), "2.2.2.2:8080", "google.com", "socks5", false).
+		Return(services.Result{ReqLatency: 10 * time.Millisecond, StatusCode: 200})
 
 	var fetchedTotal int
 	var progressCalls []int
 	var progressMutex sync.Mutex
 
-	cb := services.PipelineCallbacks{
+	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: fetcherMock},
+		},
+		Verifier: verifierMock,
+		Config:   cfg,
+	}, services.PipelineCallbacks{
 		OnFetched: func(total int) { fetchedTotal = total },
 		OnProgress: func(current, _ int) {
 			progressMutex.Lock()
 			defer progressMutex.Unlock()
 			progressCalls = append(progressCalls, current)
 		},
-	}
+	})
 
-	ctx := t.Context()
-	cfg := basePipelineConfig()
-
-	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
-		Fetchers: fetchers,
-		Verifier: mockVerifier,
-		Config:   cfg,
-	}, cb)
-
-	require.NoError(t, err)
+	require.NoError(t, pipelineErr)
 	require.Len(t, validProxies, 2, "Both valid proxies must be returned")
 
 	assert.Equal(t, 2, fetchedTotal, "OnFetched callback must receive total items count")
@@ -256,78 +218,89 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 }
 
 func TestRunPipeline_MultipleFetchersAggregatesResults(t *testing.T) {
-	items1 := []*fetcher.ProxyItem{
-		{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5},
-	}
-	items2 := []*fetcher.ProxyItem{
-		{Host: "2.2.2.2", Port: "8080", Type: common.ProxySOCKS5},
-	}
-
-	mockFetcher1 := &mockPipelineFetcher{
-		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): items1},
-	}
-	mockFetcher2 := &mockPipelineFetcher{
-		responses: map[string][]*fetcher.ProxyItem{string(common.ProxySOCKS5): items2},
-	}
-
-	fetchers := []services.SourceFetcher{
-		{Source: common.SourceProxyMania, Fetcher: mockFetcher1},
-		{Source: common.SourceTheSpeedX, Fetcher: mockFetcher2},
-	}
-
-	mockVerifier := &mockPipelineVerifier{
-		responses: map[string]services.Result{
-			"1.1.1.1:8080": {ReqLatency: 10 * time.Millisecond, StatusCode: 200},
-			"2.2.2.2:8080": {ReqLatency: 20 * time.Millisecond, StatusCode: 200},
-		},
-	}
-
-	var fetchedTotal int
-	cb := services.PipelineCallbacks{
-		OnFetched: func(total int) { fetchedTotal = total },
-	}
-
-	ctx := t.Context()
+	ctrl := gomock.NewController(t)
 	cfg := basePipelineConfig()
 
-	validProxies, err := services.RunPipeline(ctx, services.PipelineParams{
-		Fetchers: fetchers,
-		Verifier: mockVerifier,
-		Config:   cfg,
-	}, cb)
+	fetcherMockProxyMania := mocks.NewMockFetcher(ctrl)
+	fetcherMockProxyMania.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return([]*fetcher.ProxyItem{
+			{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5},
+		}, nil)
 
-	require.NoError(t, err)
+	fetcherMockTheSpeedX := mocks.NewMockFetcher(ctrl)
+	fetcherMockTheSpeedX.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return([]*fetcher.ProxyItem{
+			{Host: "2.2.2.2", Port: "8080", Type: common.ProxySOCKS5},
+		}, nil)
+
+	verifierMock := mocks.NewMockProxyVerifier(ctrl)
+	verifierMock.EXPECT().
+		Verify(gomock.Any(), "1.1.1.1:8080", "google.com", "socks5", false).
+		Return(services.Result{ReqLatency: 10 * time.Millisecond, StatusCode: 200})
+	verifierMock.EXPECT().
+		Verify(gomock.Any(), "2.2.2.2:8080", "google.com", "socks5", false).
+		Return(services.Result{ReqLatency: 20 * time.Millisecond, StatusCode: 200})
+
+	var fetchedTotal int
+	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: fetcherMockProxyMania},
+			{Source: common.SourceTheSpeedX, Fetcher: fetcherMockTheSpeedX},
+		},
+		Verifier: verifierMock,
+		Config:   cfg,
+	}, services.PipelineCallbacks{
+		OnFetched: func(total int) { fetchedTotal = total },
+	})
+
+	require.NoError(t, pipelineErr)
 	assert.Equal(t, 2, fetchedTotal, "OnFetched must receive aggregated count from all fetchers")
 	require.Len(t, validProxies, 2, "Must aggregate and validate items from multiple fetchers")
 	assert.Equal(t, "1.1.1.1", validProxies[0].Host)
 	assert.Equal(t, "2.2.2.2", validProxies[1].Host)
 }
 
+// runPipelineResult carries both RunPipeline outputs into the test goroutine.
+type runPipelineResult struct {
+	validProxies []*services.ProxyItemFull
+	pipelineErr  error
+}
+
 func TestRunPipeline_StopsOnContextCancellation(t *testing.T) {
-	mockFetcher := &mockPipelineFetcher{
-		blockChan: make(chan struct{}),
-	}
-	mockVerifier := &mockPipelineVerifier{}
-	fetchers := []services.SourceFetcher{
-		{Source: common.SourceProxyMania, Fetcher: mockFetcher},
-	}
+	ctrl := gomock.NewController(t)
+	cfg := basePipelineConfig()
+
+	fetcherMock := mocks.NewMockFetcher(ctrl)
+	fetcherMock.EXPECT().
+		Fetch(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, _ fetcher.Settings) ([]*fetcher.ProxyItem, error) {
+			// Block until the context is cancelled by the test.
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}).AnyTimes()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
-	done := make(chan []*services.ProxyItemFull)
+	done := make(chan runPipelineResult, 1)
 	go func() {
-		pipelineResult, _ := services.RunPipeline(ctx, services.PipelineParams{
-			Fetchers: fetchers,
-			Verifier: mockVerifier,
-			Config:   basePipelineConfig(),
+		validProxies, pipelineErr := services.RunPipeline(ctx, services.PipelineParams{
+			Fetchers: []services.SourceFetcher{
+				{Source: common.SourceProxyMania, Fetcher: fetcherMock},
+			},
+			Verifier: mocks.NewMockProxyVerifier(ctrl),
+			Config:   cfg,
 		}, services.PipelineCallbacks{})
-		done <- pipelineResult
+		done <- runPipelineResult{validProxies: validProxies, pipelineErr: pipelineErr}
 	}()
 
 	select {
-	case <-done:
-		// Success, pipeline exited on context cancel
+	case pipelineResult := <-done:
+		require.Error(t, pipelineResult.pipelineErr, "Cancelled pipeline must report the error")
+		assert.Contains(t, pipelineResult.pipelineErr.Error(), "pipeline fetch error")
+		assert.Nil(t, pipelineResult.validProxies)
 	case <-time.After(2 * time.Second):
 		t.Fatal("RunPipeline did not exit on context cancellation, potential deadlock")
 	}

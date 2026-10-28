@@ -11,6 +11,9 @@ const (
 	ProxyModeNone   = "none"
 )
 
+//go:generate mockgen -destination=../../internal/mocks/mock_sys_proxy.go -package=mocks proxy-checker/internal/sysproxy SystemProxyManager
+
+// SystemProxyManager encapsulates platform-specific system proxy management.
 type SystemProxyManager interface {
 	IsSupported() bool
 	GetMode() (string, error)
