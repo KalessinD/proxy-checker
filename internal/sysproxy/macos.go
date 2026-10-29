@@ -4,6 +4,7 @@ package sysproxy
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -119,7 +120,7 @@ func (m *macOSProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
 
 	hosts := strings.Split(ignoreHostsText, "\n")
 	var args []string
-	args = append(args, "-setproxybypassdomains", service)
+	args = append(args, "-setproxybypassdomains")
 
 	for _, h := range hosts {
 		h = strings.TrimSpace(h)
@@ -128,7 +129,7 @@ func (m *macOSProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
 		}
 	}
 
-	if len(args) == 2 {
+	if len(args) == 1 {
 		args = append(args, "Empty")
 	}
 
@@ -186,13 +187,19 @@ func execNetworkSetup(args ...string) (string, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("networksetup failed: %w (stderr: %s)", err, stderr.String())
+		// networksetup prints its errors to stdout, not stderr.
+		return "", fmt.Errorf("networksetup failed: %w (stderr: %s, stdout: %s)", err, stderr.String(), out.String())
 	}
 	return out.String(), nil
 }
 
+// setNetworkSetup runs networksetup with the correct argument order:
+// <command flag> <service> [values...]. The service must follow the flag.
 func setNetworkSetup(service string, args ...string) error {
-	fullArgs := append([]string{service}, args...)
+	if len(args) == 0 {
+		return errors.New("networksetup: command flag is required")
+	}
+	fullArgs := append([]string{args[0], service}, args[1:]...)
 	_, err := execNetworkSetup(fullArgs...)
 	return err
 }
