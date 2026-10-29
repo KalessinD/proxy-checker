@@ -26,18 +26,3 @@ func (m *NoOpProxyManager) SetIgnoreHosts(_ string) error   { return nil }
 func (m *NoOpProxyManager) GetActiveProxy() (string, string, error) {
     return "", "", nil
 }
-
-//go:build linux
-func NewSystemProxyManager() SystemProxyManager {
-    return newGnomeProxyManager()
-}
-
-//go:build darwin
-func NewSystemProxyManager() SystemProxyManager {
-    return newMacOSProxyManager()
-}
-
-//go:build !linux && !darwin
-func NewSystemProxyManager() SystemProxyManager {
-    return &NoOpProxyManager{}
-}

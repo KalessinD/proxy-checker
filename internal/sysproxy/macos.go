@@ -167,7 +167,7 @@ func (m *macOSProxyManager) getWebProxyState(service string) (bool, string, stri
     if err != nil {
         return false, "", "", err
     }
-    return parseNetworkSetupProxyOutput(out)
+    return ParseNetworkSetupProxyOutput(out)
 }
 
 func (m *macOSProxyManager) getSOCKSProxyState(service string) (bool, string, string, error) {
@@ -175,7 +175,7 @@ func (m *macOSProxyManager) getSOCKSProxyState(service string) (bool, string, st
     if err != nil {
         return false, "", "", err
     }
-    return parseNetworkSetupProxyOutput(out)
+    return ParseNetworkSetupProxyOutput(out)
 }
 
 func execNetworkSetup(args ...string) (string, error) {
@@ -213,7 +213,7 @@ func getActiveNetworkService() (string, error) {
         return "", fmt.Errorf("failed to list hardware ports: %w", err)
     }
 
-    mapping := parseHardwarePortMapping(string(hwOut))
+    mapping := ParseHardwarePortMapping(string(hwOut))
     serviceName, exists := mapping[iface]
     if !exists {
         return "", fmt.Errorf("network service not found for interface: %s", iface)
@@ -236,7 +236,7 @@ func ParseDefaultRouteInterface(output string) string {
     return ""
 }
 
-func parseHardwarePortMapping(output string) map[string]string {
+func ParseHardwarePortMapping(output string) map[string]string {
     result := make(map[string]string)
     lines := strings.Split(output, "\n")
 
@@ -265,8 +265,8 @@ func parseHardwarePortMapping(output string) map[string]string {
     return result
 }
 
-// parseNetworkSetupProxyOutput extracts Enabled, Server, and Port from networksetup output.
-func parseNetworkSetupProxyOutput(output string) (bool, string, string, error) {
+// ParseNetworkSetupProxyOutput extracts Enabled, Server, and Port from networksetup output.
+func ParseNetworkSetupProxyOutput(output string) (bool, string, string, error) {
     var enabled bool
     var server string
     var port string
