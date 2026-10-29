@@ -348,6 +348,8 @@ func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	}
 
 	g.switchProxy.SetChecked(true)
+	g.activeProxyHost = host
+	g.activeProxyPort = port
 	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 	g.highlightProxyInList(host, port)
 }

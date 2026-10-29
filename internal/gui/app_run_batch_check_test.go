@@ -39,9 +39,17 @@ func newTestAppGUIForRunCheck(
 	mockSystemProxy.EXPECT().IsSupported().Return(false).AnyTimes()
 	mockSystemProxy.EXPECT().GetMode().Return("", nil).AnyTimes()
 
-	appGUI := NewAppGUI(testApp, cfg, logger, "dev", mockRunner, mockSystemProxy)
+	deps := AppDependencies{
+		FyneApp:         testApp,
+		Cfg:             cfg,
+		Logger:          logger,
+		Version:         "dev",
+		PipelineRunner:  mockRunner,
+		SysProxyManager: mockSystemProxy,
+		Cache:           mockStorage,
+	}
+	appGUI := NewAppGUI(deps)
 	appGUI.ShowMainScreen()
-	appGUI.cache = mockStorage
 
 	return appGUI
 }

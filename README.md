@@ -13,7 +13,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
   - **Native GUI:** Built with [Fyne v2](https://fyne.io/). Features an adaptive, scalable data table, real-time logs, and progress tracking.
    - **CLI:** Perfect for automation, scripting, and integration with other tools.
 - **Interactive Filtering:** Filter results in the GUI table by source and country without re-running checks.
-- **Multiple Parsing Sources:** 
+- **Cross-platform:** Linux and macOS. On macOS support is currently in alpha: direct integration with the system proxy through `networksetup` on every network service, release artifacts for arm64 and amd64.- **Multiple Parsing Sources:** 
   - `proxymania.su`: Parses interactive pages with filtering by response time (RTT) and protocol. Supports pagination.
   - `thespeedx: Fetches raw lists directly from GitHub repositories.
   - `proxifly: Fetches raw lists directly from GitHub repositories.
@@ -42,7 +42,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 Clone the repository and build the binary:
 
 ```bash
-git clone https://github.com/yourusername/proxy-checker.git
+git clone https://github.com/KalessinD/proxy-checker.git
 cd proxy-checker
 ```
 
@@ -64,6 +64,17 @@ To install the binary system-wide (`/usr/bin/`), copy the application icon, and 
 sudo make install
 ```
 *(Note: Ensure your `assets/proxy-checker.png` exists before running install).*
+
+### Install (macOS)
+
+To install the binary system-wide (`/usr/local/bin`):
+
+```bash
+make build
+sudo make install
+```
+
+Alternatively, download the ready-to-run `proxy-checker-macos-<arch>` archive from the [releases page](https://github.com/KalessinD/proxy-checker/releases) and put the binary wherever you prefer.
 
 ## Usage
 

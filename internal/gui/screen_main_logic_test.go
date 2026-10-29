@@ -37,7 +37,10 @@ func TestApplySystemProxy_Error(t *testing.T) {
 		Return(expectedErr).
 		Times(1)
 
-	app := NewAppGUI(testApp, cfg, logger, "dev", mockRunner, mockSysProxy)
+	deps := newTestDependencies(testApp, cfg, logger)
+	deps.PipelineRunner = mockRunner
+	deps.SysProxyManager = mockSysProxy
+	app := NewAppGUI(deps)
 	app.ShowMainScreen()
 
 	app.applySystemProxy("1.1.1.1", "8080", "socks5")

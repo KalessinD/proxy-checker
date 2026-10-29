@@ -76,10 +76,42 @@ jobs:
           # report_type: test_results # to upload junit.xml
         continue-on-error: true
 
+  autotests-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            Makefile
+
+      - name: Installing Golang tools
+        run: |
+          mkdir -p $(go env GOPATH)/bin
+          curl -sSfL https://golangci-lint.run/install.sh | sh -s v2.11.4
+          mv bin/* $(go env GOPATH)/bin
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Lint
+        run: |
+          make lint
+
+      # Native darwin run executes the macos-tagged sysproxy tests
+      # (pure-Go packages and GUI; cgo is provided by Xcode on the runner)
+      - name: Run Tests
+        run: |
+          make test
+
   release:
     needs: autotests
     if: startsWith(github.ref, 'refs/tags/v') # starts only on tags with leading "v"
-    
+
     runs-on: ubuntu-latest
     container: golang:1.26.1
     strategy:
@@ -91,9 +123,6 @@ jobs:
 #          - goos: windows
 #            goarch: amd64
 #            artifact_name: proxy-checker-windows-amd64.exe
-#          - goos: darwin  # macOS
-#            goarch: arm64
-#            artifact_name: proxy-checker-macos-arm64
 
     steps:
 
@@ -110,6 +139,49 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Build binary
+        run: |
+          APP_VERSION=${{ github.ref_name }} APP_NAME=${{ matrix.artifact_name }} make build
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          fetch-depth: 0
+          name: Release ${{ github.ref_name }}
+          files: ./bin/${{ matrix.artifact_name }}
+
+  # darwin artifacts are built on a native macOS runner:
+  # the GUI requires cgo (Xcode toolchain), which is unavailable in the Linux container.
+  release-macos:
+    needs: [autotests, autotests-macos, release] # serializes release upload to avoid races
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+            artifact_name: proxy-checker-macos-arm64
+          - goos: darwin
+            goarch: amd64
+            artifact_name: proxy-checker-macos-amd64
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            Makefile
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build binary
+        env:
+          GOARCH: ${{ matrix.goarch }}
         run: |
           APP_VERSION=${{ github.ref_name }} APP_NAME=${{ matrix.artifact_name }} make build
 

@@ -1,4 +1,4 @@
-//go:build linux || darwin
+//go:build linux
 
 package sysproxy
 
@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"proxy-checker/internal/common/i18n"
+	"sort"
 	"strings"
 )
 
@@ -225,4 +226,47 @@ func gsettingsSet(schema, key, value string) error {
 		return fmt.Errorf("%s: %v, %s", i18n.T("sysproxy.err_gsettings"), err, stderr.String())
 	}
 	return nil
+}
+
+// ParseGVariantStringArray parses a GVariant string-array literal ('a'as)
+// produced by gsettings and returns the sorted list of its elements.
+func ParseGVariantStringArray(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "[]" {
+		return nil
+	}
+
+	raw = strings.TrimPrefix(raw, "[")
+	raw = strings.TrimSuffix(raw, "]")
+
+	elements := strings.Split(raw, ",")
+
+	var result []string
+	for _, elem := range elements {
+		cleaned := strings.TrimSpace(elem)
+		cleaned = strings.Trim(cleaned, "'")
+		if cleaned != "" {
+			result = append(result, cleaned)
+		}
+	}
+
+	sort.Strings(result)
+	return result
+}
+
+// FormatGVariantStringArray serializes the given hosts into a sorted,
+// quoted GVariant string-array literal accepted by gsettings.
+func FormatGVariantStringArray(hosts []string) string {
+	if len(hosts) == 0 {
+		return "[]"
+	}
+
+	sort.Strings(hosts)
+
+	quoted := make([]string, len(hosts))
+	for i, host := range hosts {
+		quoted[i] = "'" + host + "'"
+	}
+
+	return "[" + strings.Join(quoted, ", ") + "]"
 }

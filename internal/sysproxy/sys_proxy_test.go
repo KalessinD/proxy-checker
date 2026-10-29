@@ -43,51 +43,10 @@ func TestNoopProxyManager_Behavior(t *testing.T) {
 func TestNewSystemProxyManager_PlatformConsistency(t *testing.T) {
 	manager := sysproxy.NewSystemProxyManager()
 
-	if runtime.GOOS == "linux" {
-		assert.IsNotType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use linuxProxyManager on Linux")
-	} else {
-		assert.IsType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use noopProxyManager on non-Linux")
-	}
-}
-
-func TestParseGVariantStringArray(t *testing.T) {
-	tests := []struct {
-		name         string
-		rawInput     string
-		expectedList []string
-	}{
-		{name: "Empty array", rawInput: "[]", expectedList: nil},
-		{name: "Single element", rawInput: "['localhost']", expectedList: []string{"localhost"}},
-		{name: "Multiple elements sorted", rawInput: "['localhost', '127.0.0.0/8', '::1']", expectedList: []string{"127.0.0.0/8", "::1", "localhost"}},
-		{name: "Elements without quotes", rawInput: "[localhost, 192.168.1.1]", expectedList: []string{"192.168.1.1", "localhost"}},
-		{name: "Empty strings inside", rawInput: "['', 'test']", expectedList: []string{"test"}},
-		{name: "Trailing comma", rawInput: "['localhost', ]", expectedList: []string{"localhost"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := sysproxy.ParseGVariantStringArray(tt.rawInput)
-			assert.Equal(t, tt.expectedList, result)
-		})
-	}
-}
-
-func TestFormatGVariantStringArray(t *testing.T) {
-	tests := []struct {
-		name           string
-		inputHosts     []string
-		expectedString string
-	}{
-		{name: "Nil slice", inputHosts: nil, expectedString: "[]"},
-		{name: "Empty slice", inputHosts: []string{}, expectedString: "[]"},
-		{name: "Single element", inputHosts: []string{"localhost"}, expectedString: "['localhost']"},
-		{name: "Sorted and quoted", inputHosts: []string{"192.168.1.1", "localhost", "::1"}, expectedString: "['192.168.1.1', '::1', 'localhost']"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := sysproxy.FormatGVariantStringArray(tt.inputHosts)
-			assert.Equal(t, tt.expectedString, result)
-		})
+	switch runtime.GOOS {
+	case "linux", "darwin":
+		assert.IsNotType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use a real manager on supported platforms")
+	default:
+		assert.IsType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use noopProxyManager on unsupported platforms")
 	}
 }

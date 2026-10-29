@@ -15,7 +15,6 @@ import (
 	"sync"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
@@ -39,6 +38,18 @@ type (
 		HTTP    string           `json:"http"`
 		TCPMs   int64            `json:"tcp_ms"`
 		HTTPMs  int64            `json:"http_ms"`
+	}
+
+	// AppDependencies groups all external dependencies required to build the GUI application.
+	// The cache must be provided by the caller (composition root), not created inside NewAppGUI.
+	AppDependencies struct {
+		FyneApp         fyne.App
+		Cfg             *config.Config
+		Logger          common.LoggerInterface
+		Version         string
+		PipelineRunner  services.PipelineRunner
+		SysProxyManager sysproxy.SystemProxyManager
+		Cache           cache.StorageInterface
 	}
 
 	AppGUI struct {
@@ -68,6 +79,11 @@ type (
 		logMutex    sync.Mutex
 
 		sysProxyManager sysproxy.SystemProxyManager
+
+		// Cached address of the proxy currently active at the OS level, so the
+		// UI query paths (filter clicks) never block on external commands.
+		activeProxyHost string
+		activeProxyPort string
 
 		highlightedRow    int
 		isUpdatingFilters bool
@@ -125,38 +141,32 @@ func (g *AppGUI) initGeoIP(customPath string) {
 	}
 }
 
-func NewAppGUI(
-	fyneApp fyne.App,
-	cfg *config.Config,
-	logger common.LoggerInterface,
-	version string,
-	pipelineRunner services.PipelineRunner,
-	sysProxyManager sysproxy.SystemProxyManager,
-) *AppGUI {
-	gui := &AppGUI{
-		app:                 fyneApp,
-		window:              fyneApp.NewWindow(common.AppName),
-		cfg:                 cfg,
-		logger:              logger,
+// NewAppGUI builds the GUI application from the provided dependencies.
+func NewAppGUI(deps AppDependencies) *AppGUI {
+	appGUI := &AppGUI{
+		app:                 deps.FyneApp,
+		window:              deps.FyneApp.NewWindow(common.AppName),
+		cfg:                 deps.Cfg,
+		logger:              deps.Logger,
 		progress:            binding.NewFloat(),
 		proxyItems:          make([]*ProxyItemWrapper, 0),
 		filteredProxyItems:  make([]*ProxyItemWrapper, 0),
 		activeCountryFilter: i18n.T("gui.filter_all"),
 		activeSourceFilter:  i18n.T("gui.filter_all"),
-		pipelineRunner:      pipelineRunner,
-		cache:               cache.NewFileStorage(logger),
-		sysProxyManager:     sysProxyManager,
-		version:             version,
+		pipelineRunner:      deps.PipelineRunner,
+		cache:               deps.Cache,
+		sysProxyManager:     deps.SysProxyManager,
+		version:             deps.Version,
 	}
 
-	gui.window.Resize(fyne.NewSize(800, 600))
-	gui.applyTheme(cfg.Theme)
+	appGUI.window.Resize(fyne.NewSize(800, 600))
+	appGUI.applyTheme(deps.Cfg.Theme)
 
-	gui.initGeoIP(cfg.GeoIPDBPath)
-	gui.initUIComponents()
-	gui.loadSystemProxyState()
+	appGUI.initGeoIP(deps.Cfg.GeoIPDBPath)
+	appGUI.initUIComponents()
+	appGUI.loadSystemProxyState()
 
-	return gui
+	return appGUI
 }
 
 // setupMainMenu initializes the top-level application menu bar.
@@ -197,6 +207,14 @@ func (g *AppGUI) initUIComponents() {
 			g.switchProxy.SetChecked(!checked)
 		} else {
 			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s\n", i18n.T("gui.sys_proxy_mode_changed"), mode))
+
+			if checked {
+				g.restoreSystemProxyHighlight()
+			} else {
+				g.activeProxyHost = ""
+				g.activeProxyPort = ""
+				g.highlightProxyInList("", "")
+			}
 		}
 	})
 
@@ -371,8 +389,13 @@ func (g *AppGUI) Run() {
 	g.window.ShowAndRun()
 }
 
-func (g *AppGUI) restoreSystemProxyHighlight() {
+// refreshActiveProxyState queries and caches the address of the proxy currently
+// active at the OS level. It must be called only from rare user-action paths
+// (startup, proxy apply, manual switch toggling), never from per-click UI paths.
+func (g *AppGUI) refreshActiveProxyState() {
 	if !g.sysProxyManager.IsSupported() {
+		g.activeProxyHost = ""
+		g.activeProxyPort = ""
 		return
 	}
 
@@ -382,8 +405,15 @@ func (g *AppGUI) restoreSystemProxyHighlight() {
 		return
 	}
 
-	if host != "" && port != "" {
-		g.highlightProxyInList(host, port)
+	g.activeProxyHost = host
+	g.activeProxyPort = port
+}
+
+func (g *AppGUI) restoreSystemProxyHighlight() {
+	g.refreshActiveProxyState()
+
+	if g.activeProxyHost != "" && g.activeProxyPort != "" {
+		g.highlightProxyInList(g.activeProxyHost, g.activeProxyPort)
 	}
 }
 
@@ -407,10 +437,10 @@ func (g *AppGUI) getTargetURL() string {
 	return g.cfg.DestAddr
 }
 
-func Run(cfg *config.Config, logger common.LoggerInterface, version string, pipelineRunner services.PipelineRunner) {
-	fyneApp := app.NewWithID(common.AppName)
-	gui := NewAppGUI(fyneApp, cfg, logger, version, pipelineRunner, sysproxy.NewSystemProxyManager())
-	gui.Run()
+// Run launches the GUI application assembled from the provided dependencies.
+func Run(deps AppDependencies) {
+	appGUI := NewAppGUI(deps)
+	appGUI.Run()
 }
 
 func (g *AppGUI) buildTargetSelector() (*widget.Select, *widget.Entry, *fyne.Container) {
@@ -552,15 +582,9 @@ func (g *AppGUI) updateHighlightingForFilteredItems() {
 		return
 	}
 
-	host, port, err := g.sysProxyManager.GetActiveProxy()
-	if err != nil || host == "" || port == "" {
-		g.highlightedRow = -1
-		return
-	}
-
 	g.highlightedRow = -1
 	for i, item := range g.filteredProxyItems {
-		if item.Host == host && item.Port == port {
+		if item.Host == g.activeProxyHost && item.Port == g.activeProxyPort {
 			g.highlightedRow = i
 			break
 		}

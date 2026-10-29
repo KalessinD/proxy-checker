@@ -6,7 +6,6 @@ import (
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
-	"proxy-checker/internal/sysproxy"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
@@ -22,7 +21,7 @@ func TestMapToWrapper_Success(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	inputItems := []*services.ProxyItemFull{
 		{
@@ -57,7 +56,7 @@ func TestMapToWrapper_EmptySlice(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	wrappers := g.mapToWrapper([]*services.ProxyItemFull{})
 
@@ -70,7 +69,7 @@ func TestApplyTheme_NoPanics(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	themes := []string{"light", "dark", "system", "unknown_theme_fallback"}
 
@@ -89,7 +88,7 @@ func TestDeduplicateItems(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	items := []*services.ProxyItemFull{
 		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080"}},
@@ -110,7 +109,7 @@ func TestGetTargetURL_CustomTarget(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	// When custom target is active, it must override config
 	g.isCustomTarget = true
@@ -133,7 +132,7 @@ func TestHighlightProxyInList_Found(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Port: "8080"},
@@ -154,7 +153,7 @@ func TestHighlightProxyInList_NotFound(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Port: "8080"},
@@ -173,7 +172,7 @@ func TestRebuildFilterSelectOptions_ExtractsUniqueValues(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
@@ -204,7 +203,7 @@ func TestApplyCombinedFilters_AllOption(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
@@ -225,7 +224,7 @@ func TestApplyCombinedFilters_SingleCriteria(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Port: "8080", Country: "US", Source: "proxymania"},
@@ -249,7 +248,7 @@ func TestHighlightProxyInList_FilteredScenarios(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.filteredProxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Port: "8080"},
@@ -271,7 +270,7 @@ func TestApplyCombinedFilters_MultipleCriteria(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.countryFilterSelect = widget.NewSelect(nil, nil)
 
@@ -298,7 +297,7 @@ func TestSyncDependentFilter_ResetsInvalidSelection(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.countryFilterSelect = widget.NewSelect(nil, nil)
 
@@ -336,7 +335,7 @@ func TestSyncDependentFilter_KeepsValidSelection(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev", services.NewDefaultPipelineRunner(), sysproxy.NewSystemProxyManager())
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.countryFilterSelect = widget.NewSelect(nil, nil)
 

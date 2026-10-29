@@ -19,6 +19,7 @@ LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
 LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
 LINUX_SYSTEM_DESKTOP_FILE := /usr/share/applications/$(APP_NAME).desktop
 LINUX_USER_DESKTOP_FILE := $(HOME)/Desktop/$(APP_NAME).desktop
+MACOS_BIN_INSTALL_PATH := /usr/local/bin/$(BINARY_NAME)
 LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
 
 GOLANGCI_LINT ?= golangci-lint
@@ -188,9 +189,14 @@ install-windows: # The app installation on Windows
 	$(NOECHO) $(call print_error,Error: Automated installation is not supported for Windows.)
 	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
 
-install-macos: # The app installation on MacOS
-	$(NOECHO) $(call print_error,Error: Automated installation is not supported for macOS.)
-	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
+install-macos: # The app binary installation on macOS
+	$(NOECHO) $(call print_info,Installing binary to $(MACOS_BIN_INSTALL_PATH)...)
+	$(NOECHO) if [ -f "$(MACOS_BIN_INSTALL_PATH)" ]; then \
+		$(call print_info,File $(MACOS_BIN_INSTALL_PATH) already exists. It will be overwritten.); \
+	fi
+	$(NOECHO) $(SUDO) $(MKDIR) -p /usr/local/bin
+	$(NOECHO) $(SUDO) $(INSTALL) -m 755 $(BINARY_FULL) $(MACOS_BIN_INSTALL_PATH)
+	$(NOECHO) $(call print_success,macOS installation completed.)
 
 install-freebsd: # The app installation on FreeBSD
 	$(NOECHO) $(call print_error,Error: Automated installation is not supported for FreeBSD.)
@@ -200,7 +206,12 @@ install-unknown: # The app installation on other OS
 	$(NOECHO) $(call print_error,Error: Cannot detect your operating system.)
 	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
 
-uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown: # The app uninstallation on different OS
+uninstall-macos: # The app uninstallation on macOS
+	$(NOECHO) $(call print_info,Uninstalling application...)
+	$(NOECHO) $(SUDO) $(RM) $(MACOS_BIN_INSTALL_PATH)
+	$(NOECHO) $(call print_success,Application uninstalled.)
+
+uninstall-windows uninstall-freebsd uninstall-unknown: # The app uninstallation on different OS
 	$(NOECHO) $(call print_error,Error: Automated uninstallation is not supported for $(OSTYPE))
 
 run: build # Runs the built app
