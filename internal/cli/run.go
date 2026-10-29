@@ -34,7 +34,7 @@ func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterfa
 	defer timeoutCancel()
 
 	checker := services.NewProxyChecker()
-	res := checker.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
+	res := checker.CheckProxy(ctx, opts.ProxyAddr, services.NewCheckParams(cfg))
 	if res.Error != nil {
 		fmt.Fprintf(os.Stderr, "%s %v\n", i18n.T("cli.fail"), res.Error)
 		return

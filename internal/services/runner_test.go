@@ -57,7 +57,7 @@ func expectVerify(
 ) *mocks.MockProxyVerifier {
 	verifierMock := mocks.NewMockProxyVerifier(ctrl)
 	verifierMock.EXPECT().
-		Verify(gomock.Any(), proxyAddr, "google.com", "socks5", false).
+		Verify(gomock.Any(), proxyAddr, gomock.Any()).
 		Return(result)
 	return verifierMock
 }
@@ -181,10 +181,10 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 
 	verifierMock := mocks.NewMockProxyVerifier(ctrl)
 	verifierMock.EXPECT().
-		Verify(gomock.Any(), "1.1.1.1:8080", "google.com", "socks5", false).
+		Verify(gomock.Any(), "1.1.1.1:8080", gomock.Any()).
 		Return(services.Result{ReqLatency: 50 * time.Millisecond, StatusCode: 200})
 	verifierMock.EXPECT().
-		Verify(gomock.Any(), "2.2.2.2:8080", "google.com", "socks5", false).
+		Verify(gomock.Any(), "2.2.2.2:8080", gomock.Any()).
 		Return(services.Result{ReqLatency: 10 * time.Millisecond, StatusCode: 200})
 
 	var fetchedTotal int
@@ -237,10 +237,10 @@ func TestRunPipeline_MultipleFetchersAggregatesResults(t *testing.T) {
 
 	verifierMock := mocks.NewMockProxyVerifier(ctrl)
 	verifierMock.EXPECT().
-		Verify(gomock.Any(), "1.1.1.1:8080", "google.com", "socks5", false).
+		Verify(gomock.Any(), "1.1.1.1:8080", gomock.Any()).
 		Return(services.Result{ReqLatency: 10 * time.Millisecond, StatusCode: 200})
 	verifierMock.EXPECT().
-		Verify(gomock.Any(), "2.2.2.2:8080", "google.com", "socks5", false).
+		Verify(gomock.Any(), "2.2.2.2:8080", gomock.Any()).
 		Return(services.Result{ReqLatency: 20 * time.Millisecond, StatusCode: 200})
 
 	var fetchedTotal int

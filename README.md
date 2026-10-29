@@ -145,6 +145,7 @@ If the file does not exist, it is automatically created with default values on t
 ```toml
 type = "socks5"
 timeout = "3s"
+dial_timeout = "30s"
 workers = 512
 dest_addr = "youtube.com"
 source = "proxymania"

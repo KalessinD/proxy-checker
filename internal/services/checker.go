@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
+	"proxy-checker/internal/config"
 	"proxy-checker/internal/fetcher"
 	"proxy-checker/internal/proxies"
 	"sort"
@@ -47,11 +48,12 @@ type (
 	// CheckParams is the narrow DTO of the network-validation settings shared
 	// by the checker and the pipeline configuration.
 	CheckParams struct {
-		DestAddr   string
-		Type       common.ProxyType
-		Timeout    time.Duration
-		Workers    int
-		CheckHTTP2 bool
+		DestAddr    string
+		Type        common.ProxyType
+		Timeout     time.Duration
+		DialTimeout time.Duration
+		Workers     int
+		CheckHTTP2  bool
 	}
 
 	defaultChecker struct{}
@@ -64,7 +66,7 @@ type (
 // ProxyChecker defines the port for network validation of proxies
 // (single and batch). It knows nothing about where proxies came from.
 type ProxyChecker interface {
-	CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result
+	CheckProxy(ctx context.Context, proxyAddr string, params *CheckParams) Result
 	CheckBatch(
 		ctx context.Context,
 		proxiesList []*ProxyItem,
@@ -78,16 +80,28 @@ func NewProxyChecker() ProxyChecker {
 	return &defaultChecker{}
 }
 
+// NewCheckParams projects the application configuration onto check settings.
+func NewCheckParams(cfg *config.Config) *CheckParams {
+	return &CheckParams{
+		DestAddr:    cfg.DestAddr,
+		Type:        cfg.Type,
+		Timeout:     cfg.Timeout,
+		DialTimeout: cfg.DialTimeout,
+		Workers:     cfg.Workers,
+		CheckHTTP2:  cfg.CheckHTTP2,
+	}
+}
+
 func NewDefaultVerifier() ProxyVerifier {
 	return &defaultVerifier{checker: &defaultChecker{}}
 }
 
-func (v *defaultVerifier) Verify(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
-	return v.checker.checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
+func (v *defaultVerifier) Verify(ctx context.Context, proxyAddr string, params *CheckParams) Result {
+	return v.checker.checkProxy(ctx, proxyAddr, params)
 }
 
-func (pc *defaultChecker) CheckProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
-	return pc.checkProxy(ctx, proxyAddr, destAddr, mode, checkHTTP2)
+func (pc *defaultChecker) CheckProxy(ctx context.Context, proxyAddr string, params *CheckParams) Result {
+	return pc.checkProxy(ctx, proxyAddr, params)
 }
 
 func (pc *defaultChecker) CheckBatch(
@@ -97,11 +111,8 @@ func (pc *defaultChecker) CheckBatch(
 	verifier ProxyVerifier,
 	progressCallback func(current, total int),
 ) []*ProxyItemFull {
-	dest := params.DestAddr
-	mode := params.Type
 	timeout := params.Timeout
 	workers := params.Workers
-	checkHTTP2 := params.CheckHTTP2
 
 	jobs := make(chan *ProxyItem, len(proxiesList))
 	results := make(chan *ProxyItemFull, len(proxiesList))
@@ -119,15 +130,16 @@ func (pc *defaultChecker) CheckBatch(
 			default:
 			}
 
-			currentMode := mode
-			if mode == common.ProxyAll {
-				currentMode = proxy.Type
+			// The proxy type may override the configured one when checking "all" types.
+			checkParams := *params
+			if params.Type == common.ProxyAll {
+				checkParams.Type = proxy.Type
 			}
 
 			addr := fmt.Sprintf("%s:%s", proxy.Host, proxy.Port)
 			ctxCheck, cancel := context.WithTimeout(ctx, timeout)
 
-			res := verifier.Verify(ctxCheck, addr, dest, string(currentMode), checkHTTP2)
+			res := verifier.Verify(ctxCheck, addr, &checkParams)
 			cancel()
 
 			if ctx.Err() != nil {
@@ -198,10 +210,13 @@ func ResolveSchema(mode string, forceHTTP2 bool) string {
 	}
 }
 
-func (pc *defaultChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) Result {
+func (pc *defaultChecker) checkProxy(ctx context.Context, proxyAddr string, params *CheckParams) Result {
 	var res Result
 
-	dialTimeout := 10 * time.Second
+	dialTimeout := params.DialTimeout
+	if dialTimeout <= 0 {
+		dialTimeout = config.DefaultDialTimeout
+	}
 	if deadline, ok := ctx.Deadline(); ok {
 		remain := time.Until(deadline)
 		if remain > 0 && remain < dialTimeout {
@@ -222,7 +237,7 @@ func (pc *defaultChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, m
 	res.ProxyLatency = time.Since(start)
 	res.ProxyLatencyStr = res.ProxyLatency.String()
 
-	target := destAddr
+	target := params.DestAddr
 	if target == "" {
 		target = i18n.T("checker.default_target")
 	}
@@ -230,15 +245,16 @@ func (pc *defaultChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, m
 	target = strings.TrimPrefix(target, "http://")
 	target = strings.TrimPrefix(target, "https://")
 
-	schema := ResolveSchema(mode, checkHTTP2)
+	mode := string(params.Type)
+	schema := ResolveSchema(mode, params.CheckHTTP2)
 	target = schema + target
 
-	if mode == "socks4" && checkHTTP2 {
+	if mode == "socks4" && params.CheckHTTP2 {
 		res.Error = errors.New(i18n.T("checker.err_socks4_no_http2"))
 		return res
 	}
 
-	client, err := proxies.NewClient(proxyAddr, mode, checkHTTP2)
+	client, err := proxies.NewClient(proxyAddr, mode, params.CheckHTTP2)
 	if err != nil {
 		res.Error = err
 		return res
@@ -267,7 +283,7 @@ func (pc *defaultChecker) checkProxy(ctx context.Context, proxyAddr, destAddr, m
 	res.SupportsHTTP = true
 	res.SupportsHTTP2 = resp.ProtoMajor == 2
 
-	if checkHTTP2 && !res.SupportsHTTP2 {
+	if params.CheckHTTP2 && !res.SupportsHTTP2 {
 		res.Error = fmt.Errorf("%s: %s", i18n.T("checker.err_http2_failed"), resp.Proto)
 	}
 

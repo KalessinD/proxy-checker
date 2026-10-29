@@ -3,9 +3,8 @@
 package sysproxy_test
 
 import (
-	"testing"
-
 	"proxy-checker/internal/sysproxy"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

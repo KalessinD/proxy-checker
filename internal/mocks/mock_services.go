@@ -81,15 +81,15 @@ func (m *MockProxyVerifier) EXPECT() *MockProxyVerifierMockRecorder {
 }
 
 // Verify mocks base method.
-func (m *MockProxyVerifier) Verify(ctx context.Context, proxyAddr, destAddr, mode string, checkHTTP2 bool) services.Result {
+func (m *MockProxyVerifier) Verify(ctx context.Context, proxyAddr string, params *services.CheckParams) services.Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", ctx, proxyAddr, destAddr, mode, checkHTTP2)
+	ret := m.ctrl.Call(m, "Verify", ctx, proxyAddr, params)
 	ret0, _ := ret[0].(services.Result)
 	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockProxyVerifierMockRecorder) Verify(ctx, proxyAddr, destAddr, mode, checkHTTP2 any) *gomock.Call {
+func (mr *MockProxyVerifierMockRecorder) Verify(ctx, proxyAddr, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockProxyVerifier)(nil).Verify), ctx, proxyAddr, destAddr, mode, checkHTTP2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockProxyVerifier)(nil).Verify), ctx, proxyAddr, params)
 }

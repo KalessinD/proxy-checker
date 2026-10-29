@@ -62,7 +62,10 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 			defer cancel()
 
 			checker := services.NewProxyChecker()
-			res := checker.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
+			checkParams := services.NewCheckParams(g.cfg)
+			checkParams.DestAddr = target
+			checkParams.Type = common.ProxyType(checkType)
+			res := checker.CheckProxy(ctx, addr, checkParams)
 			if res.Error != nil {
 				g.appendLog(common.LogLevelError, fmt.Sprintf("%s %v\n", i18n.T("cli.fail"), res.Error))
 				return

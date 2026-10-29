@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Type        common.ProxyType `toml:"type"`
 	Timeout     time.Duration    `toml:"timeout"`
+	DialTimeout time.Duration    `toml:"dial_timeout"`
 	Workers     int              `toml:"workers"`
 	DestAddr    string           `toml:"dest_addr"`
 	Sources     []common.Source  `toml:"sources"`
@@ -27,22 +28,27 @@ type Config struct {
 	GeoIPDBPath string           `toml:"geoip_db_path"`
 }
 
+// DefaultDialTimeout caps the TCP-dial phase of a proxy check when the
+// per-check context deadline is not reached first.
+const DefaultDialTimeout = 30 * time.Second
+
 func DefaultConfig() *Config {
 	return &Config{
-		Theme:      "system",
-		MinWidth:   900,
-		MinHeight:  400,
-		Sources:    []common.Source{common.SourceProxyMania},
-		Type:       common.ProxySOCKS5,
-		Timeout:    10 * time.Second,
-		Workers:    256,
-		Pages:      4,
-		RTT:        150,
-		CheckHTTP2: false,
-		DestAddr:   "google.com",
-		LogPath:    common.DefaultLogPath(),
-		CacheTTL:   3600,
-		Lang:       "en",
+		Theme:       "system",
+		MinWidth:    900,
+		MinHeight:   400,
+		Sources:     []common.Source{common.SourceProxyMania},
+		Type:        common.ProxySOCKS5,
+		Timeout:     10 * time.Second,
+		DialTimeout: DefaultDialTimeout,
+		Workers:     256,
+		Pages:       4,
+		RTT:         150,
+		CheckHTTP2:  false,
+		DestAddr:    "google.com",
+		LogPath:     common.DefaultLogPath(),
+		CacheTTL:    3600,
+		Lang:        "en",
 	}
 }
 

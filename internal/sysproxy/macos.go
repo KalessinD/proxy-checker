@@ -212,7 +212,7 @@ func getActiveNetworkService() (string, error) {
 
 	iface := ParseDefaultRouteInterface(string(out))
 	if iface == "" {
-		return "", fmt.Errorf("failed to parse default interface from route output")
+		return "", errors.New("failed to parse default interface from route output")
 	}
 
 	hwOut, err := exec.Command("networksetup", "-listallhardwareports").Output()

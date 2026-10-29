@@ -61,16 +61,10 @@ type (
 // NewPipelineConfig projects the application configuration onto the narrow pipeline DTO.
 func NewPipelineConfig(cfg *config.Config) *PipelineConfig {
 	return &PipelineConfig{
-		CheckParams: CheckParams{
-			DestAddr:   cfg.DestAddr,
-			Type:       cfg.Type,
-			Timeout:    cfg.Timeout,
-			Workers:    cfg.Workers,
-			CheckHTTP2: cfg.CheckHTTP2,
-		},
-		RTT:   cfg.RTT,
-		Pages: cfg.Pages,
-		Lang:  cfg.Lang,
+		CheckParams: *NewCheckParams(cfg),
+		RTT:         cfg.RTT,
+		Pages:       cfg.Pages,
+		Lang:        cfg.Lang,
 	}
 }
 
