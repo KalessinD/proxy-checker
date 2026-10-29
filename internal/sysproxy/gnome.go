@@ -12,18 +12,18 @@ import (
 	"strings"
 )
 
-type linuxProxyManager struct{}
+type gnomeProxyManager struct{}
 
-func newLinuxProxyManager() SystemProxyManager {
-	m := &linuxProxyManager{}
+func newGnomeProxyManager() SystemProxyManager {
+	m := &gnomeProxyManager{}
 	return m
 }
 
-func (m *linuxProxyManager) IsSupported() bool {
+func (m *gnomeProxyManager) IsSupported() bool {
 	return IsDebianBased() && IsGnomeDesktop() && isGsettingsAvailable()
 }
 
-func (m *linuxProxyManager) GetMode() (string, error) {
+func (m *gnomeProxyManager) GetMode() (string, error) {
 	cmd := exec.Command("gsettings", "get", "org.gnome.system.proxy", "mode")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -37,11 +37,11 @@ func (m *linuxProxyManager) GetMode() (string, error) {
 	return mode, nil
 }
 
-func (m *linuxProxyManager) SetMode(mode string) error {
+func (m *gnomeProxyManager) SetMode(mode string) error {
 	return gsettingsSet("org.gnome.system.proxy", "mode", mode)
 }
 
-func (m *linuxProxyManager) SetProxy(host, port, proxyType string) error {
+func (m *gnomeProxyManager) SetProxy(host, port, proxyType string) error {
 	pType := strings.ToLower(proxyType)
 
 	if err := m.SetMode(ProxyModeManual); err != nil {
@@ -72,7 +72,7 @@ func (m *linuxProxyManager) SetProxy(host, port, proxyType string) error {
 	return nil
 }
 
-func (m *linuxProxyManager) GetIgnoreHosts() (string, error) {
+func (m *gnomeProxyManager) GetIgnoreHosts() (string, error) {
 	cmd := exec.Command("gsettings", "get", "org.gnome.system.proxy", "ignore-hosts")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -85,7 +85,7 @@ func (m *linuxProxyManager) GetIgnoreHosts() (string, error) {
 	return strings.Join(rawList, "\n"), nil
 }
 
-func (m *linuxProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
+func (m *gnomeProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
 	lines := strings.Split(ignoreHostsText, "\n")
 
 	var cleanedHosts []string
@@ -159,7 +159,7 @@ func clearProxySubkey(proto string) error {
 	return gsettingsSet(schema, "port", "0")
 }
 
-func (m *linuxProxyManager) GetActiveProxy() (string, string, error) {
+func (m *gnomeProxyManager) GetActiveProxy() (string, string, error) {
 	mode, err := m.GetMode()
 	if err != nil || mode != ProxyModeManual {
 		return "", "", nil

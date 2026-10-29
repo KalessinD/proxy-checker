@@ -8,7 +8,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestNewSystemProxyManager_ReturnsValidInterface_linux(t *testing.T) {
+	manager := sysproxy.NewSystemProxyManager()
+	require.NotNil(t, manager, "Factory always must return the interface")
+}
+
+func TestNewSystemProxyManager_PlatformConsistency_linux(t *testing.T) {
+	manager := sysproxy.NewSystemProxyManager()
+	assert.IsNotType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use gnomeProxyManager on linux")
+}
 
 func TestIsGnomeDesktop(t *testing.T) {
 	tests := []struct {
@@ -108,4 +119,11 @@ func TestFormatGVariantStringArray(t *testing.T) {
 			assert.Equal(t, tt.expectedString, result)
 		})
 	}
+}
+
+func TestGVariantStringArray_RoundTrip(t *testing.T) {
+	hosts := []string{"localhost", "192.168.1.1", "::1"}
+
+	parsed := sysproxy.ParseGVariantStringArray(sysproxy.FormatGVariantStringArray(hosts))
+	assert.Equal(t, []string{"::1", "192.168.1.1", "localhost"}, parsed, "Parse(Format(hosts)) must return the same sorted hosts")
 }

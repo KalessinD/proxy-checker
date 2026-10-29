@@ -73,6 +73,55 @@ func TestParseHardwarePortMapping_Empty(t *testing.T) {
 	assert.Empty(t, result)
 }
 
+func TestParseHardwarePortMapping_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected map[string]string
+	}{
+		{
+			name: "Service name with spaces",
+			input: `Hardware Port: Thunderbolt Ethernet
+Device: en2
+Ethernet Address: aa:bb:cc:dd:ee:ff
+`,
+			expected: map[string]string{"en2": "Thunderbolt Ethernet"},
+		},
+		{
+			name: "Device line before Hardware Port line",
+			input: `Device: en3
+Hardware Port: Wi-Fi 2
+`,
+			expected: map[string]string{"en3": "Wi-Fi 2"},
+		},
+		{
+			name:     "Device without Hardware Port is ignored",
+			input:    "Device: en9\nEthernet Address: aa:bb:cc:dd:ee:ff\n",
+			expected: map[string]string{},
+		},
+		{
+			name:     "Hardware Port without Device is ignored",
+			input:    "Hardware Port: Wi-Fi\nEthernet Address: aa:bb:cc:dd:ee:ff\n",
+			expected: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sysproxy.ParseHardwarePortMapping(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParseNetworkSetupProxyOutput_PortAndServerWithoutValue(t *testing.T) {
+	enabled, host, port, err := sysproxy.ParseNetworkSetupProxyOutput("Enabled: No\nServer:\nPort:\n")
+	require.NoError(t, err)
+	assert.False(t, enabled)
+	assert.Empty(t, host)
+	assert.Empty(t, port)
+}
+
 func TestParseNetworkSetupProxyOutput(t *testing.T) {
 	tests := []struct {
 		name          string
