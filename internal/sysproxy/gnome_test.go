@@ -125,5 +125,5 @@ func TestGVariantStringArray_RoundTrip(t *testing.T) {
 	hosts := []string{"localhost", "192.168.1.1", "::1"}
 
 	parsed := sysproxy.ParseGVariantStringArray(sysproxy.FormatGVariantStringArray(hosts))
-	assert.Equal(t, []string{"::1", "192.168.1.1", "localhost"}, parsed, "Parse(Format(hosts)) must return the same sorted hosts")
+	assert.Equal(t, []string{"192.168.1.1", "::1", "localhost"}, parsed, "Parse(Format(hosts)) must return the same sorted hosts")
 }
