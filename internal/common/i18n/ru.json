@@ -145,7 +145,13 @@
   "proxy.err_socks4_resolve": "SOCKS4: не удалось резолвить домен",
   "proxy.err_socks5_init": "ошибка инициализации SOCKS5",
   "sysproxy.err_clear": "ошибка очистки прокси",
+  "sysproxy.err_default_route": "ошибка получения маршрута по умолчанию",
+  "sysproxy.err_default_route_parse": "не удалось разобрать интерфейс из вывода route",
   "sysproxy.err_get_ignore_hosts": "ошибка получения исключений прокси",
   "sysproxy.err_gsettings": "ошибка gsettings",
+  "sysproxy.err_list_hw_ports": "ошибка списка аппаратных портов",
+  "sysproxy.err_networksetup": "ошибка networksetup",
+  "sysproxy.err_networksetup_no_command": "networksetup: не указана команда",
+  "sysproxy.err_service_not_found": "сетевая служба не найдена для интерфейса",
   "sysproxy.err_set_ignore_hosts": "ошибка сохранения исключений прокси"
 }

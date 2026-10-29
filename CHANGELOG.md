@@ -25,6 +25,7 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 ### Fixed
 - GUI Defect #2: `GetActiveProxy` (external command) no longer blocks the UI on every filter click; the active system proxy is cached and refreshed only on rare user actions (startup, proxy apply, switch toggle).
 - `networksetup` invocation on macOS: the network service was prepended to the argument list, so every set-call failed with exit status 5 ("command is not recognized"); `SetIgnoreHosts` no longer doubles the service, and errors now include stdout (where `networksetup` reports failures).
+- sysproxy errors on macOS are localized (ru/en) via `common/i18n` instead of hardcoded English strings.
 
 ## [0.0.19] - 2026-04-06
 

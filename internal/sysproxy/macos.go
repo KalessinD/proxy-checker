@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"proxy-checker/internal/common/i18n"
 	"runtime"
 	"strings"
 )
@@ -188,7 +189,7 @@ func execNetworkSetup(args ...string) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		// networksetup prints its errors to stdout, not stderr.
-		return "", fmt.Errorf("networksetup failed: %w (stderr: %s, stdout: %s)", err, stderr.String(), out.String())
+		return "", fmt.Errorf("%s: %w (stderr: %s, stdout: %s)", i18n.T("sysproxy.err_networksetup"), err, stderr.String(), out.String())
 	}
 	return out.String(), nil
 }
@@ -197,7 +198,7 @@ func execNetworkSetup(args ...string) (string, error) {
 // <command flag> <service> [values...]. The service must follow the flag.
 func setNetworkSetup(service string, args ...string) error {
 	if len(args) == 0 {
-		return errors.New("networksetup: command flag is required")
+		return errors.New(i18n.T("sysproxy.err_networksetup_no_command"))
 	}
 	fullArgs := append([]string{args[0], service}, args[1:]...)
 	_, err := execNetworkSetup(fullArgs...)
@@ -207,23 +208,23 @@ func setNetworkSetup(service string, args ...string) error {
 func getActiveNetworkService() (string, error) {
 	out, err := exec.Command("route", "-n", "get", "default").Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to get default route: %w", err)
+		return "", fmt.Errorf("%s: %w", i18n.T("sysproxy.err_default_route"), err)
 	}
 
 	iface := ParseDefaultRouteInterface(string(out))
 	if iface == "" {
-		return "", errors.New("failed to parse default interface from route output")
+		return "", errors.New(i18n.T("sysproxy.err_default_route_parse"))
 	}
 
 	hwOut, err := exec.Command("networksetup", "-listallhardwareports").Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to list hardware ports: %w", err)
+		return "", fmt.Errorf("%s: %w", i18n.T("sysproxy.err_list_hw_ports"), err)
 	}
 
 	mapping := ParseHardwarePortMapping(string(hwOut))
 	serviceName, exists := mapping[iface]
 	if !exists {
-		return "", fmt.Errorf("network service not found for interface: %s", iface)
+		return "", fmt.Errorf("%s: %s", i18n.T("sysproxy.err_service_not_found"), iface)
 	}
 
 	return serviceName, nil

@@ -146,7 +146,13 @@
   "proxy.err_socks4_resolve": "SOCKS4: failed to resolve domain",
   "proxy.err_socks5_init": "SOCKS5 initialization error",
   "sysproxy.err_clear": "error clearing proxy",
+  "sysproxy.err_default_route": "failed to get default route",
+  "sysproxy.err_default_route_parse": "failed to parse default interface from route output",
   "sysproxy.err_get_ignore_hosts": "failed to get proxy exceptions",
   "sysproxy.err_gsettings": "gsettings error",
+  "sysproxy.err_list_hw_ports": "failed to list hardware ports",
+  "sysproxy.err_networksetup": "networksetup failed",
+  "sysproxy.err_networksetup_no_command": "networksetup: command flag is required",
+  "sysproxy.err_service_not_found": "network service not found for interface",
   "sysproxy.err_set_ignore_hosts": "failed to set proxy exceptions"
 }
