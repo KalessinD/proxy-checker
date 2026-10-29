@@ -1,29 +1,31 @@
-//go:build darwin
-
 package sysproxy
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"os/exec"
 	"proxy-checker/internal/common/i18n"
 	"runtime"
 	"strings"
 )
 
-type macOSProxyManager struct{}
-
-func newMacOSProxyManager() SystemProxyManager {
-	return &macOSProxyManager{}
+// networkSetupProxyManager manages system proxies via the macOS
+// networksetup utility. All orchestration is platform-independent:
+// the only macOS-specific part is that the darwin factory wires this
+// manager to the real CommandRunner.
+type networkSetupProxyManager struct {
+	runner CommandRunner
 }
 
-func (m *macOSProxyManager) IsSupported() bool {
+func newNetworkSetupProxyManager(runner CommandRunner) SystemProxyManager {
+	return &networkSetupProxyManager{runner: runner}
+}
+
+func (m *networkSetupProxyManager) IsSupported() bool {
 	return runtime.GOOS == "darwin"
 }
 
-func (m *macOSProxyManager) GetMode() (string, error) {
-	service, err := getActiveNetworkService()
+func (m *networkSetupProxyManager) GetMode() (string, error) {
+	service, err := m.getActiveNetworkService()
 	if err != nil {
 		return ProxyModeNone, err
 	}
@@ -49,59 +51,63 @@ func (m *macOSProxyManager) GetMode() (string, error) {
 	return ProxyModeNone, nil
 }
 
-func (m *macOSProxyManager) SetMode(mode string) error {
-	service, err := getActiveNetworkService()
+func (m *networkSetupProxyManager) SetMode(mode string) error {
+	service, err := m.getActiveNetworkService()
 	if err != nil {
 		return err
 	}
-
-	if mode == ProxyModeNone {
-		if err := setNetworkSetup(service, "-setwebproxystate", "off"); err != nil {
-			return err
-		}
-		return setNetworkSetup(service, "-setsocksfirewallproxystate", "off")
-	}
-	return nil
+	return m.setModeForService(service, mode)
 }
 
-func (m *macOSProxyManager) SetProxy(host, port, proxyType string) error {
-	service, err := getActiveNetworkService()
+// setModeForService disables web and SOCKS proxies for the given network service.
+func (m *networkSetupProxyManager) setModeForService(service, mode string) error {
+	if mode != ProxyModeNone {
+		return nil
+	}
+	if err := m.setNetworkSetup(service, "-setwebproxystate", "off"); err != nil {
+		return err
+	}
+	return m.setNetworkSetup(service, "-setsocksfirewallproxystate", "off")
+}
+
+func (m *networkSetupProxyManager) SetProxy(host, port, proxyType string) error {
+	service, err := m.getActiveNetworkService()
 	if err != nil {
 		return err
 	}
 
 	pType := strings.ToLower(proxyType)
 
-	if err := m.SetMode(ProxyModeNone); err != nil {
+	if err := m.setModeForService(service, ProxyModeNone); err != nil {
 		return err
 	}
 
 	switch pType {
 	case "http", "https":
-		if err := setNetworkSetup(service, "-setwebproxy", host, port); err != nil {
+		if err := m.setNetworkSetup(service, "-setwebproxy", host, port); err != nil {
 			return err
 		}
-		return setNetworkSetup(service, "-setwebproxystate", "on")
+		return m.setNetworkSetup(service, "-setwebproxystate", "on")
 	case "socks4", "socks5":
-		if err := setNetworkSetup(service, "-setsocksfirewallproxy", host, port); err != nil {
+		if err := m.setNetworkSetup(service, "-setsocksfirewallproxy", host, port); err != nil {
 			return err
 		}
-		return setNetworkSetup(service, "-setsocksfirewallproxystate", "on")
+		return m.setNetworkSetup(service, "-setsocksfirewallproxystate", "on")
 	default:
-		if err := setNetworkSetup(service, "-setwebproxy", host, port); err != nil {
+		if err := m.setNetworkSetup(service, "-setwebproxy", host, port); err != nil {
 			return err
 		}
-		return setNetworkSetup(service, "-setwebproxystate", "on")
+		return m.setNetworkSetup(service, "-setwebproxystate", "on")
 	}
 }
 
-func (m *macOSProxyManager) GetIgnoreHosts() (string, error) {
-	service, err := getActiveNetworkService()
+func (m *networkSetupProxyManager) GetIgnoreHosts() (string, error) {
+	service, err := m.getActiveNetworkService()
 	if err != nil {
 		return "", err
 	}
 
-	out, err := execNetworkSetup("-getproxybypassdomains", service)
+	out, err := m.networkSetup("-getproxybypassdomains", service)
 	if err != nil {
 		return "", err
 	}
@@ -113,8 +119,8 @@ func (m *macOSProxyManager) GetIgnoreHosts() (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-func (m *macOSProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
-	service, err := getActiveNetworkService()
+func (m *networkSetupProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
+	service, err := m.getActiveNetworkService()
 	if err != nil {
 		return err
 	}
@@ -134,11 +140,11 @@ func (m *macOSProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
 		args = append(args, "Empty")
 	}
 
-	return setNetworkSetup(service, args...)
+	return m.setNetworkSetup(service, args...)
 }
 
-func (m *macOSProxyManager) GetActiveProxy() (string, string, error) {
-	service, err := getActiveNetworkService()
+func (m *networkSetupProxyManager) GetActiveProxy() (string, string, error) {
+	service, err := m.getActiveNetworkService()
 	if err != nil {
 		return "", "", err
 	}
@@ -164,64 +170,59 @@ func (m *macOSProxyManager) GetActiveProxy() (string, string, error) {
 	return "", "", nil
 }
 
-func (m *macOSProxyManager) getWebProxyState(service string) (bool, string, string, error) {
-	out, err := execNetworkSetup("-getwebproxy", service)
+func (m *networkSetupProxyManager) getWebProxyState(service string) (bool, string, string, error) {
+	out, err := m.networkSetup("-getwebproxy", service)
 	if err != nil {
 		return false, "", "", err
 	}
 	return ParseNetworkSetupProxyOutput(out)
 }
 
-func (m *macOSProxyManager) getSOCKSProxyState(service string) (bool, string, string, error) {
-	out, err := execNetworkSetup("-getsocksfirewallproxy", service)
+func (m *networkSetupProxyManager) getSOCKSProxyState(service string) (bool, string, string, error) {
+	out, err := m.networkSetup("-getsocksfirewallproxy", service)
 	if err != nil {
 		return false, "", "", err
 	}
 	return ParseNetworkSetupProxyOutput(out)
 }
 
-func execNetworkSetup(args ...string) (string, error) {
-	cmd := exec.Command("networksetup", args...)
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
+func (m *networkSetupProxyManager) networkSetup(args ...string) (string, error) {
+	stdout, stderr, err := m.runner.Run("networksetup", args...)
+	if err != nil {
 		// networksetup prints its errors to stdout, not stderr.
-		return "", fmt.Errorf("%s: %w (stderr: %s, stdout: %s)", i18n.T("sysproxy.err_networksetup"), err, stderr.String(), out.String())
+		return "", fmt.Errorf("%s: %w (stderr: %s, stdout: %s)", i18n.T("sysproxy.err_networksetup"), err, stderr, stdout)
 	}
-	return out.String(), nil
+	return stdout, nil
 }
 
 // setNetworkSetup runs networksetup with the correct argument order:
 // <command flag> <service> [values...]. The service must follow the flag.
-func setNetworkSetup(service string, args ...string) error {
+func (m *networkSetupProxyManager) setNetworkSetup(service string, args ...string) error {
 	if len(args) == 0 {
 		return errors.New(i18n.T("sysproxy.err_networksetup_no_command"))
 	}
 	fullArgs := append([]string{args[0], service}, args[1:]...)
-	_, err := execNetworkSetup(fullArgs...)
+	_, err := m.networkSetup(fullArgs...)
 	return err
 }
 
-func getActiveNetworkService() (string, error) {
-	out, err := exec.Command("route", "-n", "get", "default").Output()
+func (m *networkSetupProxyManager) getActiveNetworkService() (string, error) {
+	routeOut, _, err := m.runner.Run("route", "-n", "get", "default")
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", i18n.T("sysproxy.err_default_route"), err)
 	}
 
-	iface := ParseDefaultRouteInterface(string(out))
+	iface := ParseDefaultRouteInterface(routeOut)
 	if iface == "" {
 		return "", errors.New(i18n.T("sysproxy.err_default_route_parse"))
 	}
 
-	hwOut, err := exec.Command("networksetup", "-listallhardwareports").Output()
+	hwOut, err := m.networkSetup("-listallhardwareports")
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", i18n.T("sysproxy.err_list_hw_ports"), err)
 	}
 
-	mapping := ParseHardwarePortMapping(string(hwOut))
+	mapping := ParseHardwarePortMapping(hwOut)
 	serviceName, exists := mapping[iface]
 	if !exists {
 		return "", fmt.Errorf("%s: %s", i18n.T("sysproxy.err_service_not_found"), iface)
@@ -230,6 +231,8 @@ func getActiveNetworkService() (string, error) {
 	return serviceName, nil
 }
 
+// ParseDefaultRouteInterface extracts the default interface name from
+// the output of `route -n get default`.
 func ParseDefaultRouteInterface(output string) string {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
@@ -244,6 +247,8 @@ func ParseDefaultRouteInterface(output string) string {
 	return ""
 }
 
+// ParseHardwarePortMapping builds a device -> service name map from
+// the output of `networksetup -listallhardwareports`.
 func ParseHardwarePortMapping(output string) map[string]string {
 	result := make(map[string]string)
 	lines := strings.Split(output, "\n")

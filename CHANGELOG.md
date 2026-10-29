@@ -7,12 +7,13 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 
 ### Added
 - macOS support (alpha): system-proxy management via `networksetup` for every network service, deterministic active-service detection (default route → hardware port mapping); platform factories split into `factory_linux.go` / `factory_darwin.go` / `factory_other.go` with `go:build` tags in file headers.
-- CI: dedicated macOS job running the full lint+test suite natively (darwin-tagged sysproxy tests now run on CI); darwin artifacts (arm64 and amd64) added to the release matrix, built on a native macOS runner since the GUI requires cgo.
+- CI: dedicated macOS job running the full lint+test suite natively (darwin-tagged sysproxy tests now run on CI); darwin releases ship a single universal binary (`proxy-checker-macos`, arm64 + amd64 via `lipo`), built on a native macOS runner since the GUI requires cgo.
 - `make install-macos` / `make uninstall-macos` (binary to `/usr/local/bin`), `make install-macos-app` (`.app` bundle in `/Applications` with generated `.icns` icon and Spotlight indexing disabled for `bin/`).
 - Config option `dial_timeout` (TOML, default 30s): the TCP-dial phase gets its own timeout instead of the hardcoded 10s; still clamped by the per-check context deadline.
 - Ports in `internal/services`: `ProxySource` (raw proxy retrieval) and `ProxyChecker` (network validation port with `CheckProxy`/`CheckBatch`); the concrete checker implementation is unexported.
 - Composition root `internal/app/builder.go`: GUI dependencies are assembled via `gui.AppDependencies` (the cache is no longer created inside `NewAppGUI`).
 - Test tooling: mockgen directives are colocated with their interface declarations; `make generate-mocks` target with a friendly guard for a missing `mockgen` binary.
+- `sysproxy.CommandRunner` port: all `networksetup` orchestration (active-service detection, proxy state toggling, bypass domains) moved from the darwin-tagged `macos.go` into the platform-independent `networksetup.go` parameterized by the runner; darwin-specific code now only wires the real `os/exec` runner in the factory. The macOS proxy logic runs under tests on any OS (fake runner covers argument order, service resolution and error paths); `SetProxy` no longer resolves the active network service twice.
 
 ### Changed
 - Pipeline configuration is passed as the narrow `services.PipelineConfig` DTO (with embedded `CheckParams`): the `CheckBatch` signature shrank from 9 positional arguments to `ctx, proxies, params, verifier, progress`; `RunPipeline` no longer sees the whole application config.

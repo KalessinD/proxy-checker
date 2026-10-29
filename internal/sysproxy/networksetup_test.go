@@ -1,5 +1,3 @@
-//go:build darwin
-
 package sysproxy_test
 
 import (
@@ -10,17 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewSystemProxyManager_ReturnsValidInterface_darwin(t *testing.T) {
-	manager := sysproxy.NewSystemProxyManager()
-	require.NotNil(t, manager, "Factory always must return the interface")
-}
-
-func TestNewSystemProxyManager_PlatformConsistency_darwin(t *testing.T) {
-	manager := sysproxy.NewSystemProxyManager()
-	assert.IsNotType(t, &sysproxy.NoOpProxyManager{}, manager, "Must use macOSProxyManager on darwin")
-}
-
-func TestParseDefaultRouteInterface_darwin(t *testing.T) {
+func TestParseDefaultRouteInterface(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string

@@ -156,15 +156,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     runs-on: macos-latest
-    strategy:
-      matrix:
-        include:
-          - goos: darwin
-            goarch: arm64
-            artifact_name: proxy-checker-macos-arm64
-          - goos: darwin
-            goarch: amd64
-            artifact_name: proxy-checker-macos-amd64
 
     steps:
       - name: Set up Go
@@ -179,15 +170,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build binary
-        env:
-          GOARCH: ${{ matrix.goarch }}
+      - name: Build arm64 and amd64 binaries
         run: |
-          APP_VERSION=${{ github.ref_name }} APP_NAME=${{ matrix.artifact_name }} make build
+          APP_VERSION=${{ github.ref_name }} APP_NAME=proxy-checker-macos-arm64 GOARCH=arm64 make build
+          APP_VERSION=${{ github.ref_name }} APP_NAME=proxy-checker-macos-amd64 GOARCH=amd64 make build
+
+      - name: Create universal binary
+        run: |
+          lipo -create -output ./bin/proxy-checker-macos ./bin/proxy-checker-macos-arm64 ./bin/proxy-checker-macos-amd64
+          lipo -info ./bin/proxy-checker-macos
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v2
         with:
           fetch-depth: 0
           name: Release ${{ github.ref_name }}
-          files: ./bin/${{ matrix.artifact_name }}
+          files: ./bin/proxy-checker-macos

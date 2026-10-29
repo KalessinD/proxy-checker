@@ -74,7 +74,7 @@ make build
 sudo make install
 ```
 
-Alternatively, download the ready-to-run `proxy-checker-macos-<arch>` archive from the [releases page](https://github.com/KalessinD/proxy-checker/releases) and put the binary wherever you prefer.
+Alternatively, download the ready-to-run universal `proxy-checker-macos` binary (arm64 + amd64) from the [releases page](https://github.com/KalessinD/proxy-checker/releases) and put the binary wherever you prefer.
 
 ## Usage
 
