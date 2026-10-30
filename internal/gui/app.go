@@ -51,6 +51,7 @@ type (
 		PipelineRunner  services.PipelineRunner
 		SysProxyManager sysproxy.SystemProxyManager
 		Cache           cache.StorageInterface
+		ListCache       services.ListCache
 	}
 
 	AppGUI struct {
@@ -65,6 +66,7 @@ type (
 		proxyItems []*ProxyItemWrapper
 
 		pipelineRunner      services.PipelineRunner
+		listCache           services.ListCache
 		filteredProxyItems  []*ProxyItemWrapper
 		countryFilterSelect *widget.Select
 		sourceFilterSelect  *widget.Select
@@ -144,6 +146,8 @@ func (g *AppGUI) initGeoIP(customPath string) {
 
 // NewAppGUI builds the GUI application from the provided dependencies.
 func NewAppGUI(deps AppDependencies) *AppGUI {
+	registerFyneTranslations(deps.Logger)
+
 	appGUI := &AppGUI{
 		app:                 deps.FyneApp,
 		window:              deps.FyneApp.NewWindow(common.AppName),
@@ -155,6 +159,7 @@ func NewAppGUI(deps AppDependencies) *AppGUI {
 		activeCountryFilter: i18n.T("gui.filter_all"),
 		activeSourceFilter:  i18n.T("gui.filter_all"),
 		pipelineRunner:      deps.PipelineRunner,
+		listCache:           deps.ListCache,
 		cache:               deps.Cache,
 		sysProxyManager:     deps.SysProxyManager,
 		version:             deps.Version,
@@ -435,7 +440,6 @@ func (g *AppGUI) getTargetURL() string {
 
 // Run launches the GUI application assembled from the provided dependencies.
 func Run(deps AppDependencies) {
-	registerFyneTranslations(deps.Logger)
 	appGUI := NewAppGUI(deps)
 	appGUI.Run()
 }

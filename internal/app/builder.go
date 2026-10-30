@@ -23,6 +23,7 @@ func RunGUI(cfg *config.Config, logger common.LoggerInterface, version string) {
 		PipelineRunner:  services.NewDefaultPipelineRunner(),
 		SysProxyManager: sysproxy.NewSystemProxyManager(),
 		Cache:           cache.NewFileStorage(logger),
+		ListCache:       cache.NewListStorage(logger),
 	}
 
 	gui.Run(deps)

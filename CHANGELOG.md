@@ -6,6 +6,7 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 ## [0.0.20] - 2026-10-29
 
 ### Added
+- Raw list cache: proxy lists fetched from sources are stored as plain text files (one per `source:type`) with a fixed 4-hour TTL and are reused by the pipeline before hitting the source; a scan stays alive on a fresh cache even when the source is unreachable. Managed by the new `services.ListCache` port, implemented by `cache.ListStorage`; disabled when `PipelineParams.ListCache` is nil.
 - macOS support (alpha): system-proxy management via `networksetup` for every network service, deterministic active-service detection (default route → hardware port mapping); platform factories split into `factory_linux.go` / `factory_darwin.go` / `factory_other.go` with `go:build` tags in file headers.
 - CI: dedicated macOS job running the full lint+test suite natively (darwin-tagged sysproxy tests now run on CI); darwin releases ship a single universal binary (`proxy-checker-macos`, arm64 + amd64 via `lipo`), built on a native macOS runner since the GUI requires cgo.
 - `make install-macos` / `make uninstall-macos` (binary to `/usr/local/bin`), `make install-macos-app` (`.app` bundle in `/Applications` with generated `.icns` icon and Spotlight indexing disabled for `bin/`).
@@ -29,6 +30,8 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 - `networksetup` invocation on macOS: the network service was prepended to the argument list, so every set-call failed with exit status 5 ("command is not recognized"); `SetIgnoreHosts` no longer doubles the service, and errors now include stdout (where `networksetup` reports failures).
 - sysproxy errors on macOS are localized (ru/en) via `common/i18n` instead of hardcoded English strings.
 - GUI: all widget mutations in the background pipeline goroutine (`progress`/`progressBar`, log `RichText` segments) are now wrapped in `fyne.Do` — removes the "should have been called in fyne.Do[AndWait]" warnings and data races with the UI thread.
+- GeoIP database path from the config is normalized on load: a lost leading slash (e.g. `Users/...` instead of `/Users/...`) is restored and `~` is expanded, so a valid `.mmdb` is found again.
+- The missing Fyne ru translation for the `Select` placeholder ("(Select one)") is registered by the app, removing the "Translation failure" noise on every start.
 
 ## [0.0.19] - 2026-04-06
 

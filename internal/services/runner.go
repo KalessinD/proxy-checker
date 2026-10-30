@@ -9,7 +9,7 @@ import (
 	"proxy-checker/internal/fetcher"
 )
 
-//go:generate mockgen -destination=../../internal/mocks/mock_services.go -package=mocks proxy-checker/internal/services PipelineRunner,ProxyVerifier
+//go:generate mockgen -destination=../../internal/mocks/mock_services.go -package=mocks proxy-checker/internal/services PipelineRunner,ProxyVerifier,ListCache
 
 type (
 	PipelineCallbacks struct {
@@ -34,6 +34,17 @@ type (
 		Verifier ProxyVerifier
 		Config   *PipelineConfig
 		Resolver common.GeoIPResolver
+		// ListCache is an optional cache of raw source lists; nil disables list caching.
+		ListCache ListCache
+	}
+
+	// ListCache caches raw proxy lists between pipeline runs. Implementations log
+	// their operational failures themselves; a returned error only steers the
+	// fetch fallback and must never break the scan.
+	ListCache interface {
+		// Load returns the cached raw items; ErrListCacheMiss signals a stale or absent entry.
+		Load(source common.Source, proxyType common.ProxyType) ([]*fetcher.ProxyItem, error)
+		Save(source common.Source, proxyType common.ProxyType, items []*fetcher.ProxyItem) error
 	}
 
 	// defaultPipelineRunner is the concrete implementation of PipelineRunner.
@@ -57,6 +68,10 @@ type (
 		Fetch(ctx context.Context, settings fetcher.Settings) ([]*fetcher.ProxyItem, error)
 	}
 )
+
+// ErrListCacheMiss signals that a raw list is absent or expired in the cache.
+// It is returned by ListCache implementations and consumed by the pipeline.
+var ErrListCacheMiss = errors.New("list cache miss")
 
 // NewPipelineConfig projects the application configuration onto the narrow pipeline DTO.
 func NewPipelineConfig(cfg *config.Config) *PipelineConfig {
@@ -106,7 +121,7 @@ func RunPipeline(ctx context.Context, params PipelineParams, cb PipelineCallback
 
 	var allProxies []*fetcher.ProxyItem
 	for _, f := range params.Fetchers {
-		items, err := f.Fetcher.Fetch(ctx, settings)
+		items, err := loadCachedOrFetch(ctx, f, settings, params.ListCache)
 		if err != nil {
 			return nil, fmt.Errorf("pipeline fetch error: %w", err)
 		}
@@ -131,4 +146,32 @@ func RunPipeline(ctx context.Context, params PipelineParams, cb PipelineCallback
 	)
 
 	return validProxies, nil
+}
+
+// loadCachedOrFetch returns raw proxy items from the list cache when it is fresh,
+// falling back to the regular fetch and refreshing the cache afterwards.
+func loadCachedOrFetch(
+	ctx context.Context,
+	sourceFetcher SourceFetcher,
+	settings fetcher.Settings,
+	listCache ListCache,
+) ([]*fetcher.ProxyItem, error) {
+	if listCache != nil {
+		// Any cache failure (miss or read error) simply falls back to the regular fetch.
+		if cached, loadErr := listCache.Load(sourceFetcher.Source, settings.Type); loadErr == nil {
+			return cached, nil
+		}
+	}
+
+	items, err := sourceFetcher.Fetcher.Fetch(ctx, settings)
+	if err != nil {
+		return nil, err
+	}
+
+	if listCache != nil {
+		// Write failures are logged by the adapter; they only cost the next run a re-fetch.
+		_ = listCache.Save(sourceFetcher.Source, settings.Type, items)
+	}
+
+	return items, nil
 }

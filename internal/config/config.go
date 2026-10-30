@@ -3,10 +3,9 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"proxy-checker/internal/common"
 	"strings"
 	"time"
-
-	"proxy-checker/internal/common"
 
 	"github.com/BurntSushi/toml"
 )

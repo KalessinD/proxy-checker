@@ -161,6 +161,10 @@ lang = "en"
 ```
 *Note: CLI flags override the values defined in the configuration file.*
 
+### Raw List Cache
+
+Raw proxy lists fetched from sources are cached separately from the check results: one plain text file per `source:type` in the system temporary directory (`proxy-checker-lists/`). Within the fixed 4-hour TTL, a scan reuses the cached list instead of hitting the source; an expired or missing list triggers a regular fetch and refreshes the cache. This also keeps scans working when a source is temporarily unreachable. The TTL is not configurable; delete the directory to force a re-fetch.
+
 ### GeoIP Database Setup
 By default, the app displays `N/A` for the country if the proxy source does not provide it (e.g., `thespeedx`). To resolve countries automatically by P, you need a local `.mmdb` database file.
 

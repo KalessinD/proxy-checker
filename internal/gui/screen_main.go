@@ -198,10 +198,11 @@ func (g *AppGUI) runBatchCheck() {
 	verifierInstance := services.NewDefaultVerifier()
 
 	pipelineParams := services.PipelineParams{
-		Fetchers: fetchers,
-		Verifier: verifierInstance,
-		Config:   services.NewPipelineConfig(g.cfg),
-		Resolver: g.geoIPResolver,
+		Fetchers:  fetchers,
+		Verifier:  verifierInstance,
+		Config:    services.NewPipelineConfig(g.cfg),
+		Resolver:  g.geoIPResolver,
+		ListCache: g.listCache,
 	}
 
 	validProxies, err := g.pipelineRunner.Run(ctx, pipelineParams, services.PipelineCallbacks{

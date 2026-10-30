@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"proxy-checker/internal/cache"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
@@ -124,10 +125,11 @@ func handleListCheck(ctx context.Context, cfg *config.Config, logger common.Logg
 	}
 
 	pipelineParams := services.PipelineParams{
-		Fetchers: fetchers,
-		Verifier: verifierInstance,
-		Config:   services.NewPipelineConfig(cfg),
-		Resolver: resolver,
+		Fetchers:  fetchers,
+		Verifier:  verifierInstance,
+		Config:    services.NewPipelineConfig(cfg),
+		Resolver:  resolver,
+		ListCache: cache.NewListStorage(logger),
 	}
 
 	validProxies, err := runner.Run(ctx, pipelineParams, services.PipelineCallbacks{
