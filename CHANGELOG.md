@@ -21,12 +21,14 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 - `ShowMainScreen` decomposed into four builder helpers; the cache/notification part of `runBatchCheck` extracted into `persistScanResults`.
 - `internal/sysproxy`: the runtime `GOOS` checks replaced by compile-time platform-specific factories; GVariant helpers moved to the linux-only manager file.
 - `.golangci` config migrated to the linter v2 format (`.golangci.json`).
+- Fyne upgraded from 2.7.3 to 2.8.2: text rendering and repaint performance (benefits the log view), macOS menu and fullscreen fixes, Wayland enabled by default on Linux. Go >= 1.22 required (already satisfied).
 - Hand-written mocks replaced with `go.uber.org/mock` (mockgen); pipeline and checker tests rewritten on the mocks.
 
 ### Fixed
 - GUI Defect #2: `GetActiveProxy` (external command) no longer blocks the UI on every filter click; the active system proxy is cached and refreshed only on rare user actions (startup, proxy apply, switch toggle).
 - `networksetup` invocation on macOS: the network service was prepended to the argument list, so every set-call failed with exit status 5 ("command is not recognized"); `SetIgnoreHosts` no longer doubles the service, and errors now include stdout (where `networksetup` reports failures).
 - sysproxy errors on macOS are localized (ru/en) via `common/i18n` instead of hardcoded English strings.
+- GUI: all widget mutations in the background pipeline goroutine (`progress`/`progressBar`, log `RichText` segments) are now wrapped in `fyne.Do` — removes the "should have been called in fyne.Do[AndWait]" warnings and data races with the UI thread.
 
 ## [0.0.19] - 2026-04-06
 

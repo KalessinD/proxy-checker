@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -255,24 +256,28 @@ func (g *AppGUI) loadSystemProxyState() {
 }
 
 func (g *AppGUI) appendLog(level common.LogLevel, text string) {
-	g.logMutex.Lock()
-	defer g.logMutex.Unlock()
-
-	cleanText := strings.TrimSpace(text)
-
-	// Determine the text style based on the log level
 	segmentStyle := widget.RichTextStyleInline
 	if level == common.LogLevelError {
 		segmentStyle.ColorName = theme.ColorNameError
 	}
 
-	newSegment := &widget.TextSegment{
-		Text:  text,
-		Style: segmentStyle,
-	}
+	// The mutex orders the queued UI mutations; the mutation itself must run on the Fyne app thread.
+	g.logMutex.Lock()
+	fyne.Do(func() {
+		if g.logRichText != nil {
+			g.logRichText.Segments = append(g.logRichText.Segments, &widget.TextSegment{
+				Text:  text,
+				Style: segmentStyle,
+			})
+			if g.logScroll != nil {
+				g.logScroll.ScrollToBottom()
+			}
+			g.logRichText.Refresh()
+		}
+	})
+	g.logMutex.Unlock()
 
-	g.logRichText.Segments = append(g.logRichText.Segments, newSegment)
-
+	cleanText := strings.TrimSpace(text)
 	if cleanText != "" {
 		switch level {
 		case common.LogLevelError:
@@ -283,15 +288,6 @@ func (g *AppGUI) appendLog(level common.LogLevel, text string) {
 		default:
 			g.logger.Info(cleanText)
 		}
-	}
-
-	if g.logRichText != nil {
-		fyne.Do(func() {
-			if g.logRichText != nil && g.logScroll != nil {
-				g.logRichText.Refresh()
-				g.logScroll.ScrollToBottom()
-			}
-		})
 	}
 }
 
@@ -439,8 +435,21 @@ func (g *AppGUI) getTargetURL() string {
 
 // Run launches the GUI application assembled from the provided dependencies.
 func Run(deps AppDependencies) {
+	registerFyneTranslations(deps.Logger)
 	appGUI := NewAppGUI(deps)
 	appGUI.Run()
+}
+
+// registerFyneTranslations patches Fyne 2.8 bundles that ship no ru translation
+// for the Select placeholder, which otherwise logs a "Translation failure" on every start.
+func registerFyneTranslations(logger common.LoggerInterface) {
+	err := lang.AddTranslationsForLocale(
+		[]byte(`{"(Select one)": "Выберите вариант"}`),
+		fyne.Locale("ru"),
+	)
+	if err != nil {
+		logger.Warnf("failed to register Fyne ru translations: %v", err)
+	}
 }
 
 func (g *AppGUI) buildTargetSelector() (*widget.Select, *widget.Entry, *fyne.Container) {

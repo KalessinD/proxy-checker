@@ -3,8 +3,10 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"proxy-checker/internal/common"
+	"strings"
 	"time"
+
+	"proxy-checker/internal/common"
 
 	"github.com/BurntSushi/toml"
 )
@@ -92,7 +94,35 @@ func Load() (*Config, error) {
 		cfg.Sources = []common.Source{common.SourceProxyMania}
 	}
 
+	normalizeGeoIPPath(cfg)
+
 	return cfg, nil
+}
+
+// normalizeGeoIPPath repairs paths saved without a leading slash (e.g. "Users/..." instead
+// of "/Users/...", macOS) and expands "~"; an empty path is left as-is so the default applies.
+func normalizeGeoIPPath(cfg *Config) {
+	if cfg.GeoIPDBPath == "" {
+		return
+	}
+
+	normalized := cfg.GeoIPDBPath
+
+	homeDir, homeErr := os.UserHomeDir()
+	if homeErr == nil && strings.HasPrefix(normalized, "~") {
+		normalized = filepath.Join(homeDir, strings.TrimPrefix(normalized, "~"))
+	}
+
+	if homeErr == nil && !filepath.IsAbs(normalized) {
+		// The path was saved relative to the filesystem root without its leading slash.
+		homeRoot := strings.SplitN(strings.TrimPrefix(homeDir, string(os.PathSeparator)), string(os.PathSeparator), 2)[0]
+		firstComponent := strings.SplitN(normalized, string(os.PathSeparator), 2)[0]
+		if firstComponent == homeRoot {
+			normalized = string(os.PathSeparator) + normalized
+		}
+	}
+
+	cfg.GeoIPDBPath = filepath.Clean(normalized)
 }
 
 func (c *Config) SaveToFile() error {

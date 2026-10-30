@@ -168,10 +168,11 @@ func (g *AppGUI) runBatchCheck() {
 		}
 	})
 
-	g.appendLog(common.LogLevelInfo, i18n.T("gui.log_preparing")+"\n")
-	_ = g.progress.Set(0)
-
-	g.progressBar.Show()
+	fyne.DoAndWait(func() {
+		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_preparing")+"\n")
+		_ = g.progress.Set(0)
+		g.progressBar.Show()
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelFunc = cancel
@@ -209,7 +210,9 @@ func (g *AppGUI) runBatchCheck() {
 		},
 		OnProgress: func(current, total int) {
 			if ctx.Err() == nil {
-				_ = g.progress.Set(float64(current) / float64(total))
+				fyne.Do(func() {
+					_ = g.progress.Set(float64(current) / float64(total))
+				})
 			}
 		},
 	})
@@ -230,7 +233,9 @@ func (g *AppGUI) runBatchCheck() {
 	} else {
 		g.persistScanResults(validProxies)
 	}
-	_ = g.progress.Set(1.0)
+	fyne.Do(func() {
+		_ = g.progress.Set(1.0)
+	})
 }
 
 // persistScanResults saves scan output to the per-source cache and sends a completion notification.
