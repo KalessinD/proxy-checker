@@ -12,8 +12,22 @@ import (
 //go:generate mockgen -destination=../../internal/mocks/mock_services.go -package=mocks proxy-checker/internal/services PipelineRunner,ProxyVerifier,ListCache
 
 type (
+	// SourceFetchStat reports how many raw proxy items a single source provided.
+	SourceFetchStat struct {
+		Source common.Source
+		Count  int
+	}
+
+	// FetchStats aggregates per-source fetch counts and the grand total.
+	FetchStats struct {
+		// PerSource holds one entry per fetcher, in pipeline fetcher order.
+		PerSource []SourceFetchStat
+		// Total is the number of items fetched across all sources.
+		Total int
+	}
+
 	PipelineCallbacks struct {
-		OnFetched  func(total int)
+		OnFetched  func(stats FetchStats)
 		OnProgress func(current, total int)
 	}
 
@@ -119,6 +133,9 @@ func RunPipeline(ctx context.Context, params PipelineParams, cb PipelineCallback
 		Lang:     params.Config.Lang,
 	}
 
+	fetchStats := FetchStats{
+		PerSource: make([]SourceFetchStat, 0, len(params.Fetchers)),
+	}
 	var allProxies []*fetcher.ProxyItem
 	for _, f := range params.Fetchers {
 		items, err := loadCachedOrFetch(ctx, f, settings, params.ListCache)
@@ -128,11 +145,13 @@ func RunPipeline(ctx context.Context, params PipelineParams, cb PipelineCallback
 		for _, item := range items {
 			item.Source = f.Source
 		}
+		fetchStats.PerSource = append(fetchStats.PerSource, SourceFetchStat{Source: f.Source, Count: len(items)})
 		allProxies = append(allProxies, items...)
 	}
+	fetchStats.Total = len(allProxies)
 
 	if cb.OnFetched != nil {
-		cb.OnFetched(len(allProxies))
+		cb.OnFetched(fetchStats)
 	}
 
 	checker := NewProxyChecker()

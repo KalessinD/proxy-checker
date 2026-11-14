@@ -70,6 +70,7 @@ func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerIn
 
 // handleListFetch handles fetching the list only, without validation
 func handleListFetch(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
+	perSourceStats := make([]services.SourceFetchStat, 0, len(cfg.Sources))
 	var allProxies []*fetcher.ProxyItem
 	for _, src := range cfg.Sources {
 		fetcherInstance := fetcher.NewFetcher(src, logger)
@@ -89,11 +90,20 @@ func handleListFetch(ctx context.Context, cfg *config.Config, logger common.Logg
 			item.Source = src
 		}
 
+		perSourceStats = append(perSourceStats, services.SourceFetchStat{Source: src, Count: len(items)})
 		allProxies = append(allProxies, items...)
 	}
 
-	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
+	printFetchStats(services.FetchStats{PerSource: perSourceStats, Total: len(allProxies)})
 	PrintTable(allProxies)
+}
+
+// printFetchStats writes the per-source breakdown of fetched proxies followed by the grand total.
+func printFetchStats(fetchStats services.FetchStats) {
+	for _, sourceStat := range fetchStats.PerSource {
+		fmt.Printf("%s: %d\n", sourceStat.Source, sourceStat.Count)
+	}
+	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), fetchStats.Total)
 }
 
 // handleListCheck handles fetching and validation of the list
@@ -133,8 +143,8 @@ func handleListCheck(ctx context.Context, cfg *config.Config, logger common.Logg
 	}
 
 	validProxies, err := runner.Run(ctx, pipelineParams, services.PipelineCallbacks{
-		OnFetched: func(total int) {
-			fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), total)
+		OnFetched: func(fetchStats services.FetchStats) {
+			printFetchStats(fetchStats)
 		},
 		OnProgress: func(current, total int) {
 			fmt.Printf("%s: %d/%d\n", i18n.T("cli.progress"), current, total)

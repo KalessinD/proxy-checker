@@ -72,7 +72,7 @@ func TestRunBatchCheck_PersistsValidProxiesPerSource(t *testing.T) {
 			require.NotNil(t, params.Config, "Pipeline params must carry the config")
 			require.Len(t, params.Fetchers, len(configuration.Sources), "One fetcher per configured source must be prepared")
 			if callbacks.OnFetched != nil {
-				callbacks.OnFetched(len(verifiedItems))
+				callbacks.OnFetched(services.FetchStats{Total: len(verifiedItems)})
 			}
 			if callbacks.OnProgress != nil {
 				callbacks.OnProgress(len(verifiedItems), len(verifiedItems))
@@ -142,7 +142,7 @@ func TestRunBatchCheck_CacheSaveErrorMustNotDropTableResults(t *testing.T) {
 		Run(gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ any, _ services.PipelineParams, callbacks services.PipelineCallbacks) ([]*services.ProxyItemFull, error) {
 			if callbacks.OnFetched != nil {
-				callbacks.OnFetched(len(verifiedItems))
+				callbacks.OnFetched(services.FetchStats{Total: len(verifiedItems)})
 			}
 			return verifiedItems, nil
 		}).Times(1)

@@ -134,7 +134,7 @@ func TestRunPipeline_FetcherReturnsEmptyList(t *testing.T) {
 		Verifier: mocks.NewMockProxyVerifier(ctrl),
 		Config:   cfg,
 	}, services.PipelineCallbacks{
-		OnFetched: func(total int) { fetchedTotal = total },
+		OnFetched: func(fetchStats services.FetchStats) { fetchedTotal = fetchStats.Total },
 	})
 
 	require.NoError(t, pipelineErr)
@@ -198,7 +198,7 @@ func TestRunPipeline_SuccessfulPipeline(t *testing.T) {
 		Verifier: verifierMock,
 		Config:   cfg,
 	}, services.PipelineCallbacks{
-		OnFetched: func(total int) { fetchedTotal = total },
+		OnFetched: func(fetchStats services.FetchStats) { fetchedTotal = fetchStats.Total },
 		OnProgress: func(current, _ int) {
 			progressMutex.Lock()
 			defer progressMutex.Unlock()
@@ -244,6 +244,7 @@ func TestRunPipeline_MultipleFetchersAggregatesResults(t *testing.T) {
 		Return(services.Result{ReqLatency: 20 * time.Millisecond, StatusCode: 200})
 
 	var fetchedTotal int
+	var fetchedStats services.FetchStats
 	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
 		Fetchers: []services.SourceFetcher{
 			{Source: common.SourceProxyMania, Fetcher: fetcherMockProxyMania},
@@ -252,14 +253,23 @@ func TestRunPipeline_MultipleFetchersAggregatesResults(t *testing.T) {
 		Verifier: verifierMock,
 		Config:   cfg,
 	}, services.PipelineCallbacks{
-		OnFetched: func(total int) { fetchedTotal = total },
+		OnFetched: func(fetchStats services.FetchStats) {
+			fetchedStats = fetchStats
+			fetchedTotal = fetchStats.Total
+		},
 	})
 
 	require.NoError(t, pipelineErr)
 	assert.Equal(t, 2, fetchedTotal, "OnFetched must receive aggregated count from all fetchers")
-	require.Len(t, validProxies, 2, "Must aggregate and validate items from multiple fetchers")
 	assert.Equal(t, "1.1.1.1", validProxies[0].Host)
 	assert.Equal(t, "2.2.2.2", validProxies[1].Host)
+
+	// Per-source breakdown must mirror the fetcher order configured in the pipeline.
+	require.Len(t, fetchedStats.PerSource, 2, "OnFetched must carry one entry per fetcher")
+	assert.Equal(t, common.SourceProxyMania, fetchedStats.PerSource[0].Source)
+	assert.Equal(t, 1, fetchedStats.PerSource[0].Count)
+	assert.Equal(t, common.SourceTheSpeedX, fetchedStats.PerSource[1].Source)
+	assert.Equal(t, 1, fetchedStats.PerSource[1].Count)
 }
 
 // runPipelineResult carries both RunPipeline outputs into the test goroutine.
