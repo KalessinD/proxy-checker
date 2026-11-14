@@ -3,6 +3,11 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/), project adheres to [Semantic Versioning](https://semver.org/).
 History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, grouped by changelog categories).
 
+## [0.0.21] - Unreleased
+
+### Added
+- TTL indicator in the GUI: a label next to the source/country filters shows how long the loaded cached results remain valid (the soonest expiring source), re-rendered once a minute; hidden when there is no cached data, switches to "Cache expired" after the deadline. The expiry is read from the results cache through the new `StorageInterface.ExpireAt` port and refreshed after every scan.
+
 ## [0.0.20] - 2026-10-29
 
 ### Added

@@ -35,6 +35,10 @@ type StorageInterface interface {
 	Load(source common.Source, proxyType common.ProxyType) ([]*services.ProxyItemFull, error)
 	Save(source common.Source, proxyType common.ProxyType, items []*services.ProxyItemFull, ttl int) error
 	GetFilePath() string
+	// ExpireAt returns the moment the cached record for the source:proxyType pair
+	// expires. A zero time is returned when the pair is not cached at all; the
+	// returned moment may already be in the past (expired record).
+	ExpireAt(source common.Source, proxyType common.ProxyType) (time.Time, error)
 }
 
 func NewFileStorage(logger common.LoggerInterface) StorageInterface {
@@ -121,6 +125,28 @@ func (c *FileStorage) loadSingle(source common.Source, proxyType common.ProxyTyp
 	}
 
 	return entry.Data, nil
+}
+
+func (c *FileStorage) ExpireAt(source common.Source, proxyType common.ProxyType) (time.Time, error) {
+	if proxyType == common.ProxyAll {
+		// "All" data is stored as separate per-type records, so it has no single expiry.
+		return time.Time{}, nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	cacheData, err := c.readCacheData()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	entry, exists := cacheData.Sources[generateCacheKey(source, proxyType)]
+	if !exists {
+		return time.Time{}, nil
+	}
+
+	return time.Unix(entry.ExpireAt, 0), nil
 }
 
 func (c *FileStorage) Save(source common.Source, proxyType common.ProxyType, items []*services.ProxyItemFull, ttl int) error {

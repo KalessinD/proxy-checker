@@ -13,6 +13,7 @@ import (
 	common "proxy-checker/internal/common"
 	services "proxy-checker/internal/services"
 	reflect "reflect"
+	time "time"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -39,6 +40,21 @@ func NewMockStorageInterface(ctrl *gomock.Controller) *MockStorageInterface {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockStorageInterface) EXPECT() *MockStorageInterfaceMockRecorder {
 	return m.recorder
+}
+
+// ExpireAt mocks base method.
+func (m *MockStorageInterface) ExpireAt(source common.Source, proxyType common.ProxyType) (time.Time, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExpireAt", source, proxyType)
+	ret0, _ := ret[0].(time.Time)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExpireAt indicates an expected call of ExpireAt.
+func (mr *MockStorageInterfaceMockRecorder) ExpireAt(source, proxyType any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExpireAt", reflect.TypeOf((*MockStorageInterface)(nil).ExpireAt), source, proxyType)
 }
 
 // GetFilePath mocks base method.

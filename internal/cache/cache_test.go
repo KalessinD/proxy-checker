@@ -8,6 +8,7 @@ import (
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/services"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -231,4 +232,40 @@ func TestCacheFile_Save_AllType_SplitWriteError(t *testing.T) {
 	err := c.Save(common.SourceProxyMania, common.ProxyAll, itemsAll, 3600)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to write cache")
+}
+
+func TestCacheFile_ExpireAt(t *testing.T) {
+	tempCacheFile := filepath.Join(t.TempDir(), "expire_at_cache.data")
+	c := &cache.FileStorage{
+		FilePath: tempCacheFile,
+		Logger:   common.NewZapLogger(zap.NewNop().Sugar()),
+	}
+
+	t.Run("Not cached pair returns zero time", func(t *testing.T) {
+		expireAt, err := c.ExpireAt(common.SourceProxyMania, common.ProxySOCKS5)
+		require.NoError(t, err)
+		assert.True(t, expireAt.IsZero(), "Absent record must produce a zero time")
+	})
+
+	inputItems := []*services.ProxyItemFull{
+		{ProxyItem: services.ProxyItem{Host: "1.1.1.1", Port: "8080", Type: common.ProxySOCKS5}},
+	}
+	ttl := 3600
+	saveErr := c.Save(common.SourceProxyMania, common.ProxySOCKS5, inputItems, ttl)
+	require.NoError(t, saveErr)
+
+	t.Run("Cached pair returns the expiry moment", func(t *testing.T) {
+		expireAt, err := c.ExpireAt(common.SourceProxyMania, common.ProxySOCKS5)
+		require.NoError(t, err)
+
+		lowerBound := time.Now().Add(time.Duration(ttl) * time.Second).Add(-time.Minute)
+		upperBound := time.Now().Add(time.Duration(ttl) * time.Second).Add(time.Minute)
+		assert.WithinRange(t, expireAt, lowerBound, upperBound, "Expiry must equal the save time plus TTL")
+	})
+
+	t.Run("All type has no single expiry", func(t *testing.T) {
+		expireAt, err := c.ExpireAt(common.SourceProxyMania, common.ProxyAll)
+		require.NoError(t, err)
+		assert.True(t, expireAt.IsZero(), "Per-type storage has no single expiry for the 'all' type")
+	})
 }

@@ -67,6 +67,8 @@
   "gui.btn_run": "Запустить проверку",
   "gui.btn_save": "Сохранить",
   "gui.btn_settings": "Настройки",
+  "gui.cache_ttl_expired": "Кэш истёк",
+  "gui.cache_ttl_prefix": "Кэш истечёт через",
   "gui.ctx_copy": "Копировать",
   "gui.err_proxy_not_supported": "Системный прокси не поддерживается на данной ОС.",
   "gui.filter_all": "Все",

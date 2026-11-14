@@ -68,6 +68,8 @@
   "gui.btn_run": "Run check",
   "gui.btn_save": "Save",
   "gui.btn_settings": "Settings",
+  "gui.cache_ttl_expired": "Cache expired",
+  "gui.cache_ttl_prefix": "Cache expires in",
   "gui.ctx_copy": "Copy",
   "gui.err_proxy_not_supported": "System proxy is not supported on this OS.",
   "gui.filter_all": "All",

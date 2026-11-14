@@ -8,6 +8,7 @@ import (
 	"proxy-checker/internal/mocks"
 	"proxy-checker/internal/services"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2/test"
 	"github.com/stretchr/testify/assert"
@@ -90,6 +91,11 @@ func TestRunBatchCheck_PersistsValidProxiesPerSource(t *testing.T) {
 				savedItems[source] = items
 				return nil
 			}).Times(1)
+		// After saving, the TTL indicator re-reads the expiry from the cache.
+		mockStorage.EXPECT().
+			ExpireAt(src, configuration.Type).
+			Return(time.Now().Add(time.Duration(configuration.CacheTTL)*time.Second), nil).
+			Times(1)
 	}
 
 	appGUI := newTestAppGUIForRunCheck(t, ctrl, mockRunner, mockStorage)
@@ -152,6 +158,11 @@ func TestRunBatchCheck_CacheSaveErrorMustNotDropTableResults(t *testing.T) {
 	mockStorage.EXPECT().
 		Save(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(storageError).
+		Times(len(configuration.Sources))
+	// After saving, the TTL indicator re-reads the expiry from the cache.
+	mockStorage.EXPECT().
+		ExpireAt(gomock.Any(), gomock.Any()).
+		Return(time.Time{}, nil).
 		Times(len(configuration.Sources))
 
 	appGUI := newTestAppGUIForRunCheck(t, ctrl, mockRunner, mockStorage)

@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -26,6 +27,9 @@ const (
 	themeLight  = "light"
 	themeDark   = "dark"
 	themeSystem = "system"
+
+	// cacheTTLRefreshInterval is how often the cache TTL indicator re-renders.
+	cacheTTLRefreshInterval = time.Minute
 )
 
 type (
@@ -96,6 +100,12 @@ type (
 
 		customTargetURL string
 		isCustomTarget  bool
+
+		// TTL indicator state: the moment each source's cached results expire.
+		cacheExpiry      map[common.Source]time.Time
+		cacheExpiryMutex sync.Mutex
+		cacheTTLLabel    *widget.Label
+		ttlStopChan      chan struct{}
 
 		cancelFunc context.CancelFunc
 
@@ -386,8 +396,13 @@ func (g *AppGUI) Run() {
 
 	g.loadCacheForSources(g.cfg.Sources, g.cfg.Type)
 	g.restoreSystemProxyHighlight()
+	g.refreshCacheExpiry()
+	g.startCacheTTLTimer()
 
 	g.window.ShowAndRun()
+
+	// The window is closed: stop the background TTL refresh goroutine.
+	g.stopCacheTTLTimer()
 }
 
 // refreshActiveProxyState queries and caches the address of the proxy currently

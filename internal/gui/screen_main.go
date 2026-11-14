@@ -115,11 +115,15 @@ func (g *AppGUI) buildMainTopPanel() *fyne.Container {
 
 	g.resetAndApplyFilter()
 
+	g.cacheTTLLabel = widget.NewLabel("")
+	g.updateCacheTTLLabel()
+
 	filterContainer := container.NewHBox(
 		widget.NewLabel(i18n.T("gui.header_source")+":"),
 		g.sourceFilterSelect,
 		widget.NewLabel(i18n.T("gui.header_country")+":"),
 		g.countryFilterSelect,
+		g.cacheTTLLabel,
 	)
 
 	topBox.Add(logArea)
@@ -277,6 +281,9 @@ func (g *AppGUI) persistScanResults(validProxies []*services.ProxyItemFull) {
 		i18n.T("gui.notify_scan_done_title"),
 		fmt.Sprintf("%s: %d", i18n.T("gui.log_done"), len(validProxies)),
 	)
+
+	// Results were just persisted: re-read the expiry from the cache of record.
+	g.refreshCacheExpiry()
 }
 
 // Send system notification only if the window is not in focus
