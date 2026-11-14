@@ -32,6 +32,7 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 - GUI: all widget mutations in the background pipeline goroutine (`progress`/`progressBar`, log `RichText` segments) are now wrapped in `fyne.Do` — removes the "should have been called in fyne.Do[AndWait]" warnings and data races with the UI thread.
 - GeoIP database path from the config is normalized on load: a lost leading slash (e.g. `Users/...` instead of `/Users/...`) is restored and `~` is expanded, so a valid `.mmdb` is found again.
 - The missing Fyne ru translation for the `Select` placeholder ("(Select one)") is registered by the app, removing the "Translation failure" noise on every start.
+- CI build dependencies for Fyne 2.8: `libwayland-dev` and `libxkbcommon-dev` added to the install step (glfw 3.4 compiles the Wayland backend and xkbcommon headers); on local Linux machines these packages must be installed manually too.
 
 ## [0.0.19] - 2026-04-06
 

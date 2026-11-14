@@ -22,7 +22,7 @@ jobs:
         run: |
           apt-get update && \
           DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends --no-install-suggests \
-          gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev \
+          gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev libwayland-dev libxkbcommon-dev \
           xvfb xauth
 
       - name: Set up Go
@@ -130,7 +130,7 @@ jobs:
         run: |
           apt-get update && \
           DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends --no-install-suggests \
-          gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev
+          gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev libfreetype6-dev libfontconfig1-dev libwayland-dev libxkbcommon-dev
 
       - name: Checkout code
         uses: actions/checkout@v4
