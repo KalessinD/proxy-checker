@@ -37,7 +37,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 - Make (optional, for using the Makefile)
 - C compiler (GCC/Clang) and development libraries (required by Fyne for GUI compilation)
 
-On Linux (Debian/Ubuntu), the GUI build needs the following packages (the CI pipeline installs the same set, see `.github/workflows/pipeline.yml`):
+On Linux (Debian/Ubuntu), the GUI build needs the following packages (the CI pipeline installs the same set, see `.github/workflows/pipeline.yml`). Run `make install-deps` to check them and install the missing ones (it asks for confirmation and runs `sudo apt-get`, so the sudo password is entered interactively), or install manually:
 
 ```bash
 sudo apt-get install -y gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev \

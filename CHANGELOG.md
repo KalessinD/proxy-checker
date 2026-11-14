@@ -6,6 +6,7 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 ## [0.0.20] - 2026-10-29
 
 ### Added
+- `make install-deps` (Linux): checks the GUI build dependencies the way glfw does (`pkg-config`) and offers to install the missing `apt-get` packages — confirmation prompt with the sudo password entered interactively by the user.
 - Raw list cache: proxy lists fetched from sources are stored as plain text files (one per `source:type`) with a fixed 4-hour TTL and are reused by the pipeline before hitting the source; a scan stays alive on a fresh cache even when the source is unreachable. Managed by the new `services.ListCache` port, implemented by `cache.ListStorage`; disabled when `PipelineParams.ListCache` is nil.
 - macOS support (alpha): system-proxy management via `networksetup` for every network service, deterministic active-service detection (default route → hardware port mapping); platform factories split into `factory_linux.go` / `factory_darwin.go` / `factory_other.go` with `go:build` tags in file headers.
 - CI: dedicated macOS job running the full lint+test suite natively (darwin-tagged sysproxy tests now run on CI); darwin releases ship a single universal binary (`proxy-checker-macos`, arm64 + amd64 via `lipo`), built on a native macOS runner since the GUI requires cgo.

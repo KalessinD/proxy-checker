@@ -78,6 +78,7 @@ else
 endif
 
 .PHONY: all build install uninstall run clean help \
+        install-deps \
         install-linux install-linux-bin install-linux-shortcuts \
         install-windows install-macos install-macos-bin install-macos-app install-freebsd install-unknown \
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
@@ -136,6 +137,39 @@ build: # Builds app binary
 	$(NOECHO) $(MKDIR) -p $(BUILD_DIR)
 	$(NOECHO) $(GO) build -ldflags="-X main.Version=$(APP_VERSION)" -o $(BINARY_FULL) $(CMD_PATH)
 	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
+
+install-deps: # Checks and installs missing Linux GUI build dependencies (sudo password is asked interactively)
+ifeq ($(OSTYPE),linux)
+	$(NOECHO) $(call print_info,"Checking Linux GUI build dependencies...")
+	$(NOECHO) missing=""; \
+	for pair in gcc:gcc pkg-config:pkg-config gl:libgl1-mesa-dev x11:xorg-dev alsa:libasound2-dev freetype2:libfreetype6-dev fontconfig:libfontconfig1-dev wayland-client:libwayland-dev xkbcommon:libxkbcommon-dev; do \
+		check="$${pair%%:*}"; apt_name="$${pair##*:}"; \
+		if [ "$$check" = "gcc" ] || [ "$$check" = "pkg-config" ]; then \
+			command -v "$$check" > /dev/null 2>&1 || missing="$${missing} $$apt_name"; \
+		elif ! pkg-config --exists "$$check" 2>/dev/null; then \
+			missing="$${missing} $$apt_name"; \
+		fi; \
+	done; \
+	if [ -z "$$missing" ]; then \
+		$(call print_success,"All GUI build dependencies are already installed."); \
+		exit 0; \
+	fi; \
+	if ! command -v apt-get > /dev/null 2>&1; then \
+		$(call print_error,"Non-apt system: install manually:$${missing}"); \
+		exit 1; \
+	fi; \
+	$(call print_warn,"Missing packages:$${missing}"); \
+	read -r -p "Install them via sudo apt-get now? [y/N] " install_answer; \
+	if [ "$$install_answer" != "y" ] && [ "$$install_answer" != "Y" ]; then \
+		$(call print_warn,"Skipped. The GUI build may fail without these packages."); \
+		exit 0; \
+	fi; \
+	$(SUDO) apt-get update && \
+	$(SUDO) DEBIAN_FRONTEND=noninteractive apt-get install -yq $$missing && \
+		$(call print_success,"Dependencies installed. Run 'make build' again.")
+else
+	$(NOECHO) $(call print_info,"No Linux GUI dependencies are required on $(OSTYPE).")
+endif
 
 install: install-$(OSTYPE) # Installs the app
 
