@@ -33,6 +33,7 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 - GeoIP database path from the config is normalized on load: a lost leading slash (e.g. `Users/...` instead of `/Users/...`) is restored and `~` is expanded, so a valid `.mmdb` is found again.
 - The missing Fyne ru translation for the `Select` placeholder ("(Select one)") is registered by the app, removing the "Translation failure" noise on every start.
 - Fetch statistics in the GUI log and CLI output are broken down per source (`source: count` lines, one per configured source, in fetch order) before the total line; previously only the aggregated number was printed. The pipeline now reports fetch counts through `services.FetchStats` instead of a bare total.
+- proxymania fetching skips TLS certificate verification: the site serves an invalid certificate chain, so the strict handshake failed and the fetcher returned zero results; requests to it carry no credentials and the fetched items are still validated by the pipeline.
 - CI build dependencies for Fyne 2.8: `libwayland-dev` and `libxkbcommon-dev` added to the install step (glfw 3.4 compiles the Wayland backend and xkbcommon headers); on local Linux machines these packages must be installed manually too. Build prerequisites are now documented in the README (with the X11-only fallback `GOFLAGS="-tags=x11"`).
 
 ## [0.0.19] - 2026-04-06

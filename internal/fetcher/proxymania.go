@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -66,7 +67,7 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*Pr
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: fetcherClientTimeout}
+	client := newProxyManiaHTTPClient()
 
 	for len(queue) > 0 {
 		if maxPages > 0 && pagesFetched >= maxPages {
@@ -107,6 +108,21 @@ func (f *ProxyManiaFetcher) Fetch(ctx context.Context, settings Settings) ([]*Pr
 	})
 
 	return allProxies, nil
+}
+
+// newProxyManiaHTTPClient returns an HTTP client that tolerates the broken TLS
+// certificate chain served by proxymania.su: a strict verification fails the
+// handshake and the fetcher ends up with zero results. Skipping verification is
+// acceptable here because requests only read public proxy lists and carry no
+// credentials; fetched items are still validated by the pipeline afterwards.
+func newProxyManiaHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: fetcherClientTimeout,
+		Transport: &http.Transport{
+			//nolint:gosec // G402: the source serves an invalid certificate chain; no credentials are sent.
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 }
 
 func (f *ProxyManiaFetcher) fetchSinglePage(ctx context.Context, client *http.Client, urlStr string) ([]*ProxyItem, []string, error) {
