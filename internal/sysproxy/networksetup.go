@@ -287,20 +287,25 @@ func ParseNetworkSetupProxyOutput(output string) (bool, string, string, error) {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "Enabled:") {
+
+		switch {
+		case strings.HasPrefix(line, "Enabled:"):
 			enabled = strings.Contains(line, "Yes")
-		} else if strings.HasPrefix(line, "Server:") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				server = parts[1]
-			}
-		} else if strings.HasPrefix(line, "Port:") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				port = parts[1]
-			}
+		case strings.HasPrefix(line, "Server:"):
+			server = extractProxyFieldValue(line)
+		case strings.HasPrefix(line, "Port:"):
+			port = extractProxyFieldValue(line)
 		}
 	}
 
 	return enabled, server, port, nil
+}
+
+// extractProxyFieldValue pulls the value token from a "Key: value" networksetup output line.
+func extractProxyFieldValue(line string) string {
+	parts := strings.Fields(line)
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[1]
 }

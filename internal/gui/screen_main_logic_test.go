@@ -3,11 +3,10 @@ package gui
 
 import (
 	"errors"
-	"testing"
-
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/mocks"
+	"testing"
 
 	"fyne.io/fyne/v2/test"
 	"github.com/stretchr/testify/assert"

@@ -219,8 +219,8 @@ func TestNetworkSetupManager_IgnoreHosts(t *testing.T) {
 	t.Run("Get returns trimmed domains", func(t *testing.T) {
 		//nolint:gosec // false positive: test fixture output, not credentials
 		manager, _ := newFakeManager(t, map[string]string{
-			routeDefaultCmd:      routeOutputEn0,
-			listHardwarePortsCmd: hardwarePortsOut,
+			routeDefaultCmd:                             routeOutputEn0,
+			listHardwarePortsCmd:                        hardwarePortsOut,
 			"networksetup -getproxybypassdomains Wi-Fi": " *.local\n169.254/16 \n", //nolint:gosec // false positive: test fixture output, not credentials
 		}, nil)
 
@@ -232,8 +232,8 @@ func TestNetworkSetupManager_IgnoreHosts(t *testing.T) {
 	t.Run("Get returns empty when no bypass domains set", func(t *testing.T) {
 		//nolint:gosec // false positive: test fixture output, not credentials
 		manager, _ := newFakeManager(t, map[string]string{
-			routeDefaultCmd:      routeOutputEn0,
-			listHardwarePortsCmd: hardwarePortsOut,
+			routeDefaultCmd:                             routeOutputEn0,
+			listHardwarePortsCmd:                        hardwarePortsOut,
 			"networksetup -getproxybypassdomains Wi-Fi": "There aren't any bypass domains set\n",
 		}, nil)
 
