@@ -20,7 +20,7 @@ func TestSyncSourcesFromChecks_DefaultsToProxyMania(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	checkProxymania := widget.NewCheck(string(common.SourceProxyMania), nil)
 	checkThespeedx := widget.NewCheck(string(common.SourceTheSpeedX), nil)
@@ -40,7 +40,7 @@ func TestSetUIState_RunningDisablesButtons(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.initUIComponents()
 	g.setUIState(true)
@@ -56,7 +56,7 @@ func TestSetUIState_StoppedEnablesButtons(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.initUIComponents()
 	g.setUIState(false)
@@ -73,7 +73,7 @@ func TestBuildTargetSelector_CustomSiteState(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	targetSelect, _, customBox := g.buildTargetSelector()
 	targetSelect.SetSelected(i18n.T("gui.single.custom_site"))
@@ -88,7 +88,7 @@ func TestBuildTargetSelector_NormalSiteState(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	targetSelect, _, customBox := g.buildTargetSelector()
 	targetSelect.SetSelected("youtube.com")
@@ -104,7 +104,7 @@ func TestCreateProxyTypeSelector_SetsAllType(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	radioType, _ := g.createProxyTypeSelector()
 	radioType.SetSelected(i18n.T("gui.single.type_all"))

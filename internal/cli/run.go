@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"proxy-checker/internal/cache"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
@@ -14,10 +15,10 @@ import (
 	"syscall"
 )
 
-func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
+func Run(cfg *config.Config, opts *Options, logger common.LoggerInterface, runner services.PipelineRunner) {
 	switch {
 	case opts.ProxiesStat:
-		handleProxiesList(cfg, opts, logger)
+		handleProxiesList(cfg, opts, logger, runner)
 	case opts.ProxyAddr != "":
 		handleSingleCheck(cfg, opts, logger)
 	default:
@@ -34,7 +35,7 @@ func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterfa
 	defer timeoutCancel()
 
 	checker := services.NewProxyChecker()
-	res := checker.CheckProxy(ctx, opts.ProxyAddr, cfg.DestAddr, string(cfg.Type), cfg.CheckHTTP2)
+	res := checker.CheckProxy(ctx, opts.ProxyAddr, services.NewCheckParams(cfg))
 	if res.Error != nil {
 		fmt.Fprintf(os.Stderr, "%s %v\n", i18n.T("cli.fail"), res.Error)
 		return
@@ -43,7 +44,7 @@ func handleSingleCheck(cfg *config.Config, opts *Options, _ common.LoggerInterfa
 	fmt.Printf("%s: TCP: %s, HTTP: %s, %s: %d\n", i18n.T("cli.ok"), res.ProxyLatency, res.ReqLatency, i18n.T("cli.status_label"), res.StatusCode)
 }
 
-func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface) {
+func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerInterface, runner services.PipelineRunner) {
 	fmt.Printf(
 		"%s %s: %s, %s: %s, %s: %d, %s: %d\n",
 		i18n.T("cli.mode_start"),
@@ -63,12 +64,13 @@ func handleProxiesList(cfg *config.Config, opts *Options, logger common.LoggerIn
 	if !opts.Check {
 		handleListFetch(ctx, cfg, logger)
 	} else {
-		handleListCheck(ctx, cfg, logger)
+		handleListCheck(ctx, cfg, logger, runner)
 	}
 }
 
 // handleListFetch handles fetching the list only, without validation
 func handleListFetch(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
+	perSourceStats := make([]services.SourceFetchStat, 0, len(cfg.Sources))
 	var allProxies []*fetcher.ProxyItem
 	for _, src := range cfg.Sources {
 		fetcherInstance := fetcher.NewFetcher(src, logger)
@@ -88,15 +90,30 @@ func handleListFetch(ctx context.Context, cfg *config.Config, logger common.Logg
 			item.Source = src
 		}
 
+		perSourceStats = append(perSourceStats, services.SourceFetchStat{Source: src, Count: len(items)})
 		allProxies = append(allProxies, items...)
 	}
 
-	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), len(allProxies))
+	printFetchStats(services.FetchStats{PerSource: perSourceStats, Total: len(allProxies)})
 	PrintTable(allProxies)
 }
 
+// printFetchStats writes the per-source breakdown of fetched proxies followed by the grand total.
+// A source that returned no proxies is reported on stderr: a silent zero is
+// usually a stub page (e.g. ISP/RKN block page) and must not pass unnoticed.
+func printFetchStats(fetchStats services.FetchStats) {
+	for _, sourceStat := range fetchStats.PerSource {
+		if sourceStat.Count == 0 {
+			fmt.Fprintf(os.Stderr, "%s [%s]\n", i18n.T("cli.source_empty"), sourceStat.Source)
+			continue
+		}
+		fmt.Printf("%s: %d\n", sourceStat.Source, sourceStat.Count)
+	}
+	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), fetchStats.Total)
+}
+
 // handleListCheck handles fetching and validation of the list
-func handleListCheck(ctx context.Context, cfg *config.Config, logger common.LoggerInterface) {
+func handleListCheck(ctx context.Context, cfg *config.Config, logger common.LoggerInterface, runner services.PipelineRunner) {
 	fmt.Printf("%s (Workers: %d)...\n", i18n.T("cli.starting_workers"), cfg.Workers)
 
 	var resolver common.GeoIPResolver
@@ -123,21 +140,22 @@ func handleListCheck(ctx context.Context, cfg *config.Config, logger common.Logg
 		})
 	}
 
-	validProxies, err := services.RunPipeline(
-		ctx,
-		fetchers,
-		verifierInstance,
-		cfg,
-		resolver,
-		services.PipelineCallbacks{
-			OnFetched: func(total int) {
-				fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), total)
-			},
-			OnProgress: func(current, total int) {
-				fmt.Printf("%s: %d/%d\n", i18n.T("cli.progress"), current, total)
-			},
+	pipelineParams := services.PipelineParams{
+		Fetchers:  fetchers,
+		Verifier:  verifierInstance,
+		Config:    services.NewPipelineConfig(cfg),
+		Resolver:  resolver,
+		ListCache: cache.NewListStorage(logger),
+	}
+
+	validProxies, err := runner.Run(ctx, pipelineParams, services.PipelineCallbacks{
+		OnFetched: func(fetchStats services.FetchStats) {
+			printFetchStats(fetchStats)
 		},
-	)
+		OnProgress: func(current, total int) {
+			fmt.Printf("%s: %d/%d\n", i18n.T("cli.progress"), current, total)
+		},
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", i18n.T("cli.pipeline_error"), err)
 		return

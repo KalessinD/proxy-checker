@@ -19,13 +19,20 @@ LINUX_BIN_INSTALL_PATH := /usr/bin/$(BINARY_NAME)
 LINUX_ICON_INSTALL_PATH := /usr/share/pixmaps/$(APP_NAME).png
 LINUX_SYSTEM_DESKTOP_FILE := /usr/share/applications/$(APP_NAME).desktop
 LINUX_USER_DESKTOP_FILE := $(HOME)/Desktop/$(APP_NAME).desktop
+MACOS_BIN_INSTALL_PATH := /usr/local/bin/$(BINARY_NAME)
+MACOS_APP_DIR := /Applications/Proxy Checker.app
+MACOS_ICONSET := $(TMPDIR)/$(APP_NAME).iconset
 LINUX_TMP_DESKTOP_FILE := /tmp/$(APP_NAME).desktop
 
 GOLANGCI_LINT ?= golangci-lint
 
+MOCKGEN ?= mockgen
+
 MV := mv
 JQ := jq
 CAT := cat
+SIPS := sips
+ICONUTIL := iconutil
 CP := cp
 CHMOD := chmod
 INSTALL := install
@@ -71,12 +78,13 @@ else
 endif
 
 .PHONY: all build install uninstall run clean help \
+        install-deps \
         install-linux install-linux-bin install-linux-shortcuts \
-        install-windows install-macos install-freebsd install-unknown \
+        install-windows install-macos install-macos-bin install-macos-app install-freebsd install-unknown \
         uninstall-linux uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown \
         lint lint-vet lint-golangci lint-golangci-fix \
 		test coverage coverage-html \
-		sort-lang-files
+		sort-lang-files generate-mocks
 
 all: clean lint test build
 
@@ -93,6 +101,16 @@ sort-lang-files: # Sorts keys in lang files
 		$(call print_info,"Sorting keys in $${file}"); \
 		$(CAT) $${file} | $(JQ) '.' --sort-keys > $${file}.bak && $(MV) $${file}.bak $${file}; \
 	done
+
+generate-mocks: # Regenerates mockgen mocks from go:generate directives
+	$(NOECHO) if ! command -v $(MOCKGEN) > /dev/null 2>&1; then \
+		$(call print_error,"Error: $(MOCKGEN) binary not found in PATH."); \
+		$(call print_error,"Install it first: go install go.uber.org/mock/mockgen@latest"); \
+		exit 1; \
+	fi
+	$(NOECHO) $(call print_info,"Regenerating mocks via go generate ./...")
+	$(NOECHO) $(GO) generate ./...
+	$(NOECHO) $(call print_success,"Mocks regenerated successfully.")
 
 test: # Runs golang tests
 	$(NOECHO) $(call print_info,"Running tests: golang")
@@ -119,6 +137,39 @@ build: # Builds app binary
 	$(NOECHO) $(MKDIR) -p $(BUILD_DIR)
 	$(NOECHO) $(GO) build -ldflags="-X main.Version=$(APP_VERSION)" -o $(BINARY_FULL) $(CMD_PATH)
 	$(NOECHO) $(call print_success,Successfully built: $(BINARY_FULL))
+
+install-deps: # Checks and installs missing Linux GUI build dependencies (sudo password is asked interactively)
+ifeq ($(OSTYPE),linux)
+	$(NOECHO) $(call print_info,"Checking Linux GUI build dependencies...")
+	$(NOECHO) missing=""; \
+	for pair in gcc:gcc pkg-config:pkg-config gl:libgl1-mesa-dev x11:xorg-dev alsa:libasound2-dev freetype2:libfreetype6-dev fontconfig:libfontconfig1-dev wayland-client:libwayland-dev xkbcommon:libxkbcommon-dev; do \
+		check="$${pair%%:*}"; apt_name="$${pair##*:}"; \
+		if [ "$$check" = "gcc" ] || [ "$$check" = "pkg-config" ]; then \
+			command -v "$$check" > /dev/null 2>&1 || missing="$${missing} $$apt_name"; \
+		elif ! pkg-config --exists "$$check" 2>/dev/null; then \
+			missing="$${missing} $$apt_name"; \
+		fi; \
+	done; \
+	if [ -z "$$missing" ]; then \
+		$(call print_success,"All GUI build dependencies are already installed."); \
+		exit 0; \
+	fi; \
+	if ! command -v apt-get > /dev/null 2>&1; then \
+		$(call print_error,"Non-apt system: install manually:$${missing}"); \
+		exit 1; \
+	fi; \
+	$(call print_warn,"Missing packages:$${missing}"); \
+	read -r -p "Install them via sudo apt-get now? [y/N] " install_answer; \
+	if [ "$$install_answer" != "y" ] && [ "$$install_answer" != "Y" ]; then \
+		$(call print_warn,"Skipped. The GUI build may fail without these packages."); \
+		exit 0; \
+	fi; \
+	$(SUDO) apt-get update && \
+	$(SUDO) DEBIAN_FRONTEND=noninteractive apt-get install -yq $$missing && \
+		$(call print_success,"Dependencies installed. Run 'make build' again.")
+else
+	$(NOECHO) $(call print_info,"No Linux GUI dependencies are required on $(OSTYPE).")
+endif
 
 install: install-$(OSTYPE) # Installs the app
 
@@ -176,9 +227,61 @@ install-windows: # The app installation on Windows
 	$(NOECHO) $(call print_error,Error: Automated installation is not supported for Windows.)
 	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
 
-install-macos: # The app installation on MacOS
-	$(NOECHO) $(call print_error,Error: Automated installation is not supported for macOS.)
-	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
+install-macos: install-macos-bin install-macos-app # The app installation on macOS
+	$(NOECHO) $(call print_success,macOS installation completed successfully.)
+
+install-macos-bin: # The app binary installation on macOS
+	$(NOECHO) $(call print_info,Installing binary to $(MACOS_BIN_INSTALL_PATH)...)
+	$(NOECHO) if [ -f "$(MACOS_BIN_INSTALL_PATH)" ]; then \
+		$(call print_info,File $(MACOS_BIN_INSTALL_PATH) already exists. It will be overwritten.); \
+	fi
+	$(NOECHO) $(SUDO) $(MKDIR) -p /usr/local/bin
+	$(NOECHO) $(SUDO) $(INSTALL) -m 755 $(BINARY_FULL) $(MACOS_BIN_INSTALL_PATH)
+
+install-macos-app: # The app bundle registration for Spotlight/Launchpad (GUI mode)
+	$(NOECHO) $(call print_info,Creating application bundle: $(MACOS_APP_DIR)...)
+	$(NOECHO) $(MKDIR) -p "$(MACOS_APP_DIR)/Contents/MacOS" "$(MACOS_APP_DIR)/Contents/Resources"
+	$(NOECHO) printf '%s\n' \
+		'#!/bin/bash' \
+		'exec $(MACOS_BIN_INSTALL_PATH) -gui "$$@"' \
+		> "$(MACOS_APP_DIR)/Contents/MacOS/$(BINARY_NAME)"
+	$(NOECHO) $(CHMOD) +x "$(MACOS_APP_DIR)/Contents/MacOS/$(BINARY_NAME)"
+	$(NOECHO) printf '%s\n' \
+		'<?xml version="1.0" encoding="UTF-8"?>' \
+		'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+		'<plist version="1.0">' \
+		'<dict>' \
+		'  <key>CFBundleExecutable</key><string>$(BINARY_NAME)</string>' \
+		'  <key>CFBundleIdentifier</key><string>io.github.proxy-checker</string>' \
+		'  <key>CFBundleName</key><string>Proxy Checker</string>' \
+		'  <key>CFBundlePackageType</key><string>APPL</string>' \
+		'  <key>CFBundleIconFile</key><string>$(BINARY_NAME)</string>' \
+		'</dict>' \
+		'</plist>' \
+		> "$(MACOS_APP_DIR)/Contents/Info.plist"
+	$(NOECHO) if [ -f "$(ICON_FILE)" ] && command -v $(SIPS) >/dev/null 2>&1 && command -v $(ICONUTIL) >/dev/null 2>&1; then \
+		$(call print_info,Generating application icon (.icns)...); \
+		$(RM) -rf "$(MACOS_ICONSET)"; \
+		$(MKDIR) -p "$(MACOS_ICONSET)"; \
+		$(SIPS) -z 16 16 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_16x16.png" >/dev/null; \
+		$(SIPS) -z 32 32 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_16x16@2x.png" >/dev/null; \
+		$(SIPS) -z 32 32 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_32x32.png" >/dev/null; \
+		$(SIPS) -z 64 64 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_32x32@2x.png" >/dev/null; \
+		$(SIPS) -z 128 128 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_128x128.png" >/dev/null; \
+		$(SIPS) -z 256 256 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_128x128@2x.png" >/dev/null; \
+		$(SIPS) -z 256 256 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_256x256.png" >/dev/null; \
+		$(SIPS) -z 512 512 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_256x256@2x.png" >/dev/null; \
+		$(SIPS) -z 512 512 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_512x512.png" >/dev/null; \
+		$(SIPS) -z 1024 1024 "$(ICON_FILE)" --out "$(MACOS_ICONSET)/icon_512x512@2x.png" >/dev/null; \
+		$(ICONUTIL) -c icns "$(MACOS_ICONSET)" --output "$(MACOS_APP_DIR)/Contents/Resources/$(BINARY_NAME).icns"; \
+		$(RM) -rf "$(MACOS_ICONSET)"; \
+	elif [ -f "$(ICON_FILE)" ]; then \
+		$(call print_warn,Warning: sips/iconutil not found, installing raw PNG as icon); \
+		$(INSTALL) -m 644 $(ICON_FILE) "$(MACOS_APP_DIR)/Contents/Resources/$(BINARY_NAME).icns"; \
+	else \
+		$(call print_warn,Warning: Icon $(ICON_FILE) not found, skipping icon installation); \
+	fi
+	$(NOECHO) $(call print_success,Bundle created: $(MACOS_APP_DIR))
 
 install-freebsd: # The app installation on FreeBSD
 	$(NOECHO) $(call print_error,Error: Automated installation is not supported for FreeBSD.)
@@ -188,7 +291,13 @@ install-unknown: # The app installation on other OS
 	$(NOECHO) $(call print_error,Error: Cannot detect your operating system.)
 	$(NOECHO) $(call print_error,Please use the built binary directly: $(BINARY_FULL))
 
-uninstall-windows uninstall-macos uninstall-freebsd uninstall-unknown: # The app uninstallation on different OS
+uninstall-macos: # The app uninstallation on macOS
+	$(NOECHO) $(call print_info,Uninstalling application...)
+	$(NOECHO) $(SUDO) $(RM) $(MACOS_BIN_INSTALL_PATH)
+	$(NOECHO) $(RM) -rf "$(MACOS_APP_DIR)"
+	$(NOECHO) $(call print_success,Application uninstalled.)
+
+uninstall-windows uninstall-freebsd uninstall-unknown: # The app uninstallation on different OS
 	$(NOECHO) $(call print_error,Error: Automated uninstallation is not supported for $(OSTYPE))
 
 run: build # Runs the built app

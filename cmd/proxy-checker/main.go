@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"proxy-checker/internal/app"
 	"proxy-checker/internal/cli"
 	"proxy-checker/internal/common"
 	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
-	"proxy-checker/internal/gui"
+	"proxy-checker/internal/services"
 	"strings"
 )
 
@@ -41,7 +42,7 @@ func main() {
 	setupLanguage(cfg)
 
 	if isGUI {
-		gui.Run(cfg, logger, Version)
+		app.RunGUI(cfg, logger, Version)
 		return
 	}
 
@@ -50,7 +51,8 @@ func main() {
 		fatal(err)
 	}
 
-	cli.Run(cfg, opts, logger)
+	runner := services.NewDefaultPipelineRunner()
+	cli.Run(cfg, opts, logger, runner)
 }
 
 func setupLanguage(cfg *config.Config) {

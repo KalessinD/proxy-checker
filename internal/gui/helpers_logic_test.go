@@ -122,7 +122,7 @@ func TestFilterBySource_MatchesAndExcludes(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Source: "proxymania"},
@@ -151,7 +151,7 @@ func TestFilterByCountry_MatchesAndExcludes(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	logger := common.NewZapLogger(zap.NewNop().Sugar())
-	g := NewAppGUI(testApp, cfg, logger, "dev")
+	g := NewAppGUI(newTestDependencies(testApp, cfg, logger))
 
 	g.proxyItems = []*ProxyItemWrapper{
 		{Host: "1.1.1.1", Country: "US"},

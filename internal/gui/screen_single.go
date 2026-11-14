@@ -46,7 +46,7 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 			return
 		}
 
-		g.showMainScreen()
+		g.ShowMainScreen()
 		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s -> %s (%s)...\n", i18n.T("gui.single.log_checking"), addr, target, checkType))
 		_ = g.progress.Set(0)
 
@@ -62,7 +62,10 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 			defer cancel()
 
 			checker := services.NewProxyChecker()
-			res := checker.CheckProxy(ctx, addr, target, checkType, g.cfg.CheckHTTP2)
+			checkParams := services.NewCheckParams(g.cfg)
+			checkParams.DestAddr = target
+			checkParams.Type = common.ProxyType(checkType)
+			res := checker.CheckProxy(ctx, addr, checkParams)
 			if res.Error != nil {
 				g.appendLog(common.LogLevelError, fmt.Sprintf("%s %v\n", i18n.T("cli.fail"), res.Error))
 				return
@@ -89,7 +92,7 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 	})
 
 	btnBack := widget.NewButton(i18n.T("gui.btn_back"), func() {
-		g.showMainScreen()
+		g.ShowMainScreen()
 	})
 
 	buttonsBox := container.NewHBox(btnBack, layout.NewSpacer(), btnRun)

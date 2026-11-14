@@ -15,7 +15,26 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func (g *AppGUI) showMainScreen() {
+// ShowMainScreen assembles the main screen from dedicated builder helpers.
+func (g *AppGUI) ShowMainScreen() {
+	g.buildMainActionButtons()
+	buttonsContainer := g.buildMainControlsBar()
+	topBox := g.buildMainTopPanel()
+	paddedTable := g.buildMainTableArea()
+
+	content := container.NewBorder(
+		topBox,
+		buttonsContainer,
+		nil,
+		nil,
+		paddedTable,
+	)
+
+	g.window.SetContent(content)
+}
+
+// buildMainActionButtons creates the top action buttons and applies the initial UI state.
+func (g *AppGUI) buildMainActionButtons() {
 	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() { g.ShowSettingsScreen() })
 	g.btnCheckSingle = widget.NewButton(i18n.T("gui.btn_check_single"), func() { g.ShowSingleCheckScreen() })
 	g.btnCheckList = widget.NewButton(i18n.T("gui.btn_check_list"), func() { go g.runBatchCheck() })
@@ -32,7 +51,11 @@ func (g *AppGUI) showMainScreen() {
 	} else {
 		g.setUIState(false)
 	}
+}
 
+// buildMainControlsBar assembles the bottom bar with the settings/system-proxy
+// side and the action buttons.
+func (g *AppGUI) buildMainControlsBar() fyne.CanvasObject {
 	rightButtons := container.NewHBox(
 		g.btnCancel,
 		g.btnCheckSingle,
@@ -57,11 +80,14 @@ func (g *AppGUI) showMainScreen() {
 	}
 
 	buttonsBar := container.NewBorder(nil, nil, leftSide, rightButtons)
-	buttonsContainer := container.NewVBox(
+	return container.NewVBox(
 		widget.NewLabel(""),
 		container.NewPadded(buttonsBar),
 	)
+}
 
+// buildMainTopPanel assembles the GeoIP warning, log area, source/country filters and progress bar.
+func (g *AppGUI) buildMainTopPanel() *fyne.Container {
 	progressBar := widget.NewProgressBarWithData(g.progress)
 	g.progressBar = progressBar
 
@@ -101,6 +127,11 @@ func (g *AppGUI) showMainScreen() {
 	topBox.Add(widget.NewLabel(i18n.T("gui.label_progress")))
 	topBox.Add(progressBar)
 
+	return topBox
+}
+
+// buildMainTableArea creates the sortable results table wrapped for resizing.
+func (g *AppGUI) buildMainTableArea() fyne.CanvasObject {
 	g.table = g.createResultTable()
 
 	tableHeader, _ := g.buildSortableHeader(g.sysProxyManager.IsSupported())
@@ -113,17 +144,7 @@ func (g *AppGUI) showMainScreen() {
 		float32(g.cfg.MinHeight),
 	)
 
-	paddedTable := container.NewPadded(scalableTable)
-
-	content := container.NewBorder(
-		topBox,
-		buttonsContainer,
-		nil,
-		nil,
-		paddedTable,
-	)
-
-	g.window.SetContent(content)
+	return container.NewPadded(scalableTable)
 }
 
 func (g *AppGUI) setUIState(running bool) {
@@ -147,10 +168,11 @@ func (g *AppGUI) runBatchCheck() {
 		}
 	})
 
-	g.appendLog(common.LogLevelInfo, i18n.T("gui.log_preparing")+"\n")
-	_ = g.progress.Set(0)
-
-	g.progressBar.Show()
+	fyne.DoAndWait(func() {
+		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_preparing")+"\n")
+		_ = g.progress.Set(0)
+		g.progressBar.Show()
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelFunc = cancel
@@ -175,13 +197,23 @@ func (g *AppGUI) runBatchCheck() {
 	}
 	verifierInstance := services.NewDefaultVerifier()
 
-	validProxies, err := services.RunPipeline(ctx, fetchers, verifierInstance, g.cfg, g.geoIPResolver, services.PipelineCallbacks{
-		OnFetched: func(total int) {
-			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), total))
+	pipelineParams := services.PipelineParams{
+		Fetchers:  fetchers,
+		Verifier:  verifierInstance,
+		Config:    services.NewPipelineConfig(g.cfg),
+		Resolver:  g.geoIPResolver,
+		ListCache: g.listCache,
+	}
+
+	validProxies, err := g.pipelineRunner.Run(ctx, pipelineParams, services.PipelineCallbacks{
+		OnFetched: func(fetchStats services.FetchStats) {
+			g.logFetchStats(fetchStats)
 		},
 		OnProgress: func(current, total int) {
 			if ctx.Err() == nil {
-				_ = g.progress.Set(float64(current) / float64(total))
+				fyne.Do(func() {
+					_ = g.progress.Set(float64(current) / float64(total))
+				})
 			}
 		},
 	})
@@ -200,32 +232,51 @@ func (g *AppGUI) runBatchCheck() {
 	if ctx.Err() != nil {
 		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_stopped")+"\n")
 	} else {
-		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
+		g.persistScanResults(validProxies)
+	}
+	fyne.Do(func() {
+		_ = g.progress.Set(1.0)
+	})
+}
 
-		for _, src := range g.cfg.Sources {
-			var srcProxies []*services.ProxyItemFull
-			for _, p := range validProxies {
-				if p.Source == src {
-					srcProxies = append(srcProxies, p)
-				}
-			}
+// logFetchStats writes the per-source breakdown of fetched proxies followed by the grand total.
+func (g *AppGUI) logFetchStats(fetchStats services.FetchStats) {
+	for _, sourceStat := range fetchStats.PerSource {
+		if sourceStat.Count == 0 {
+			g.appendLog(common.LogLevelWarn, fmt.Sprintf("%s [%s]\n", i18n.T("gui.log_source_empty"), sourceStat.Source))
+			continue
+		}
+		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", sourceStat.Source, sourceStat.Count))
+	}
+	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), fetchStats.Total))
+}
 
-			var err error
-			if len(srcProxies) > 0 {
-				err = g.cache.Save(src, g.cfg.Type, srcProxies, g.cfg.CacheTTL)
-			}
-			if err != nil {
-				g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+// persistScanResults saves scan output to the per-source cache and sends a completion notification.
+func (g *AppGUI) persistScanResults(validProxies []*services.ProxyItemFull) {
+	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.log_done"), len(validProxies)))
+
+	for _, src := range g.cfg.Sources {
+		var srcProxies []*services.ProxyItemFull
+		for _, p := range validProxies {
+			if p.Source == src {
+				srcProxies = append(srcProxies, p)
 			}
 		}
-		g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
 
-		g.sendNotificationIfNotActive(
-			i18n.T("gui.notify_scan_done_title"),
-			fmt.Sprintf("%s: %d", i18n.T("gui.log_done"), len(validProxies)),
-		)
+		var err error
+		if len(srcProxies) > 0 {
+			err = g.cache.Save(src, g.cfg.Type, srcProxies, g.cfg.CacheTTL)
+		}
+		if err != nil {
+			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.log_cache_error"), err))
+		}
 	}
-	_ = g.progress.Set(1.0)
+	g.appendLog(common.LogLevelInfo, i18n.T("gui.log_cache_saved")+"\n")
+
+	g.sendNotificationIfNotActive(
+		i18n.T("gui.notify_scan_done_title"),
+		fmt.Sprintf("%s: %d", i18n.T("gui.log_done"), len(validProxies)),
+	)
 }
 
 // Send system notification only if the window is not in focus
@@ -315,6 +366,8 @@ func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	}
 
 	g.switchProxy.SetChecked(true)
+	g.activeProxyHost = host
+	g.activeProxyPort = port
 	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 	g.highlightProxyInList(host, port)
 }

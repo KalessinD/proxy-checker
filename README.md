@@ -13,8 +13,8 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
   - **Native GUI:** Built with [Fyne v2](https://fyne.io/). Features an adaptive, scalable data table, real-time logs, and progress tracking.
    - **CLI:** Perfect for automation, scripting, and integration with other tools.
 - **Interactive Filtering:** Filter results in the GUI table by source and country without re-running checks.
-- **Multiple Parsing Sources:** 
-  - `proxymania.su`: Parses interactive pages with filtering by response time (RTT) and protocol. Supports pagination.
+- **Cross-platform:** Linux and macOS. On macOS support is currently in alpha: direct integration with the system proxy through `networksetup` on every network service, release artifacts for arm64 and amd64.- **Multiple Parsing Sources:** 
+  - `proxymania.su`: Parses interactive pages with filtering by response time (RTT) and protocol. Supports pagination. Heads-up: the site is present in the Russian ISP/RKN block registries — from a blocked network the fetcher receives the provider's stub page (with a self-signed TLS certificate) and yields zero proxies.
   - `thespeedx: Fetches raw lists directly from GitHub repositories.
   - `proxifly: Fetches raw lists directly from GitHub repositories.
 - **High Performance:** 
@@ -37,12 +37,21 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 - Make (optional, for using the Makefile)
 - C compiler (GCC/Clang) and development libraries (required by Fyne for GUI compilation)
 
+On Linux (Debian/Ubuntu), the GUI build needs the following packages (the CI pipeline installs the same set, see `.github/workflows/pipeline.yml`). Run `make install-deps` to check them and install the missing ones (it asks for confirmation and runs `sudo apt-get`, so the sudo password is entered interactively), or install manually:
+
+```bash
+sudo apt-get install -y gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev \
+  libfreetype6-dev libfontconfig1-dev libwayland-dev libxkbcommon-dev
+```
+
+`libwayland-dev` and `libxkbcommon-dev` are required since Fyne 2.8: the bundled glfw 3.4 compiles the Wayland backend by default. If Wayland headers are not an option, the GUI can be built with the X11 backend instead: `GOFLAGS="-tags=x11" make build` (X11 headers only, the app then runs via XWayland on Wayland desktops).
+
 ### Build from source
 
 Clone the repository and build the binary:
 
 ```bash
-git clone https://github.com/yourusername/proxy-checker.git
+git clone https://github.com/KalessinD/proxy-checker.git
 cd proxy-checker
 ```
 
@@ -64,6 +73,17 @@ To install the binary system-wide (`/usr/bin/`), copy the application icon, and 
 sudo make install
 ```
 *(Note: Ensure your `assets/proxy-checker.png` exists before running install).*
+
+### Install (macOS)
+
+To install the binary system-wide (`/usr/local/bin`):
+
+```bash
+make build
+sudo make install
+```
+
+Alternatively, download the ready-to-run universal `proxy-checker-macos` binary (arm64 + amd64) from the [releases page](https://github.com/KalessinD/proxy-checker/releases) and put the binary wherever you prefer.
 
 ## Usage
 
@@ -134,6 +154,7 @@ If the file does not exist, it is automatically created with default values on t
 ```toml
 type = "socks5"
 timeout = "3s"
+dial_timeout = "30s"
 workers = 512
 dest_addr = "youtube.com"
 source = "proxymania"
@@ -148,6 +169,10 @@ cache_ttl = 3600
 lang = "en"
 ```
 *Note: CLI flags override the values defined in the configuration file.*
+
+### Raw List Cache
+
+Raw proxy lists fetched from sources are cached separately from the check results: one plain text file per `source:type` in the system temporary directory (`proxy-checker-lists/`). Within the fixed 4-hour TTL, a scan reuses the cached list instead of hitting the source; an expired or missing list triggers a regular fetch and refreshes the cache. This also keeps scans working when a source is temporarily unreachable. The TTL is not configurable; delete the directory to force a re-fetch. Empty lists are never cached and an empty cached list is treated as a miss, so a blocked source (e.g. an ISP/RKN stub page) cannot pin zero proxies for the whole TTL.
 
 ### GeoIP Database Setup
 By default, the app displays `N/A` for the country if the proxy source does not provide it (e.g., `thespeedx`). To resolve countries automatically by P, you need a local `.mmdb` database file.

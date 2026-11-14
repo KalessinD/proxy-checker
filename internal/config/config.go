@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"proxy-checker/internal/common"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -12,6 +13,7 @@ import (
 type Config struct {
 	Type        common.ProxyType `toml:"type"`
 	Timeout     time.Duration    `toml:"timeout"`
+	DialTimeout time.Duration    `toml:"dial_timeout"`
 	Workers     int              `toml:"workers"`
 	DestAddr    string           `toml:"dest_addr"`
 	Sources     []common.Source  `toml:"sources"`
@@ -27,22 +29,27 @@ type Config struct {
 	GeoIPDBPath string           `toml:"geoip_db_path"`
 }
 
+// DefaultDialTimeout caps the TCP-dial phase of a proxy check when the
+// per-check context deadline is not reached first.
+const DefaultDialTimeout = 30 * time.Second
+
 func DefaultConfig() *Config {
 	return &Config{
-		Theme:      "system",
-		MinWidth:   900,
-		MinHeight:  400,
-		Sources:    []common.Source{common.SourceProxyMania},
-		Type:       common.ProxySOCKS5,
-		Timeout:    10 * time.Second,
-		Workers:    256,
-		Pages:      4,
-		RTT:        150,
-		CheckHTTP2: false,
-		DestAddr:   "google.com",
-		LogPath:    common.DefaultLogPath(),
-		CacheTTL:   3600,
-		Lang:       "en",
+		Theme:       "system",
+		MinWidth:    900,
+		MinHeight:   400,
+		Sources:     []common.Source{common.SourceProxyMania},
+		Type:        common.ProxySOCKS5,
+		Timeout:     10 * time.Second,
+		DialTimeout: DefaultDialTimeout,
+		Workers:     256,
+		Pages:       4,
+		RTT:         150,
+		CheckHTTP2:  false,
+		DestAddr:    "google.com",
+		LogPath:     common.DefaultLogPath(),
+		CacheTTL:    3600,
+		Lang:        "en",
 	}
 }
 
@@ -86,7 +93,35 @@ func Load() (*Config, error) {
 		cfg.Sources = []common.Source{common.SourceProxyMania}
 	}
 
+	normalizeGeoIPPath(cfg)
+
 	return cfg, nil
+}
+
+// normalizeGeoIPPath repairs paths saved without a leading slash (e.g. "Users/..." instead
+// of "/Users/...", macOS) and expands "~"; an empty path is left as-is so the default applies.
+func normalizeGeoIPPath(cfg *Config) {
+	if cfg.GeoIPDBPath == "" {
+		return
+	}
+
+	normalized := cfg.GeoIPDBPath
+
+	homeDir, homeErr := os.UserHomeDir()
+	if homeErr == nil && strings.HasPrefix(normalized, "~") {
+		normalized = filepath.Join(homeDir, strings.TrimPrefix(normalized, "~"))
+	}
+
+	if homeErr == nil && !filepath.IsAbs(normalized) {
+		// The path was saved relative to the filesystem root without its leading slash.
+		homeRoot := strings.SplitN(strings.TrimPrefix(homeDir, string(os.PathSeparator)), string(os.PathSeparator), 2)[0]
+		firstComponent := strings.SplitN(normalized, string(os.PathSeparator), 2)[0]
+		if firstComponent == homeRoot {
+			normalized = string(os.PathSeparator) + normalized
+		}
+	}
+
+	cfg.GeoIPDBPath = filepath.Clean(normalized)
 }
 
 func (c *Config) SaveToFile() error {

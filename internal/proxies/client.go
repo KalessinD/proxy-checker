@@ -149,8 +149,8 @@ func socks4Dial(ctx context.Context, network, addr, proxyAddr string) (net.Conn,
 	req := make([]byte, 9)
 	req[0] = 4
 	req[1] = 1
-	req[2] = byte(port >> 8)
-	req[3] = byte(port)
+	req[2] = byte(uint16(port >> 8))
+	req[3] = byte(uint16(port))
 	copy(req[4:8], ipv4)
 
 	if _, err := conn.Write(req); err != nil {

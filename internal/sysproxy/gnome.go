@@ -8,21 +8,22 @@ import (
 	"os"
 	"os/exec"
 	"proxy-checker/internal/common/i18n"
+	"sort"
 	"strings"
 )
 
-type linuxProxyManager struct{}
+type gnomeProxyManager struct{}
 
-func newLinuxProxyManager() SystemProxyManager {
-	m := &linuxProxyManager{}
+func newGnomeProxyManager() SystemProxyManager {
+	m := &gnomeProxyManager{}
 	return m
 }
 
-func (m *linuxProxyManager) IsSupported() bool {
+func (m *gnomeProxyManager) IsSupported() bool {
 	return IsDebianBased() && IsGnomeDesktop() && isGsettingsAvailable()
 }
 
-func (m *linuxProxyManager) GetMode() (string, error) {
+func (m *gnomeProxyManager) GetMode() (string, error) {
 	cmd := exec.Command("gsettings", "get", "org.gnome.system.proxy", "mode")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -36,11 +37,11 @@ func (m *linuxProxyManager) GetMode() (string, error) {
 	return mode, nil
 }
 
-func (m *linuxProxyManager) SetMode(mode string) error {
+func (m *gnomeProxyManager) SetMode(mode string) error {
 	return gsettingsSet("org.gnome.system.proxy", "mode", mode)
 }
 
-func (m *linuxProxyManager) SetProxy(host, port, proxyType string) error {
+func (m *gnomeProxyManager) SetProxy(host, port, proxyType string) error {
 	pType := strings.ToLower(proxyType)
 
 	if err := m.SetMode(ProxyModeManual); err != nil {
@@ -71,7 +72,7 @@ func (m *linuxProxyManager) SetProxy(host, port, proxyType string) error {
 	return nil
 }
 
-func (m *linuxProxyManager) GetIgnoreHosts() (string, error) {
+func (m *gnomeProxyManager) GetIgnoreHosts() (string, error) {
 	cmd := exec.Command("gsettings", "get", "org.gnome.system.proxy", "ignore-hosts")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -84,7 +85,7 @@ func (m *linuxProxyManager) GetIgnoreHosts() (string, error) {
 	return strings.Join(rawList, "\n"), nil
 }
 
-func (m *linuxProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
+func (m *gnomeProxyManager) SetIgnoreHosts(ignoreHostsText string) error {
 	lines := strings.Split(ignoreHostsText, "\n")
 
 	var cleanedHosts []string
@@ -158,7 +159,7 @@ func clearProxySubkey(proto string) error {
 	return gsettingsSet(schema, "port", "0")
 }
 
-func (m *linuxProxyManager) GetActiveProxy() (string, string, error) {
+func (m *gnomeProxyManager) GetActiveProxy() (string, string, error) {
 	mode, err := m.GetMode()
 	if err != nil || mode != ProxyModeManual {
 		return "", "", nil
@@ -225,4 +226,47 @@ func gsettingsSet(schema, key, value string) error {
 		return fmt.Errorf("%s: %v, %s", i18n.T("sysproxy.err_gsettings"), err, stderr.String())
 	}
 	return nil
+}
+
+// ParseGVariantStringArray parses a GVariant string-array literal ('a'as)
+// produced by gsettings and returns the sorted list of its elements.
+func ParseGVariantStringArray(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "[]" {
+		return nil
+	}
+
+	raw = strings.TrimPrefix(raw, "[")
+	raw = strings.TrimSuffix(raw, "]")
+
+	elements := strings.Split(raw, ",")
+
+	var result []string
+	for _, elem := range elements {
+		cleaned := strings.TrimSpace(elem)
+		cleaned = strings.Trim(cleaned, "'")
+		if cleaned != "" {
+			result = append(result, cleaned)
+		}
+	}
+
+	sort.Strings(result)
+	return result
+}
+
+// FormatGVariantStringArray serializes the given hosts into a sorted,
+// quoted GVariant string-array literal accepted by gsettings.
+func FormatGVariantStringArray(hosts []string) string {
+	if len(hosts) == 0 {
+		return "[]"
+	}
+
+	sort.Strings(hosts)
+
+	quoted := make([]string, len(hosts))
+	for i, host := range hosts {
+		quoted[i] = "'" + host + "'"
+	}
+
+	return "[" + strings.Join(quoted, ", ") + "]"
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"proxy-checker/internal/config"
 	"proxy-checker/internal/services"
 	"sync"
 	"sync/atomic"
@@ -22,7 +23,7 @@ type mockVerifier struct {
 	blockChannel chan struct{}
 }
 
-func (m *mockVerifier) Verify(ctx context.Context, proxyAddr, _, _ string, _ bool) services.Result {
+func (m *mockVerifier) Verify(ctx context.Context, proxyAddr string, _ *services.CheckParams) services.Result {
 	atomic.AddInt32(&m.callCount, 1)
 
 	if m.blockChannel != nil {
@@ -65,7 +66,16 @@ func TestCheckBatch_FiltersInvalidProxies(t *testing.T) {
 
 	checker := services.NewProxyChecker()
 	ctx := t.Context()
-	validProxies := checker.CheckBatch(ctx, items, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
+	validProxies := checker.CheckBatch(
+		ctx,
+		items,
+		&services.CheckParams{
+			DestAddr: "google.com", Type: "socks5", Timeout: 5 * time.Second,
+			DialTimeout: config.DefaultDialTimeout, Workers: 2, CheckHTTP2: false,
+		},
+		mock,
+		nil,
+	)
 
 	require.Len(t, validProxies, 2, "Only valid proxies must remain")
 	assert.Equal(t, "3.3.3.3", validProxies[0].Host, "The fastest proxy must be first")
@@ -90,7 +100,16 @@ func TestCheckBatch_StopsOnContextCancellation(t *testing.T) {
 
 	done := make(chan []*services.ProxyItemFull)
 	go func() {
-		done <- checker.CheckBatch(ctx, items, "google.com", "socks5", 10*time.Second, 2, false, nil, mock)
+		done <- checker.CheckBatch(
+			ctx,
+			items,
+			&services.CheckParams{
+				DestAddr: "google.com", Type: "socks5", Timeout: 10 * time.Second,
+				DialTimeout: config.DefaultDialTimeout, Workers: 2, CheckHTTP2: false,
+			},
+			mock,
+			nil,
+		)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
@@ -109,7 +128,16 @@ func TestCheckBatch_EmptyList(t *testing.T) {
 	mock := &mockVerifier{}
 	checker := services.NewProxyChecker()
 	ctx := t.Context()
-	validProxies := checker.CheckBatch(ctx, []*services.ProxyItem{}, "google.com", "socks5", 5*time.Second, 2, false, nil, mock)
+	validProxies := checker.CheckBatch(
+		ctx,
+		[]*services.ProxyItem{},
+		&services.CheckParams{
+			DestAddr: "google.com", Type: "socks5", Timeout: 5 * time.Second,
+			DialTimeout: config.DefaultDialTimeout, Workers: 2, CheckHTTP2: false,
+		},
+		mock,
+		nil,
+	)
 
 	assert.Empty(t, validProxies, "Empty list must return an empty slice")
 }
@@ -130,10 +158,9 @@ func TestResolveSchema_DefaultBehavior(t *testing.T) {
 		{name: "SOCKS4 mode WITH force HTTP2", proxyMode: "socks4", forceHTTP2: true, expectedSchema: "https://"},
 	}
 
-	checker := services.NewProxyChecker()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualSchema := checker.ResolveSchema(tt.proxyMode, tt.forceHTTP2)
+			actualSchema := services.ResolveSchema(tt.proxyMode, tt.forceHTTP2)
 			assert.Equal(t, tt.expectedSchema, actualSchema)
 		})
 	}
@@ -144,7 +171,7 @@ func TestProxyChecker_CheckProxy_Timeout(t *testing.T) {
 	cancel()
 
 	checker := services.NewProxyChecker()
-	res := checker.CheckProxy(ctx, "127.0.0.1:9999", "google.com", "http", false)
+	res := checker.CheckProxy(ctx, "127.0.0.1:9999", &services.CheckParams{DestAddr: "google.com", Type: "http", DialTimeout: config.DefaultDialTimeout})
 
 	assert.Error(t, res.Error)
 }
@@ -156,7 +183,7 @@ func TestNewDefaultVerifier_Verify_DelegatesToChecker(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately to fail fast without real network I/O
 
-	res := verifier.Verify(ctx, "127.0.0.1:9999", "google.com", "http", false)
+	res := verifier.Verify(ctx, "127.0.0.1:9999", &services.CheckParams{DestAddr: "google.com", Type: "http", DialTimeout: config.DefaultDialTimeout})
 	assert.Error(t, res.Error, "Canceled context must cause an error")
 }
 
@@ -172,7 +199,7 @@ func TestProxyChecker_CheckProxy_HTTPSuccess(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
-	res := checker.CheckProxy(ctx, testServer.Listener.Addr().String(), "", "http", false)
+	res := checker.CheckProxy(ctx, testServer.Listener.Addr().String(), &services.CheckParams{Type: "http", DialTimeout: config.DefaultDialTimeout})
 
 	require.NoError(t, res.Error, "Valid HTTP request must not return error")
 	assert.Equal(t, http.StatusOK, res.StatusCode, "Status code must be 200")
@@ -190,7 +217,7 @@ func TestProxyChecker_CheckProxy_ConnectionRefused(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 
-	res := checker.CheckProxy(ctx, "127.0.0.1:1", "", "http", false)
+	res := checker.CheckProxy(ctx, "127.0.0.1:1", &services.CheckParams{Type: "http", DialTimeout: config.DefaultDialTimeout})
 
 	require.Error(t, res.Error, "Connection refused must return an error")
 	assert.Contains(t, res.Error.Error(), "TCP", "Error message must mention TCP")

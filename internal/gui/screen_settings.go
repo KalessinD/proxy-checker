@@ -107,12 +107,12 @@ func (g *AppGUI) ShowSettingsScreen() {
 		}
 
 		g.setupMainMenu()
-		g.showMainScreen()
+		g.ShowMainScreen()
 	})
 
 	buttonsBox := container.NewHBox(
 		widget.NewButton(i18n.T("gui.btn_back"), func() {
-			g.showMainScreen()
+			g.ShowMainScreen()
 		}),
 		layout.NewSpacer(),
 		btnSave,

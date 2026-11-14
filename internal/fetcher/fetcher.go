@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+//go:generate mockgen -destination=../../internal/mocks/mock_fetcher.go -package=mocks proxy-checker/internal/fetcher Fetcher
+
 type (
 	ProxyItem struct {
 		Host    string           `json:"host"`
