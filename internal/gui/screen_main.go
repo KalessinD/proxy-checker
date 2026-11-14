@@ -242,6 +242,10 @@ func (g *AppGUI) runBatchCheck() {
 // logFetchStats writes the per-source breakdown of fetched proxies followed by the grand total.
 func (g *AppGUI) logFetchStats(fetchStats services.FetchStats) {
 	for _, sourceStat := range fetchStats.PerSource {
+		if sourceStat.Count == 0 {
+			g.appendLog(common.LogLevelWarn, fmt.Sprintf("%s [%s]\n", i18n.T("gui.log_source_empty"), sourceStat.Source))
+			continue
+		}
 		g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", sourceStat.Source, sourceStat.Count))
 	}
 	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d...\n", i18n.T("gui.log_found"), fetchStats.Total))

@@ -382,6 +382,73 @@ func TestRunPipeline_CacheMissFallsBackToFetchAndSaves(t *testing.T) {
 	require.Len(t, validProxies, 1)
 }
 
+func TestRunPipeline_EmptyFetchResultIsNotCached(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cfg := basePipelineConfig()
+
+	// The source serves a stub page (e.g. an ISP/RKN block page): zero items, no error.
+	fetcherMock := mocks.NewMockFetcher(ctrl)
+	fetcherMock.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return([]*fetcher.ProxyItem{}, nil)
+
+	listCacheMock := mocks.NewMockListCache(ctrl)
+	listCacheMock.EXPECT().
+		Load(common.SourceProxyMania, common.ProxySOCKS5).
+		Return(nil, services.ErrListCacheMiss)
+	// Saving an empty list would pin zero proxies for the whole cache TTL.
+	listCacheMock.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: fetcherMock},
+		},
+		Verifier:  mocks.NewMockProxyVerifier(ctrl),
+		Config:    cfg,
+		ListCache: listCacheMock,
+	}, services.PipelineCallbacks{})
+
+	require.NoError(t, pipelineErr)
+	assert.Empty(t, validProxies)
+}
+
+func TestRunPipeline_EmptyCachedListIsTreatedAsMiss(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cfg := basePipelineConfig()
+
+	fetchedItems := []*fetcher.ProxyItem{
+		{Host: "7.7.7.7", Port: "8080", Type: common.ProxySOCKS5},
+	}
+	// A fresh fetch recovers after the cache previously stored an empty list.
+	fetcherMock := mocks.NewMockFetcher(ctrl)
+	fetcherMock.EXPECT().
+		Fetch(gomock.Any(), expectedFetchSettings(cfg)).
+		Return(fetchedItems, nil)
+
+	listCacheMock := mocks.NewMockListCache(ctrl)
+	listCacheMock.EXPECT().
+		Load(common.SourceProxyMania, common.ProxySOCKS5).
+		Return([]*fetcher.ProxyItem{}, nil)
+	// The fresh non-empty fetch result must be persisted: it repairs the cache.
+	listCacheMock.EXPECT().
+		Save(common.SourceProxyMania, common.ProxySOCKS5, fetchedItems).
+		Return(nil)
+
+	verifierMock := expectVerify(ctrl, "7.7.7.7:8080", services.Result{})
+
+	validProxies, pipelineErr := services.RunPipeline(t.Context(), services.PipelineParams{
+		Fetchers: []services.SourceFetcher{
+			{Source: common.SourceProxyMania, Fetcher: fetcherMock},
+		},
+		Verifier:  verifierMock,
+		Config:    cfg,
+		ListCache: listCacheMock,
+	}, services.PipelineCallbacks{})
+
+	require.NoError(t, pipelineErr)
+	require.Len(t, validProxies, 1)
+}
+
 func TestRunPipeline_CacheReadErrorFallsBackToFetch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cfg := basePipelineConfig()

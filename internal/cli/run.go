@@ -99,8 +99,14 @@ func handleListFetch(ctx context.Context, cfg *config.Config, logger common.Logg
 }
 
 // printFetchStats writes the per-source breakdown of fetched proxies followed by the grand total.
+// A source that returned no proxies is reported on stderr: a silent zero is
+// usually a stub page (e.g. ISP/RKN block page) and must not pass unnoticed.
 func printFetchStats(fetchStats services.FetchStats) {
 	for _, sourceStat := range fetchStats.PerSource {
+		if sourceStat.Count == 0 {
+			fmt.Fprintf(os.Stderr, "%s [%s]\n", i18n.T("cli.source_empty"), sourceStat.Source)
+			continue
+		}
 		fmt.Printf("%s: %d\n", sourceStat.Source, sourceStat.Count)
 	}
 	fmt.Printf("%s: %d\n", i18n.T("cli.total_found"), fetchStats.Total)

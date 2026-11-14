@@ -169,6 +169,9 @@ func RunPipeline(ctx context.Context, params PipelineParams, cb PipelineCallback
 
 // loadCachedOrFetch returns raw proxy items from the list cache when it is fresh,
 // falling back to the regular fetch and refreshing the cache afterwards.
+// An empty cached list is treated as a miss, and an empty fetch result is not
+// cached: a source serving a stub page (e.g. ISP/RKN block page) would otherwise
+// pin zero proxies for the whole cache TTL.
 func loadCachedOrFetch(
 	ctx context.Context,
 	sourceFetcher SourceFetcher,
@@ -177,7 +180,7 @@ func loadCachedOrFetch(
 ) ([]*fetcher.ProxyItem, error) {
 	if listCache != nil {
 		// Any cache failure (miss or read error) simply falls back to the regular fetch.
-		if cached, loadErr := listCache.Load(sourceFetcher.Source, settings.Type); loadErr == nil {
+		if cached, loadErr := listCache.Load(sourceFetcher.Source, settings.Type); loadErr == nil && len(cached) > 0 {
 			return cached, nil
 		}
 	}
@@ -187,7 +190,7 @@ func loadCachedOrFetch(
 		return nil, err
 	}
 
-	if listCache != nil {
+	if listCache != nil && len(items) > 0 {
 		// Write failures are logged by the adapter; they only cost the next run a re-fetch.
 		_ = listCache.Save(sourceFetcher.Source, settings.Type, items)
 	}

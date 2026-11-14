@@ -26,6 +26,9 @@ History before 0.0.20 is migrated from the old `Changelog` file (kept as-is, gro
 - Hand-written mocks replaced with `go.uber.org/mock` (mockgen); pipeline and checker tests rewritten on the mocks.
 
 ### Fixed
+- The raw-list cache no longer persists empty fetch results and treats an empty cached list as a cache miss: a blocked source (ISP/RKN stub page) could otherwise pin zero proxies for the whole 4-hour TTL.
+- Sources that returned zero proxies are no longer silent: the GUI log shows a warning and the CLI prints one to stderr (a silent zero made blocked sources hard to diagnose).
+- proxymania: the experimental TLS certificate verification skip was reverted — the self-signed certificate belongs to the ISP/RKN block stub, not to the site; the blocker is documented in the README.
 - GUI Defect #2: `GetActiveProxy` (external command) no longer blocks the UI on every filter click; the active system proxy is cached and refreshed only on rare user actions (startup, proxy apply, switch toggle).
 - `networksetup` invocation on macOS: the network service was prepended to the argument list, so every set-call failed with exit status 5 ("command is not recognized"); `SetIgnoreHosts` no longer doubles the service, and errors now include stdout (where `networksetup` reports failures).
 - sysproxy errors on macOS are localized (ru/en) via `common/i18n` instead of hardcoded English strings.
