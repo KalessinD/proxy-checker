@@ -54,13 +54,17 @@ func (g *AppGUI) buildMainActionButtons() {
 }
 
 // buildMainControlsBar assembles the bottom bar with the settings/system-proxy
-// side and the action buttons.
+// side and the action buttons. The cache TTL indicator sits above the settings
+// button: that is where the user expects the "data freshness" hint.
 func (g *AppGUI) buildMainControlsBar() fyne.CanvasObject {
 	rightButtons := container.NewHBox(
 		g.btnCancel,
 		g.btnCheckSingle,
 		g.btnCheckList,
 	)
+
+	g.cacheTTLLabel = widget.NewLabel("")
+	g.updateCacheTTLLabel()
 
 	var leftSide fyne.CanvasObject
 	if g.sysProxyManager.IsSupported() {
@@ -70,13 +74,16 @@ func (g *AppGUI) buildMainControlsBar() fyne.CanvasObject {
 		borderedSwitch := newBorderedBox(g.switchProxy)
 		alignedSwitch := newVPad(borderedSwitch, 3)
 
-		leftSide = container.NewHBox(
-			g.btnSettings,
-			alignedLabel,
-			alignedSwitch,
+		leftSide = container.NewVBox(
+			g.cacheTTLLabel,
+			container.NewHBox(
+				g.btnSettings,
+				alignedLabel,
+				alignedSwitch,
+			),
 		)
 	} else {
-		leftSide = g.btnSettings
+		leftSide = container.NewVBox(g.cacheTTLLabel, g.btnSettings)
 	}
 
 	buttonsBar := container.NewBorder(nil, nil, leftSide, rightButtons)
@@ -115,15 +122,11 @@ func (g *AppGUI) buildMainTopPanel() *fyne.Container {
 
 	g.resetAndApplyFilter()
 
-	g.cacheTTLLabel = widget.NewLabel("")
-	g.updateCacheTTLLabel()
-
 	filterContainer := container.NewHBox(
 		widget.NewLabel(i18n.T("gui.header_source")+":"),
 		g.sourceFilterSelect,
 		widget.NewLabel(i18n.T("gui.header_country")+":"),
 		g.countryFilterSelect,
-		g.cacheTTLLabel,
 	)
 
 	topBox.Add(logArea)
