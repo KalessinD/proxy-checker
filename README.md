@@ -14,7 +14,7 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
    - **CLI:** Perfect for automation, scripting, and integration with other tools.
 - **Interactive Filtering:** Filter results in the GUI table by source and country without re-running checks.
 - **Cross-platform:** Linux and macOS. On macOS support is currently in alpha: direct integration with the system proxy through `networksetup` on every network service, release artifacts for arm64 and amd64.- **Multiple Parsing Sources:** 
-  - `proxymania.su`: Parses interactive pages with filtering by response time (RTT) and protocol. Supports pagination. The source is fetched with TLS certificate verification skipped: the site serves an invalid certificate chain, and no credentials are sent to it.
+  - `proxymania.su`: Parses interactive pages with filtering by response time (RTT) and protocol. Supports pagination.
   - `thespeedx: Fetches raw lists directly from GitHub repositories.
   - `proxifly: Fetches raw lists directly from GitHub repositories.
 - **High Performance:** 
