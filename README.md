@@ -37,6 +37,15 @@ A fast, concurrent proxy parser and checker with a native cross-platform GUI and
 - Make (optional, for using the Makefile)
 - C compiler (GCC/Clang) and development libraries (required by Fyne for GUI compilation)
 
+On Linux (Debian/Ubuntu), the GUI build needs the following packages (the CI pipeline installs the same set, see `.github/workflows/pipeline.yml`):
+
+```bash
+sudo apt-get install -y gcc pkg-config libgl1-mesa-dev xorg-dev libasound2-dev \
+  libfreetype6-dev libfontconfig1-dev libwayland-dev libxkbcommon-dev
+```
+
+`libwayland-dev` and `libxkbcommon-dev` are required since Fyne 2.8: the bundled glfw 3.4 compiles the Wayland backend by default. If Wayland headers are not an option, the GUI can be built with the X11 backend instead: `GOFLAGS="-tags=x11" make build` (X11 headers only, the app then runs via XWayland on Wayland desktops).
+
 ### Build from source
 
 Clone the repository and build the binary:
