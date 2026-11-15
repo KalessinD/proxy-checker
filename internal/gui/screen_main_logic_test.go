@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"go.uber.org/zap"
 )
@@ -42,7 +43,8 @@ func TestApplySystemProxy_Error(t *testing.T) {
 	app := NewAppGUI(deps)
 	app.ShowMainScreen()
 
-	app.applySystemProxy("1.1.1.1", "8080", "socks5")
+	err := app.applySystemProxy("1.1.1.1", "8080", "socks5")
+	require.ErrorIs(t, err, expectedErr)
 
 	assert.False(t, app.switchProxy.Checked, "System proxy switch must remain unchecked on error")
 	assert.Equal(t, -1, app.highlightedRow, "No row must be highlighted on error")

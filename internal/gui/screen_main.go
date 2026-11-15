@@ -332,7 +332,8 @@ func (g *AppGUI) createResultTable() *widget.Table {
 				pt := item.Port
 				t := item.Type
 				tc.updateButton(func() {
-					g.applySystemProxy(h, pt, string(t))
+					// The error is already logged inside applySystemProxy.
+					_ = g.applySystemProxy(h, pt, string(t))
 				})
 				return
 			}
@@ -368,11 +369,11 @@ func (g *AppGUI) createResultTable() *widget.Table {
 	return table
 }
 
-func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
+func (g *AppGUI) applySystemProxy(host, port, proxyType string) error {
 	err := g.sysProxyManager.SetProxy(host, port, proxyType)
 	if err != nil {
 		g.appendLog(common.LogLevelError, fmt.Sprintf("%s %s:%s (%s): %v\n", i18n.T("gui.log_apply_error"), host, port, proxyType, err))
-		return
+		return err
 	}
 
 	g.switchProxy.SetChecked(true)
@@ -380,6 +381,7 @@ func (g *AppGUI) applySystemProxy(host, port, proxyType string) {
 	g.activeProxyPort = port
 	g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %s://%s:%s\n", i18n.T("gui.log_apply_success"), strings.ToLower(proxyType), host, port))
 	g.highlightProxyInList(host, port)
+	return nil
 }
 
 // sortProxyItems sorts the slice of UI wrappers based on the selected column index and direction.
