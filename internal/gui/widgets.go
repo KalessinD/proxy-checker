@@ -29,8 +29,12 @@ type (
 	}
 )
 
-func newVPad(child fyne.CanvasObject, topPad float32) *vPad {
-	w := &vPad{child: child, topPad: topPad}
+// uiVerticalPad is the vertical padding applied to toolbar widgets so they
+// align with the surrounding labels.
+const uiVerticalPad float32 = 3
+
+func newVPad(child fyne.CanvasObject) *vPad {
+	w := &vPad{child: child, topPad: uiVerticalPad}
 	w.ExtendBaseWidget(w)
 	return w
 }

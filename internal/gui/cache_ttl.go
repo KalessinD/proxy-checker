@@ -32,6 +32,7 @@ func (g *AppGUI) refreshCacheExpiry() {
 
 	fyne.Do(func() {
 		g.updateCacheTTLLabel()
+		g.updateMonitorPool()
 	})
 }
 
@@ -54,6 +55,7 @@ func (g *AppGUI) startCacheTTLTimer() {
 			case <-ticker.C:
 				fyne.Do(func() {
 					g.updateCacheTTLLabel()
+					g.updateMonitorPool()
 				})
 			}
 		}

@@ -109,11 +109,19 @@ type (
 
 		cancelFunc context.CancelFunc
 
+		// Monitor lifecycle (TODO item 1): the background health-check worker
+		// is started/stopped by a button; monitorMu guards start/stop and the
+		// monitor pointer itself. Pool snapshots follow the result table.
+		proxyMonitor  *services.ProxyMonitor
+		monitorCancel context.CancelFunc
+		monitorMu     sync.Mutex
+
 		btnCancel      *widget.Button
 		btnCheckSingle *widget.Button
 		btnCheckList   *widget.Button
 		btnSettings    *widget.Button
 		switchProxy    *widget.Check
+		monitorSwitch  *widget.Check
 	}
 
 	forcedVariantTheme struct {
@@ -204,6 +212,14 @@ func (g *AppGUI) setupMainMenu() {
 func (g *AppGUI) initUIComponents() {
 	g.btnSettings = widget.NewButton(i18n.T("gui.btn_settings"), func() {
 		g.ShowSettingsScreen()
+	})
+
+	g.monitorSwitch = widget.NewCheck("", func(checked bool) {
+		if checked {
+			g.startProxyMonitor()
+		} else {
+			g.stopProxyMonitor()
+		}
 	})
 
 	g.switchProxy = widget.NewCheck("", func(checked bool) {
@@ -346,6 +362,7 @@ func (g *AppGUI) loadCacheForSources(sources []common.Source, proxyType common.P
 		fyne.Do(func() {
 			g.proxyItems = []*ProxyItemWrapper{}
 			g.resetAndApplyFilter()
+			g.updateMonitorPool()
 		})
 		return
 	}
@@ -355,6 +372,7 @@ func (g *AppGUI) loadCacheForSources(sources []common.Source, proxyType common.P
 	fyne.Do(func() {
 		g.proxyItems = items
 		g.resetAndApplyFilter()
+		g.updateMonitorPool()
 	})
 
 	if len(deduped) > 0 {
@@ -401,7 +419,10 @@ func (g *AppGUI) Run() {
 
 	g.window.ShowAndRun()
 
-	// The window is closed: stop the background TTL refresh goroutine.
+	// The window is closed: stop the background goroutines. A pending
+	// fyne.DoAndWait from an in-flight monitor tick runs inline once the
+	// event loop drains (Fyne 2.8), so Stop() cannot deadlock here.
+	g.stopProxyMonitor()
 	g.stopCacheTTLTimer()
 }
 

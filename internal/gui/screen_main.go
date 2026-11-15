@@ -70,9 +70,9 @@ func (g *AppGUI) buildMainControlsBar() fyne.CanvasObject {
 	if g.sysProxyManager.IsSupported() {
 		proxyLabel := widget.NewLabelWithStyle(i18n.T("gui.label_sys_proxy"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
-		alignedLabel := newVPad(proxyLabel, 3)
+		alignedLabel := newVPad(proxyLabel)
 		borderedSwitch := newBorderedBox(g.switchProxy)
-		alignedSwitch := newVPad(borderedSwitch, 3)
+		alignedSwitch := newVPad(borderedSwitch)
 
 		leftSide = container.NewVBox(
 			g.cacheTTLLabel,
@@ -80,6 +80,8 @@ func (g *AppGUI) buildMainControlsBar() fyne.CanvasObject {
 				g.btnSettings,
 				alignedLabel,
 				alignedSwitch,
+				newVPad(widget.NewLabelWithStyle(i18n.T("gui.label_monitoring"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})),
+				newVPad(newBorderedBox(g.monitorSwitch)),
 			),
 		)
 	} else {
@@ -234,6 +236,7 @@ func (g *AppGUI) runBatchCheck() {
 	fyne.Do(func() {
 		g.proxyItems = guiItems
 		g.resetAndApplyFilter()
+		g.updateMonitorPool()
 	})
 
 	if ctx.Err() != nil {

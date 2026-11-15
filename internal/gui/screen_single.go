@@ -85,6 +85,7 @@ func (g *AppGUI) ShowSingleCheckScreen() {
 			fyne.Do(func() {
 				g.proxyItems = []*ProxyItemWrapper{item}
 				g.resetAndApplyFilter()
+				g.updateMonitorPool()
 			})
 			g.appendLog(common.LogLevelInfo, fmt.Sprintf("%s: %d\n", i18n.T("gui.single.log_done"), res.StatusCode))
 			_ = g.progress.Set(1.0)

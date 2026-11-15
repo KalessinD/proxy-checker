@@ -198,6 +198,10 @@ func (m *ProxyMonitor) currentInterval() time.Duration {
 // tick performs one health-check cycle: probe the active proxy and,
 // on failure, notify and try to switch according to the current mode.
 func (m *ProxyMonitor) tick(ctx context.Context) {
+	if ctx.Err() != nil {
+		return // shutdown in progress — nothing to monitor
+	}
+
 	m.settingsMu.Lock()
 	mode := m.mode
 	pool := m.pool

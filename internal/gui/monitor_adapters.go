@@ -60,7 +60,9 @@ func (s *guiActiveProxyStore) ApplyProxy(_ context.Context, item services.ProxyI
 }
 
 // guiMonitorNotifier adapts AppGUI logging and desktop notifications to the
-// services.MonitorNotifier port.
+// services.MonitorNotifier port. Safe to call from any goroutine:
+// appendLog self-synchronizes (logMutex + fyne.Do), and
+// fyne.CurrentApp().SendNotification is documented as goroutine-safe.
 type guiMonitorNotifier struct {
 	gui *AppGUI
 }
