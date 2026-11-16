@@ -27,6 +27,13 @@ type Config struct {
 	CacheTTL    int              `toml:"cache_ttl"`
 	Lang        string           `toml:"lang"`
 	GeoIPDBPath string           `toml:"geoip_db_path"`
+
+	// Monitor settings (TODO item 1). MonitorMode is one of "any",
+	// "same_country", "none"; MonitorIntervalMin is the tick period in
+	// minutes.
+	MonitorMode           string `toml:"monitor_mode"`
+	MonitorRequireCountry bool   `toml:"monitor_require_country"`
+	MonitorIntervalMin    int    `toml:"monitor_interval_min"`
 }
 
 // DefaultDialTimeout caps the TCP-dial phase of a proxy check when the
@@ -50,6 +57,9 @@ func DefaultConfig() *Config {
 		LogPath:     common.DefaultLogPath(),
 		CacheTTL:    3600,
 		Lang:        "en",
+
+		MonitorMode:        "any",
+		MonitorIntervalMin: 1,
 	}
 }
 

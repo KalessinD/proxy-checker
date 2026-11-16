@@ -124,6 +124,17 @@ func (c *tableCell) setHighlighted(isHighlighted bool, isDarkVariant bool) {
 	c.bg.Refresh()
 }
 
+// setUnavailable paints the row background with a muted red tint.
+func (c *tableCell) setUnavailable(isDarkVariant bool) {
+	if isDarkVariant {
+		c.bg.FillColor = color.NRGBA{R: 95, G: 45, B: 45, A: 160}
+	} else {
+		c.bg.FillColor = color.NRGBA{R: 255, G: 176, B: 176, A: 160}
+	}
+	c.bg.CornerRadius = 0
+	c.bg.Refresh()
+}
+
 // TappedSecondary handles the right-click event to show the copy context menu.
 func (c *tableCell) TappedSecondary(pe *fyne.PointEvent) {
 	if c.label.Text == "" || c.btn.Visible() {

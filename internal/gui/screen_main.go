@@ -338,6 +338,13 @@ func (g *AppGUI) createResultTable() *widget.Table {
 					// The error is already logged inside applySystemProxy.
 					_ = g.applySystemProxy(h, pt, string(t))
 				})
+				// Both branches are always explicit: table cells are recycled
+				// across rows, so a stale Disabled state would leak between rows.
+				if item.IsUnavailable {
+					tc.btn.Disable()
+				} else {
+					tc.btn.Enable()
+				}
 				return
 			}
 
@@ -361,9 +368,12 @@ func (g *AppGUI) createResultTable() *widget.Table {
 
 			tc.updateText(text)
 
-			if id.Row == g.highlightedRow {
+			switch {
+			case item.IsUnavailable:
+				tc.setUnavailable(g.isDarkTheme)
+			case id.Row == g.highlightedRow:
 				tc.setHighlighted(true, g.isDarkTheme)
-			} else {
+			default:
 				tc.setHighlighted(false, g.isDarkTheme)
 			}
 		},

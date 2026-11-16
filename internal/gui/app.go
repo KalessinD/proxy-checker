@@ -43,6 +43,10 @@ type (
 		HTTP    string           `json:"http"`
 		TCPMs   int64            `json:"tcp_ms"`
 		HTTPMs  int64            `json:"http_ms"`
+		// IsUnavailable flags a row whose proxy failed the monitor's health
+		// check: it renders with the unavailable background and its Apply
+		// button is disabled. Fresh wrappers reset the flag on each new scan.
+		IsUnavailable bool `json:"is_unavailable"`
 	}
 
 	// AppDependencies groups all external dependencies required to build the GUI application.

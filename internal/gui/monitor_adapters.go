@@ -80,6 +80,9 @@ func (n *guiMonitorNotifier) ProxyDown(item services.ProxyItem) {
 		i18n.T("gui.notify_monitor_down_title"),
 		fmt.Sprintf("%s:%s", item.Host, item.Port),
 	)
+	fyne.DoAndWait(func() {
+		n.gui.markProxyUnavailable(item.Host, item.Port)
+	})
 }
 
 // SwitchedTo reports a successful auto-switch to a new proxy.

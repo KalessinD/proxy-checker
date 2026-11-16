@@ -47,6 +47,7 @@ func (g *AppGUI) ShowSettingsScreen() {
 	proxyTypeSelector, http2Box := g.createProxyTypeSelector()
 	dynamicBox := g.createDynamicFieldsBox()
 	selectTarget, customEntry, customBox := g.buildTargetSelector()
+	monitorBox, selectMonitorInterval := g.createMonitorSettingsBox()
 
 	g.restoreTargetSelectorState(selectTarget, customEntry, customBox)
 
@@ -74,6 +75,8 @@ func (g *AppGUI) ShowSettingsScreen() {
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.theme")), selectTheme),
 		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.geoip_db")), geoipEntry),
 		ignoreHostsBox,
+		widget.NewSeparator(),
+		monitorBox,
 	)
 
 	btnSave := widget.NewButton(i18n.T("gui.btn_save"), func() {
@@ -95,6 +98,9 @@ func (g *AppGUI) ShowSettingsScreen() {
 				g.appendLog(common.LogLevelInfo, i18n.T("gui.settings.ignore_hosts_saved")+"\n")
 			}
 		}
+
+		g.cfg.MonitorIntervalMin = parseMonitorInterval(selectMonitorInterval.Selected)
+		g.applyMonitorSettings()
 
 		if err := g.cfg.SaveToFile(); err != nil {
 			g.appendLog(common.LogLevelError, fmt.Sprintf("%s: %v\n", i18n.T("gui.settings.save_error"), err))
@@ -375,4 +381,105 @@ func (g *AppGUI) createThemeSelector(themeLabels []string) *widget.Select {
 	}
 	selectTheme.SetSelected(currentThemeLabel)
 	return selectTheme
+}
+
+// Monitor auto-switch modes persisted in cfg.MonitorMode (TODO item 1).
+const (
+	monitorModeAny         = "any"
+	monitorModeSameCountry = "same_country"
+	monitorModeNone        = "none"
+)
+
+// createMonitorSettingsBox builds the monitoring settings block (TODO item 1):
+// the auto-switch mode selector, the "exclude proxies without country" flag
+// and the check interval selector. Returns the composed container together
+// with the interval selector: its selected value is read back in the save
+// callback of the settings screen, while the mode selector and the checkbox
+// update g.cfg directly through their change handlers.
+func (g *AppGUI) createMonitorSettingsBox() (*fyne.Container, *widget.Select) {
+	selectMode, requireCountryCheck := g.createMonitorModeSelector()
+	selectInterval := g.createMonitorIntervalSelector()
+
+	box := container.NewVBox(
+		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.monitor_mode")), selectMode),
+		requireCountryCheck,
+		container.NewGridWithColumns(2, widget.NewLabel(i18n.T("gui.settings.monitor_interval")), selectInterval),
+	)
+	return box, selectInterval
+}
+
+// createMonitorModeSelector builds the auto-switch mode selector and the
+// "exclude proxies without country" checkbox. The checkbox is greyed out
+// unless the "any available proxy" mode is selected (TODO item 1: the flag
+// only applies there). The initial selection comes from cfg.MonitorMode,
+// with unknown values falling back to the "any" mode.
+func (g *AppGUI) createMonitorModeSelector() (*widget.Select, *widget.Check) {
+	type modeOption struct {
+		label string
+		value string
+	}
+	modeOptions := []modeOption{
+		{label: i18n.T("gui.settings.monitor_mode_any"), value: monitorModeAny},
+		{label: i18n.T("gui.settings.monitor_mode_same_country"), value: monitorModeSameCountry},
+		{label: i18n.T("gui.settings.monitor_mode_none"), value: monitorModeNone},
+	}
+
+	options := make([]string, 0, len(modeOptions))
+	labelByValue := make(map[string]string, len(modeOptions))
+	valueByLabel := make(map[string]string, len(modeOptions))
+	for _, opt := range modeOptions {
+		options = append(options, opt.label)
+		labelByValue[opt.value] = opt.label
+		valueByLabel[opt.label] = opt.value
+	}
+
+	requireCountryCheck := widget.NewCheck(i18n.T("gui.settings.monitor_ignore_no_country"), func(checked bool) {
+		g.cfg.MonitorRequireCountry = checked
+	})
+	requireCountryCheck.SetChecked(g.cfg.MonitorRequireCountry)
+
+	selectMode := widget.NewSelect(options, func(label string) {
+		mode, ok := valueByLabel[label]
+		if !ok {
+			return
+		}
+		g.cfg.MonitorMode = mode
+		if mode == monitorModeAny {
+			requireCountryCheck.Enable()
+		} else {
+			requireCountryCheck.Disable()
+		}
+	})
+
+	currentLabel, known := labelByValue[g.cfg.MonitorMode]
+	if !known {
+		currentLabel = labelByValue[monitorModeAny]
+	}
+	selectMode.SetSelected(currentLabel) // fires the change handler: syncs the checkbox enabled state
+
+	return selectMode, requireCountryCheck
+}
+
+// createMonitorIntervalSelector builds the monitor tick-period selector,
+// initialized from cfg.MonitorIntervalMin. The value is not applied here:
+// it is parsed in the settings save callback so that an invalid selection
+// can fall back to the default.
+func (g *AppGUI) createMonitorIntervalSelector() *widget.Select {
+	intervalOptions := []string{"1", "2", "5", "10"}
+	selectInterval := widget.NewSelect(intervalOptions, nil)
+	selectInterval.SetSelected(strconv.Itoa(g.cfg.MonitorIntervalMin))
+	return selectInterval
+}
+
+// parseMonitorInterval converts the selected interval option into minutes.
+// An empty or invalid selection falls back to the default of 1 minute: a
+// MonitorIntervalMin of zero or less would break the monitor timer
+// (Zero-Value rule).
+func parseMonitorInterval(selected string) int {
+	const defaultIntervalMinutes = 1
+	minutes, err := strconv.Atoi(selected)
+	if err != nil || minutes <= 0 {
+		return defaultIntervalMinutes
+	}
+	return minutes
 }
