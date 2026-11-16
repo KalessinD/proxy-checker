@@ -97,6 +97,7 @@
   "gui.log_fetching": "Fetching proxies from sourceS",
   "gui.log_found": "Found. Checking...",
   "gui.log_monitor_down": "Monitored proxy is unavailable",
+  "gui.log_monitor_heartbeat": "Monitor is running",
   "gui.log_monitor_started": "Proxy monitoring started",
   "gui.log_monitor_stopped": "Proxy monitoring stopped",
   "gui.log_monitor_switch_failed": "Auto-switch failed",

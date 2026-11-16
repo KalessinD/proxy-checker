@@ -42,9 +42,16 @@ func (s *fakeStore) ApplyProxy(_ context.Context, item ProxyItem) error {
 // fakeNotifier records monitoring outcomes.
 type fakeNotifier struct {
 	mu       sync.Mutex
+	healthy  []ProxyItem
 	down     []ProxyItem
 	switched []ProxyItem
 	failed   []string
+}
+
+func (n *fakeNotifier) Healthy(item ProxyItem) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.healthy = append(n.healthy, item)
 }
 
 func (n *fakeNotifier) ProxyDown(item ProxyItem) {
@@ -121,16 +128,19 @@ func monitorPool(items ...ProxyItem) []*ProxyItem {
 	return pool
 }
 
-func TestMonitorTickHealthyProxyDoesNothing(t *testing.T) {
+func TestMonitorTickHealthyProxyNotifiesHeartbeat(t *testing.T) {
 	// failAddr differs from the active proxy, so the health check passes.
 	checker := &failingChecker{failAddr: "0.0.0.0:0"}
 	monitor, store, notifier := newMonitorFixture(t, checker)
-	store.active = ProxyItem{Host: "10.0.0.99", Port: "1080", Country: "NL"}
+	active := ProxyItem{Host: "10.0.0.99", Port: "1080", Country: "NL"}
+	store.active = active
 	store.found = true
 	monitor.UpdatePool(monitorPool(ProxyItem{Host: "10.0.0.1", Port: "1080"}), true)
 
 	monitor.tick(t.Context())
 
+	require.Len(t, notifier.healthy, 1)
+	assert.Equal(t, active.Host, notifier.healthy[0].Host)
 	assert.Empty(t, notifier.down)
 	assert.Empty(t, notifier.switched)
 	assert.Empty(t, store.applied)

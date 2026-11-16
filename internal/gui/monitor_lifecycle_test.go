@@ -109,9 +109,16 @@ func TestMonitorLifecycle_UpdatePoolSnapshotAndFreshness(t *testing.T) {
 // recordingNotifier is a race-safe services.MonitorNotifier fake for tests.
 type recordingNotifier struct {
 	mu       sync.Mutex
+	healthy  []services.ProxyItem
 	down     []services.ProxyItem
 	switched []services.ProxyItem
 	failed   []string
+}
+
+func (n *recordingNotifier) Healthy(item services.ProxyItem) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.healthy = append(n.healthy, item)
 }
 
 func (n *recordingNotifier) ProxyDown(item services.ProxyItem) {

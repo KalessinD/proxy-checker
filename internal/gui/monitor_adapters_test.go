@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"proxy-checker/internal/common"
+	"proxy-checker/internal/common/i18n"
 	"proxy-checker/internal/config"
 	"proxy-checker/internal/mocks"
 	"proxy-checker/internal/services"
@@ -119,6 +120,30 @@ func TestGuiMonitorNotifier_LogsAndNotifies(t *testing.T) {
 	require.NotEmpty(t, app.logRichText.Segments)
 	last := app.logRichText.Segments[len(app.logRichText.Segments)-1].(*widget.TextSegment)
 	assert.Contains(t, last.Text, "candidate pool is empty")
+}
+
+func TestGuiMonitorNotifier_HeartbeatLogs(t *testing.T) {
+	app, _ := newMonitorAdapterFixture(t)
+	notifier := newMonitorNotifierAdapter(app)
+
+	notifier.Healthy(services.ProxyItem{Host: "3.3.3.3", Port: "8080", Country: "NL"})
+
+	require.NotEmpty(t, app.logRichText.Segments)
+	last := app.logRichText.Segments[len(app.logRichText.Segments)-1].(*widget.TextSegment)
+	assert.Contains(t, last.Text, i18n.T("gui.log_monitor_heartbeat"),
+		"the heartbeat line must say that the monitor is running")
+	assert.Contains(t, last.Text, "3.3.3.3:8080 (NL)",
+		"the heartbeat line must include the monitored proxy address and country")
+
+	app.logRichText.Segments = nil
+	notifier.Healthy(services.ProxyItem{Host: "4.4.4.4", Port: "1080"})
+
+	require.NotEmpty(t, app.logRichText.Segments)
+	last = app.logRichText.Segments[len(app.logRichText.Segments)-1].(*widget.TextSegment)
+	assert.Contains(t, last.Text, "4.4.4.4:1080",
+		"a proxy without country must log without the country suffix")
+	assert.NotContains(t, last.Text, "()",
+		"an empty country must not produce an empty parenthesized suffix")
 }
 
 func TestGuiMonitorNotifier_ProxyDownMarksUnavailableRow(t *testing.T) {

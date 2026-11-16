@@ -40,6 +40,9 @@ type ActiveProxyStore interface {
 // MonitorNotifier reports monitoring outcomes to the user
 // (log lines, GUI banners, system notifications — adapter's choice).
 type MonitorNotifier interface {
+	// Healthy reports a successful periodic health-check: the monitor's
+	// heartbeat proving the worker is alive and watching the proxy.
+	Healthy(item ProxyItem)
 	ProxyDown(item ProxyItem)
 	SwitchedTo(item ProxyItem)
 	SwitchFailed(reason string)
@@ -217,7 +220,8 @@ func (m *ProxyMonitor) tick(ctx context.Context) {
 	result := m.checker.CheckProxy(checkCtx, failedAddr, m.params)
 	cancel()
 	if result.Error == nil {
-		return // healthy
+		m.notifier.Healthy(active) // heartbeat: one record per interval
+		return
 	}
 	if ctx.Err() != nil {
 		return // shutdown in progress — do not switch mid-teardown

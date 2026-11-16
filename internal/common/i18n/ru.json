@@ -96,6 +96,7 @@
   "gui.log_fetching": "Загрузка прокси из источников",
   "gui.log_found": "Найдено. Проверка...",
   "gui.log_monitor_down": "Мониторимый прокси недоступен",
+  "gui.log_monitor_heartbeat": "Мониторинг работает",
   "gui.log_monitor_started": "Мониторинг прокси запущен",
   "gui.log_monitor_stopped": "Мониторинг прокси остановлен",
   "gui.log_monitor_switch_failed": "Автопереключение не удалось",

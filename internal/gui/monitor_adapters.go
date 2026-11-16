@@ -72,6 +72,19 @@ func newMonitorNotifierAdapter(gui *AppGUI) services.MonitorNotifier {
 	return &guiMonitorNotifier{gui: gui}
 }
 
+// Healthy reports a successful periodic health-check. It is the monitor's
+// heartbeat: one log line per interval proves the worker is alive and
+// watching the proxy (the log includes the address and, when known, the
+// country of the monitored proxy).
+func (n *guiMonitorNotifier) Healthy(item services.ProxyItem) {
+	addr := fmt.Sprintf("%s:%s", item.Host, item.Port)
+	if item.Country != "" {
+		addr = fmt.Sprintf("%s (%s)", addr, item.Country)
+	}
+	n.gui.appendLog(common.LogLevelInfo, fmt.Sprintf(
+		"%s %s", i18n.T("gui.log_monitor_heartbeat"), addr))
+}
+
 // ProxyDown reports the unavailability of the monitored proxy.
 func (n *guiMonitorNotifier) ProxyDown(item services.ProxyItem) {
 	n.gui.appendLog(common.LogLevelError, fmt.Sprintf(
